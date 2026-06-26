@@ -56,8 +56,8 @@ export default function ChangePassword({ user, onPasswordUpdated }) {
       toast.success('Password updated. Welcome to your dashboard.');
       onPasswordUpdated();
     } catch (err) {
-      if (err.message.includes('Invalid email') || err.message.includes('credentials')) {
-        setError('Current password is incorrect.');
+      if (err.message.includes('Invalid email') || err.message.includes('credentials') || err.message.includes('invalid_credentials')) {
+        setError('Temporary password is incorrect. Check your invite email or ask your admin to resend it.');
       } else {
         setError(err.message);
       }
@@ -97,7 +97,7 @@ export default function ChangePassword({ user, onPasswordUpdated }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Current password confirmation */}
           <div className="space-y-1">
-            <label className="text-2xs font-semibold text-slate-400 uppercase tracking-wider pl-1">Current Password</label>
+            <label className="text-2xs font-semibold text-slate-400 uppercase tracking-wider pl-1">Temporary Password (from your invite email)</label>
             <div className="relative">
               <Key className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
               <input
@@ -105,7 +105,7 @@ export default function ChangePassword({ user, onPasswordUpdated }) {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 className="w-full glass-input pl-10 pr-3 py-2.5 rounded-xl text-xs"
-                placeholder="Enter your current password"
+                placeholder="Enter the temp password from your invite email"
                 required
               />
             </div>
