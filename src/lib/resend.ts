@@ -17,7 +17,6 @@
  *   supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
  *   supabase secrets set EMAIL_FROM=noreply@digitalbuddies.in
  *   supabase secrets set APP_URL=https://your-app-domain.com
- * re_c3LhkAXp_NzYDFty3FzM1dR6Y9zyMWLfZ
  */
 
 export {};
