@@ -3,7 +3,6 @@ import {
   Users, Calendar, Clock, DollarSign, Send, Star, ShieldCheck, Briefcase, Plus, 
   Trash2, Edit2, Check, X, Printer, Download, Key, RefreshCw, Eye, Activity, Mail
 } from 'lucide-react';
-import { emailService } from '../../lib/emailService';
 import { useToast } from '../shared/Toast';
 
 export default function HR({ state, updateState, user = { role: 'Super Admin', id: 'EMP01' } }) {
@@ -149,31 +148,19 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         createdAt: new Date().toISOString()
       };
 
-      try {
-        const result = await emailService.sendWelcomeEmail({
-          name: empName,
-          email: empEmail.toLowerCase().trim(),
-          password: temporaryPassword
-        });
+      updateState({
+        employees: [...employees, newEmp],
+        employeeInvites: [...(state.employeeInvites || []), newInvite]
+      });
 
-        updateState({
-          employees: [...employees, newEmp],
-          employeeInvites: [...(state.employeeInvites || []), newInvite]
-        });
-
-        // Set info modal details
-        setCreatedInviteInfo({
-          name: empName,
-          email: empEmail.toLowerCase().trim(),
-          password: temporaryPassword,
-          mocked: result.mocked,
-          html: result.data?.html || ''
-        });
-        setShowInviteModal(true);
-        resetForm();
-      } catch (err) {
-        toast.error(`Failed to send invitation: ${err.message}`);
-      }
+      setCreatedInviteInfo({
+        name: empName,
+        email: empEmail.toLowerCase().trim(),
+        password: temporaryPassword,
+        type: 'create'
+      });
+      setShowInviteModal(true);
+      resetForm();
     }
   };
 
@@ -221,31 +208,20 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       createdAt: new Date().toISOString()
     };
 
-    try {
-      const result = await emailService.sendWelcomeEmail({
-        name: emp.name,
-        email: emp.email.toLowerCase().trim(),
-        password: temporaryPassword
-      });
+    const updated = employees.map(e => e.id === emp.id ? { ...e, password: temporaryPassword, status: 'Invited', mustChangePassword: true } : e);
+    updateState({
+      employees: updated,
+      employeeInvites: [...(state.employeeInvites || []), newInvite]
+    });
 
-      const updated = employees.map(e => e.id === emp.id ? { ...e, password: temporaryPassword, status: 'Invited', mustChangePassword: true } : e);
-      updateState({
-        employees: updated,
-        employeeInvites: [...(state.employeeInvites || []), newInvite]
-      });
-
-      setCreatedInviteInfo({
-        name: emp.name,
-        email: emp.email.toLowerCase().trim(),
-        password: temporaryPassword,
-        mocked: result.mocked,
-        html: result.data?.html || ''
-      });
-      setShowInviteModal(true);
-      toast.success(`Invitation resent to ${emp.name}`);
-    } catch (err) {
-      toast.error(`Failed to resend invitation: ${err.message}`);
-    }
+    setCreatedInviteInfo({
+      name: emp.name,
+      email: emp.email.toLowerCase().trim(),
+      password: temporaryPassword,
+      type: 'resend'
+    });
+    setShowInviteModal(true);
+    toast.success(`Invitation resent to ${emp.name}`);
   };
 
   const handleResetPassword = async (emp) => {
@@ -259,17 +235,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       name: emp.name,
       email: emp.email,
       password: temporaryPassword,
-      mocked: true,
-      html: `
-        <div style="font-family: sans-serif; color: #cbd5e1; background: #0f0b21; padding: 20px; border-radius: 8px;">
-          <h3 style="color: #c084fc; margin-top:0;">Credentials Reset Details</h3>
-          <p>Hi ${emp.name}, your password has been reset.</p>
-          <div style="background: rgba(139, 92, 246, 0.08); padding: 12px; border-radius: 6px; margin: 15px 0; border: 1px solid rgba(139, 92, 246, 0.2);">
-            <strong>New Temporary Password:</strong> <span style="font-family:monospace; color:#f472b6; font-size:15px;">${temporaryPassword}</span>
-          </div>
-          <p>Please log in and update your password immediately.</p>
-        </div>
-      `
+      type: 'reset'
     });
     setShowInviteModal(true);
     toast.success(`Password reset for ${emp.name}. Temporary password generated.`);
@@ -1652,70 +1618,106 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       {/* -------------------------
           ONBOARDING EMAIL MODAL (MOCK TOAST)
           ------------------------- */}
-      {showInviteModal && createdInviteInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-violet-500/20 rounded-3xl p-6 max-w-xl w-full space-y-4 relative overflow-hidden shadow-2xl">
-            <div className="absolute -top-12 -right-12 w-24 h-24 bg-violet-600/10 rounded-full blur-2xl" />
-            <div className="flex justify-between items-start border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-md font-bold text-slate-100 flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-violet-400" />
-                  {createdInviteInfo.mocked ? 'Simulated Onboarding Dispatch' : 'Invitation Sent Successfully'}
-                </h3>
-                <p className="text-3xs text-slate-400">
-                  {createdInviteInfo.mocked 
-                    ? 'Resend API is in Offline/Mock mode. Copy the credentials below to test.' 
-                    : `Account invitation email has been sent to ${createdInviteInfo.email}`}
-                </p>
-              </div>
-              <button onClick={() => { setShowInviteModal(false); setCreatedInviteInfo(null); }} className="text-slate-400 hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-3 text-xs bg-slate-950/80 p-4 rounded-xl border border-slate-900 text-slate-300 font-sans max-h-[350px] overflow-y-auto">
-              <div><strong>From:</strong> noreply@digitalbuddies.in</div>
-              <div><strong>To:</strong> {createdInviteInfo.email}</div>
-              <div><strong>Subject:</strong> Welcome to Digital Buddies – Your AntiGravity Account</div>
-              <hr className="border-slate-800 my-2" />
-              <div className="whitespace-pre-wrap leading-relaxed select-all">
-                Hi {createdInviteInfo.name},
-                <br /><br />
-                Your AntiGravity account has been created.
-                <br /><br />
-                <strong>Login URL:</strong> {window.location.origin}
-                <br />
-                <strong>Email:</strong> {createdInviteInfo.email}
-                <br />
-                <strong>Temporary Password:</strong> <span className="bg-purple-950 px-2 py-0.5 rounded text-pink-400 font-mono font-bold select-all">{createdInviteInfo.password}</span>
-                <br /><br />
-                Please log in and change your password immediately.
-                <br /><br />
-                Regards,<br />
-                Digital Buddies
-              </div>
-            </div>
+      {showInviteModal && createdInviteInfo && (() => {
+        const credText = `Hi ${createdInviteInfo.name},\n\nYour Digital Buddies ERP account has been created.\n\nLogin URL: ${window.location.origin}\nEmail: ${createdInviteInfo.email}\nTemporary Password: ${createdInviteInfo.password}\n\nPlease log in and change your password immediately.`;
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(credText)}`;
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&su=${encodeURIComponent('Your Digital Buddies ERP Credentials')}&body=${encodeURIComponent(credText)}`;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-violet-500/20 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl">
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(`Email: ${createdInviteInfo.email}\nPassword: ${createdInviteInfo.password}`);
-                  toast.success('Credentials copied to clipboard.');
-                }}
-                className="bg-violet-650 hover:bg-violet-755 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition cursor-pointer"
-              >
-                Copy Credentials
-              </button>
+              {/* Header */}
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-2.5">
+                  <div className="bg-green-500/15 p-2 rounded-xl">
+                    <Check className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-100">{createdInviteInfo.type === 'reset' ? 'Password reset successfully' : createdInviteInfo.type === 'resend' ? 'Invite resent' : 'Employee created successfully'}</h3>
+                    <p className="text-xs text-slate-400">{createdInviteInfo.type === 'reset' || createdInviteInfo.type === 'resend' ? `New credentials for ${createdInviteInfo.name}` : `Share these credentials with ${createdInviteInfo.name}`}</p>
+                  </div>
+                </div>
+                <button onClick={() => { setShowInviteModal(false); setCreatedInviteInfo(null); }} className="text-slate-500 hover:text-slate-300 transition cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Credentials card */}
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Login URL</span>
+                  <span className="text-xs text-slate-300 font-mono">{window.location.origin}</span>
+                </div>
+                <div className="border-t border-slate-800/60" />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Email</span>
+                  <span className="text-xs text-slate-200 font-mono select-all">{createdInviteInfo.email}</span>
+                </div>
+                <div className="border-t border-slate-800/60" />
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider flex-shrink-0">Temp Password</span>
+                  <span className="text-sm text-pink-400 font-mono font-bold bg-pink-950/40 px-3 py-1 rounded-lg select-all tracking-wide">{createdInviteInfo.password}</span>
+                </div>
+              </div>
+
+              {/* Info note */}
+              <p className="text-xs text-slate-500 flex items-start gap-1.5">
+                <Key className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-amber-500" />
+                Employee will be forced to change this password on first login.
+              </p>
+
+              {/* Share buttons */}
+              <div className="space-y-2">
+                <p className="text-xs text-slate-500 font-medium">Send credentials via</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(credText);
+                      toast.success('Credentials copied to clipboard.');
+                    }}
+                    className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2.5 px-3 rounded-xl transition cursor-pointer"
+                  >
+                    <Key className="w-3.5 h-3.5" /> Copy text
+                  </button>
+                  <a
+                    href={waUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] text-xs font-semibold py-2.5 px-3 rounded-xl transition"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    WhatsApp
+                  </a>
+                  <a
+                    href={gmailUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold py-2.5 px-3 rounded-xl transition"
+                  >
+                    <Mail className="w-3.5 h-3.5" /> Gmail
+                  </a>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`Email: ${createdInviteInfo.email}\nPassword: ${createdInviteInfo.password}`);
+                      toast.success('Credentials only copied.');
+                    }}
+                    className="flex items-center justify-center gap-2 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 text-xs font-semibold py-2.5 px-3 rounded-xl transition cursor-pointer"
+                  >
+                    <Key className="w-3.5 h-3.5" /> Credentials only
+                  </button>
+                </div>
+              </div>
+
               <button
                 onClick={() => { setShowInviteModal(false); setCreatedInviteInfo(null); }}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-bold py-2.5 px-4 rounded-xl transition cursor-pointer"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-semibold py-2.5 rounded-xl transition cursor-pointer"
               >
-                Dismiss
+                Done
               </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* -------------------------
           LOGIN ACTIVITY HISTORY MODAL
