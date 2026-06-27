@@ -7,25 +7,42 @@ import { supabase } from '../data/auth';
  *
  * Rendered by App.jsx when the URL contains ?invite=<token>
  *
+ * All Supabase reads go through the validate-invite Edge Function
+ * (service-role key) so RLS never blocks an unauthenticated visitor.
+ *
  * Flow:
- *  1. Look up the token in `employee_invites` table
- *  2. Validate — not used, not expired (7 h window)
- *  3. Employee sets a password
- *  4. Update Supabase Auth password + clear mustChangePassword flag
- *  5. Sign in automatically → call onInviteAccepted(sessionUser)
+ *  1. POST /validate-invite  { token }           → get employee name/email
+ *  2. Employee types + confirms their password
+ *  3. POST /validate-invite  { token, password } → activate account, get session
+ *  4. Store session → call onInviteAccepted(sessionUser)
  */
 
-const INVITE_EXPIRY_MS = 7 * 60 * 60 * 1000; // 7 hours
+const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+async function callEdge(body) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/validate-invite`, {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unexpected error');
+  return data;
+}
 
 export default function AcceptInvite({ token, onInviteAccepted }) {
-  const [status, setStatus]       = useState('validating'); // validating | ready | submitting | done | error
-  const [invite, setInvite]       = useState(null);
-  const [employee, setEmployee]   = useState(null);
-  const [errorMsg, setErrorMsg]   = useState('');
-  const [password, setPassword]   = useState('');
-  const [confirm, setConfirm]     = useState('');
-  const [showPw, setShowPw]       = useState(false);
-  const [showCf, setShowCf]       = useState(false);
+  const [status, setStatus]     = useState('validating'); // validating | ready | submitting | done | error
+  const [employee, setEmployee] = useState(null);
+  const [inviteId, setInviteId] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm]   = useState('');
+  const [showPw, setShowPw]     = useState(false);
+  const [showCf, setShowCf]     = useState(false);
 
   // ── Step 1: validate token on mount ──────────────────────────────────────
   useEffect(() => {
@@ -39,57 +56,17 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
 
   const validateToken = async () => {
     try {
-      // Fetch invite record
-      const { data: inv, error: invErr } = await supabase
-        .from('employee_invites')
-        .select('*')
-        .eq('token', token)
-        .single();
-
-      if (invErr || !inv) {
-        setErrorMsg('This invite link is invalid or has already been used.');
-        setStatus('error');
-        return;
-      }
-
-      // Check expiry
-      const created = new Date(inv.created_at).getTime();
-      if (Date.now() - created > INVITE_EXPIRY_MS) {
-        setErrorMsg('This invite link has expired (7-hour window). Ask HR to resend the invite.');
-        setStatus('error');
-        return;
-      }
-
-      // Check already accepted
-      if (inv.accepted) {
-        setErrorMsg('This invite link has already been used. Please log in normally or ask HR to resend.');
-        setStatus('error');
-        return;
-      }
-
-      // Fetch matching employee
-      const { data: emp, error: empErr } = await supabase
-        .from('employees')
-        .select('*')
-        .eq('id', inv.employee_id)
-        .single();
-
-      if (empErr || !emp) {
-        setErrorMsg('Employee record not found. Please contact HR.');
-        setStatus('error');
-        return;
-      }
-
-      setInvite(inv);
-      setEmployee(emp);
+      const data = await callEdge({ token });
+      setEmployee(data.employee);
+      setInviteId(data.inviteId);
       setStatus('ready');
     } catch (err) {
-      setErrorMsg(err.message || 'Something went wrong while validating your link.');
+      setErrorMsg(err.message);
       setStatus('error');
     }
   };
 
-  // ── Step 2: set password & auto-login ────────────────────────────────────
+  // ── Step 2: set password & activate ──────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -106,50 +83,26 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
     setStatus('submitting');
 
     try {
-      // 1. Sign in with the stored temp password so we have an active session
-      //    (Supabase requires a session to call updateUser)
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email:    employee.email,
-        password: employee.password, // temp password stored on the employee row
-      });
-      if (signInErr) throw new Error('Could not verify your account. Please ask HR to resend the invite.');
+      // Edge function sets Auth password, marks invite accepted, activates employee
+      // and returns a real Supabase session
+      const data = await callEdge({ token, password });
 
-      // 2. Update the password in Supabase Auth
-      const { error: updateErr } = await supabase.auth.updateUser({ password });
-      if (updateErr) throw updateErr;
+      // Restore the Supabase session in the client so auth.getSession() works
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token:  data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      }
 
-      // 3. Mark invite as accepted
-      await supabase
-        .from('employee_invites')
-        .update({ accepted: true, accepted_at: new Date().toISOString() })
-        .eq('id', invite.id);
-
-      // 4. Clear mustChangePassword + set Active on employee row
-      await supabase
-        .from('employees')
-        .update({ must_change_password: false, status: 'Active', password: null })
-        .eq('id', employee.id);
-
-      // 5. Build session user and hand off to App
-      const sessionUser = {
-        id:                 employee.id,
-        email:              employee.email,
-        name:               employee.name,
-        role:               employee.role || 'Employee',
-        department:         employee.department,
-        designation:        employee.designation || '',
-        avatar:             employee.avatar || '',
-        mustChangePassword: false,
-        status:             'Active',
-        loginAt:            Date.now(),
-      };
+      // Build + store the ERP session object
+      const sessionUser = { ...data.employee, loginAt: Date.now() };
       sessionStorage.setItem('neomax_session', JSON.stringify(sessionUser));
 
       setStatus('done');
-      // Small delay so the user sees the success state
       setTimeout(() => onInviteAccepted(sessionUser), 1400);
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to set your password. Please try again.');
+      setErrorMsg(err.message);
       setStatus('ready');
     }
   };
@@ -159,7 +112,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
     <div className="min-h-screen bg-[#0f0b21] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
 
-        {/* Logo / brand */}
+        {/* Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-violet-600/20 border border-violet-500/30 mb-4">
             <ShieldCheck className="w-7 h-7 text-violet-400" />
@@ -170,7 +123,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
 
         <div className="bg-slate-900 border border-violet-500/20 rounded-2xl p-7 shadow-2xl">
 
-          {/* ── Validating ── */}
+          {/* Validating */}
           {status === 'validating' && (
             <div className="flex flex-col items-center gap-4 py-6">
               <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
@@ -178,7 +131,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
             </div>
           )}
 
-          {/* ── Error ── */}
+          {/* Error */}
           {status === 'error' && (
             <div className="flex flex-col items-center gap-4 py-4 text-center">
               <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
@@ -188,16 +141,13 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
                 <h2 className="text-base font-semibold text-slate-100 mb-1">Link Invalid</h2>
                 <p className="text-sm text-slate-400 leading-relaxed">{errorMsg}</p>
               </div>
-              <a
-                href={window.location.origin}
-                className="mt-2 text-xs text-violet-400 hover:text-violet-300 underline underline-offset-2 transition"
-              >
+              <a href={window.location.origin} className="mt-2 text-xs text-violet-400 hover:text-violet-300 underline underline-offset-2 transition">
                 Go to login page
               </a>
             </div>
           )}
 
-          {/* ── Success ── */}
+          {/* Success */}
           {status === 'done' && (
             <div className="flex flex-col items-center gap-4 py-6 text-center">
               <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -211,7 +161,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
             </div>
           )}
 
-          {/* ── Set Password Form ── */}
+          {/* Set Password Form */}
           {(status === 'ready' || status === 'submitting') && employee && (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
@@ -221,7 +171,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
                 </p>
               </div>
 
-              {/* Email (read-only) */}
+              {/* Email read-only */}
               <div>
                 <label className="text-xs text-slate-500 uppercase tracking-wider block mb-1.5">Your Email</label>
                 <input
@@ -245,11 +195,8 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
                     autoFocus
                     className="w-full bg-slate-800 border border-slate-700 focus:border-violet-500 text-slate-100 text-sm rounded-xl px-4 py-2.5 pr-10 outline-none transition"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition cursor-pointer"
-                  >
+                  <button type="button" onClick={() => setShowPw(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition cursor-pointer">
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
@@ -267,11 +214,8 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
                     required
                     className="w-full bg-slate-800 border border-slate-700 focus:border-violet-500 text-slate-100 text-sm rounded-xl px-4 py-2.5 pr-10 outline-none transition"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowCf(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition cursor-pointer"
-                  >
+                  <button type="button" onClick={() => setShowCf(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition cursor-pointer">
                     {showCf ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
