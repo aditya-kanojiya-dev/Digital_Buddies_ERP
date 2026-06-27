@@ -4,7 +4,6 @@ import {
   Trash2, Edit2, Check, X, Printer, Download, Key, RefreshCw, Eye, Activity, Mail
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
-import { auth } from '../../data/auth';
 import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
 
@@ -118,10 +117,11 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         return isNaN(num) ? max : (num > max ? num : max);
       }, 0) + 1;
       const employeeId = `EMP${String(nextNum).padStart(2, '0')}`;
-      const temporaryPassword = 'db_temp_' + Math.random().toString(36).substring(2, 8);
-      const inviteToken = 'tok_' + Math.random().toString(36).substring(2, 10);
+const inviteToken =
+  'tok_' + Math.random().toString(36).substring(2, 10);
 
-      const normalizedEmail = empEmail.toLowerCase().trim();
+const normalizedEmail =
+  empEmail.toLowerCase().trim();
 
       const newEmp = {
         id: employeeId,
@@ -136,7 +136,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         bio: "Company team member.",
         skills: "Operations",
         managerId: empManagerId || "EMP01",
-        password: temporaryPassword,
+        password: null,
         status: 'Invited',
         mustChangePassword: true,
         avatar: ""
@@ -181,28 +181,11 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         employeeInvites: [...(state.employeeInvites || []), newInvite]
       });
 
-      // Step 2: Create Supabase Auth user — done AFTER the DB writes so session
-      // clobbering no longer affects already-committed rows.
-      try {
-        await auth.signUpEmployee(normalizedEmail, temporaryPassword, {
-          employee_id: employeeId,
-          name: empName
-        });
-      } catch (authErr) {
-        // If user already exists in Supabase Auth (e.g. re-invite), ignore that
-        // specific error but surface any other auth failures.
-        if (!authErr.message?.toLowerCase().includes('already registered')) {
-          toast.error(`Could not create login account: ${authErr.message}`);
-          return;
-        }
-      }
-
-      // Step 3: Send welcome email with invite link (non-fatal)
+      // Step 2: Send welcome email with invite link (non-fatal)
       try {
         await emailService.sendWelcomeEmail({
           name: empName,
-          email: normalizedEmail,
-          password: temporaryPassword
+          email: normalizedEmail
         });
       } catch (emailErr) {
         console.warn('[Invite] Welcome email failed:', emailErr.message);
@@ -212,7 +195,6 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       setCreatedInviteInfo({
         name: empName,
         email: normalizedEmail,
-        password: temporaryPassword,
         type: 'create'
       });
       setShowInviteModal(true);
@@ -250,85 +232,160 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   };
 
   const handleResendInvite = async (emp) => {
-    // Generate a fresh temp password on resend so old one is invalidated
-    const temporaryPassword = 'db_temp_' + Math.random().toString(36).substring(2, 8);
-    const inviteToken = 'tok_' + Math.random().toString(36).substring(2, 10);
-    const normalizedEmail = emp.email.toLowerCase().trim();
-
+    const inviteToken =
+      'tok_' + Math.random().toString(36).substring(2, 10);
+  
+    const normalizedEmail =
+      emp.email.toLowerCase().trim();
+  
     const newInvite = {
       id: `INV${Date.now()}`,
       employeeId: emp.id,
       email: normalizedEmail,
       token: inviteToken,
-      expiresAt: new Date(Date.now() + 7*60*60*1000).toISOString(),
+      expiresAt: new Date(
+        Date.now() + 7 * 60 * 60 * 1000
+      ).toISOString(),
       accepted: false,
       createdBy: user?.id || 'EMP01',
       createdAt: new Date().toISOString()
     };
-
-    const updated = employees.map(e =>
-      e.id === emp.id ? { ...e, password: temporaryPassword, status: 'Invited', mustChangePassword: true } : e
+  
+    const updated = employees.map((e) =>
+      e.id === emp.id
+        ? {
+            ...e,
+            status: 'Invited',
+            mustChangePassword: true
+          }
+        : e
     );
-
-    // handleResendInvite does not call signUpEmployee so no session
-    // clobbering happens here — just save the invite directly.
+  
     try {
       await db.addEmployeeInvite(newInvite);
     } catch (inviteErr) {
-      toast.error(`Could not save invite record: ${inviteErr.message}`);
+      toast.error(
+        `Could not save invite record: ${inviteErr.message}`
+      );
       return;
     }
-
+  
     updateState({
       employees: updated,
-      employeeInvites: [...(state.employeeInvites || []), newInvite]
+      employeeInvites: [
+        ...(state.employeeInvites || []),
+        newInvite
+      ]
     });
-
-    // Re-send welcome email with the new temp password
+  
     try {
-      await emailService.sendWelcomeEmail({ name: emp.name, email: normalizedEmail, password: temporaryPassword });
+      await emailService.sendWelcomeEmail({
+        name: emp.name,
+        email: normalizedEmail
+      });
     } catch (emailErr) {
-      console.warn('[ResendInvite] Email failed:', emailErr.message);
-      toast.warning('Credentials updated but email could not be sent. Share manually.');
+      console.warn(
+        '[ResendInvite] Email failed:',
+        emailErr.message
+      );
+  
+      toast.warning(
+        'Invite generated but email could not be sent.'
+      );
     }
-
+  
     setCreatedInviteInfo({
       name: emp.name,
       email: normalizedEmail,
-      password: temporaryPassword,
       type: 'resend'
     });
+  
     setShowInviteModal(true);
     toast.success(`Invitation resent to ${emp.name}`);
   };
 
   const handleResetPassword = async (emp) => {
-    if (!window.confirm(`Are you sure you want to reset password for ${emp.name}?`)) return;
-
-    const temporaryPassword = 'db_temp_' + Math.random().toString(36).substring(2, 8);
-    const normalizedEmail = emp.email.toLowerCase().trim();
-
-    const updated = employees.map(e =>
-      e.id === emp.id ? { ...e, password: temporaryPassword, status: 'Invited', mustChangePassword: true } : e
-    );
-    updateState({ employees: updated });
-
-    // Send the reset email so the employee receives the new temp credentials
-    try {
-      await emailService.sendWelcomeEmail({ name: emp.name, email: normalizedEmail, password: temporaryPassword });
-    } catch (emailErr) {
-      console.warn('[ResetPassword] Email failed:', emailErr.message);
-      toast.warning('Password reset but email could not be sent. Share credentials manually.');
+    if (
+      !window.confirm(
+        `Are you sure you want to reset password for ${emp.name}?`
+      )
+    ) {
+      return;
     }
-
+  
+    const inviteToken =
+      'tok_' + Math.random().toString(36).substring(2, 10);
+  
+    const normalizedEmail =
+      emp.email.toLowerCase().trim();
+  
+    const newInvite = {
+      id: `INV${Date.now()}`,
+      employeeId: emp.id,
+      email: normalizedEmail,
+      token: inviteToken,
+      expiresAt: new Date(
+        Date.now() + 7 * 60 * 60 * 1000
+      ).toISOString(),
+      accepted: false,
+      createdBy: user?.id || 'EMP01',
+      createdAt: new Date().toISOString()
+    };
+  
+    try {
+      await db.addEmployeeInvite(newInvite);
+    } catch (inviteErr) {
+      toast.error(
+        `Could not save invite record: ${inviteErr.message}`
+      );
+      return;
+    }
+  
+    const updated = employees.map((e) =>
+      e.id === emp.id
+        ? {
+            ...e,
+            status: 'Invited',
+            mustChangePassword: true
+          }
+        : e
+    );
+  
+    updateState({
+      employees: updated,
+      employeeInvites: [
+        ...(state.employeeInvites || []),
+        newInvite
+      ]
+    });
+  
+    try {
+      await emailService.sendWelcomeEmail({
+        name: emp.name,
+        email: normalizedEmail
+      });
+    } catch (emailErr) {
+      console.warn(
+        '[ResetPassword] Email failed:',
+        emailErr.message
+      );
+  
+      toast.warning(
+        'Password reset link generated but email could not be sent.'
+      );
+    }
+  
     setCreatedInviteInfo({
       name: emp.name,
       email: normalizedEmail,
-      password: temporaryPassword,
       type: 'reset'
     });
+  
     setShowInviteModal(true);
-    toast.success(`Password reset for ${emp.name}. Temporary password generated.`);
+  
+    toast.success(
+      `Password setup link sent to ${emp.name}.`
+    );
   };
 
   const handleViewActivity = (emp) => {
