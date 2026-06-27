@@ -4,7 +4,7 @@ import {
   Trash2, Edit2, Check, X, Printer, Download, Key, RefreshCw, Eye, Activity, Mail
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
-import { auth, supabase } from '../../data/auth';
+import { auth } from '../../data/auth';
 import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
 
@@ -153,12 +153,26 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         createdAt: new Date().toISOString()
       };
 
-      // Step 1: Save HR session — signUpEmployee calls supabase.auth.signUp()
-      // which replaces the current session with the new employee's session,
-      // causing the subsequent db.addEmployeeInvite() call to fail RLS.
-      // We capture the HR session here and restore it immediately after.
-      const { data: { session: hrSession } } = await supabase.auth.getSession();
+      // Step 1: Write invite record FIRST while HR session is active → RLS passes.
+      // signUpEmployee (step 2) calls supabase.auth.signUp() which clobbers the
+      // current session with the new employee's session, so any DB write after it
+      // runs as the new (unauthenticated) employee and hits the RLS block.
+      // Doing the write before signUpEmployee sidesteps the problem entirely.
+      try {
+        await db.addEmployeeInvite(newInvite);
+      } catch (inviteErr) {
+        toast.error(`Could not save invite record: ${inviteErr.message}`);
+        return;
+      }
 
+      // Sync local state so the modal can find the token
+      updateState({
+        employees: [...employees, newEmp],
+        employeeInvites: [...(state.employeeInvites || []), newInvite]
+      });
+
+      // Step 2: Create Supabase Auth user — done AFTER the DB write so session
+      // clobbering no longer matters.
       try {
         await auth.signUpEmployee(normalizedEmail, temporaryPassword, {
           employee_id: employeeId,
@@ -172,30 +186,6 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           return;
         }
       }
-
-      // Restore HR session so subsequent DB calls pass RLS
-      if (hrSession) {
-        await supabase.auth.setSession({
-          access_token:  hrSession.access_token,
-          refresh_token: hrSession.refresh_token,
-        });
-      }
-
-      // Step 2: Save invite record directly to Supabase
-      // (not via updateState which is fire-and-forget — we need to confirm
-      //  the row exists before showing the invite link)
-      try {
-        await db.addEmployeeInvite(newInvite);
-      } catch (inviteErr) {
-        toast.error(`Could not save invite record: ${inviteErr.message}`);
-        return;
-      }
-
-      // Also sync local state so the modal can find the token
-      updateState({
-        employees: [...employees, newEmp],
-        employeeInvites: [...(state.employeeInvites || []), newInvite]
-      });
 
       // Step 3: Send welcome email with temp credentials
       try {
