@@ -17,7 +17,7 @@ import Developers from './components/Departments/Developers';
 import HR from './components/Departments/HR';
 
 import AcceptInvite from './components/AcceptInvite';
-import { auth } from './data/auth';
+import { auth, supabase } from './data/auth';
 import { db } from './data/db';
 
 // Key → db.js save function mapping for Supabase persistence
@@ -71,6 +71,12 @@ export default function App() {
  // ── Fetch all data from Supabase ──────────────────────────────────────────
 const fetchAllData = async () => {
   try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    
+    console.log('FETCH SESSION:', session);
+    
     const results = await Promise.allSettled([
       db.getEmployees(),
       db.getClients(),
@@ -151,9 +157,19 @@ const fetchAllData = async () => {
   }
 };
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
+useEffect(() => {
+  const init = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    console.log('APP SESSION:', session);
+
+    await fetchAllData();
+  };
+
+  init();
+}, [user]);
 
   // ── Optimistic state update → background Supabase persist ─────────────────
   const updateState = (newSubState) => {

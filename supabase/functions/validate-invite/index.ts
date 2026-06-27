@@ -1,10 +1,3 @@
-/**
- * Supabase Edge Function: validate-invite
- *
- * POST { token }              → validate only
- * POST { token, password }    → validate + activate + return session
- */
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const CORS_HEADERS = {
@@ -26,14 +19,14 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY');
 
-  if (!serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return json(
       {
         error:
-          'Server misconfiguration — SERVICE_ROLE_KEY secret missing.',
+          'Server misconfiguration. Missing SUPABASE_URL or SERVICE_ROLE_KEY.',
       },
       500
     );
@@ -48,12 +41,6 @@ Deno.serve(async (req: Request) => {
         autoRefreshToken: false,
         detectSessionInUrl: false,
       },
-      global: {
-        headers: {
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-      },
     }
   );
 
@@ -63,28 +50,40 @@ Deno.serve(async (req: Request) => {
   try {
     ({ token, password } = await req.json());
   } catch {
-    return json({ error: 'Invalid JSON body' }, 400);
+    return json(
+      {
+        error: 'Invalid JSON body.',
+      },
+      400
+    );
   }
 
   if (!token) {
-    return json({ error: 'Missing token' }, 400);
+    return json(
+      {
+        error: 'Missing invite token.',
+      },
+      400
+    );
   }
 
-  // ======================================================
-  // Get invite
-  // ======================================================
+  // =====================================================
+  // Get Invite
+  // =====================================================
 
-  const { data: invite, error: inviteError } =
-    await admin
-      .from('employee_invites')
-      .select('*')
-      .eq('token', token)
-      .maybeSingle();
+  const {
+    data: invite,
+    error: inviteError,
+  } = await admin
+    .from('employee_invites')
+    .select('*')
+    .eq('token', token)
+    .maybeSingle();
 
   if (inviteError) {
     return json(
       {
-        error: `Database error: ${inviteError.message}`,
+        error: inviteError.message,
       },
       500
     );
@@ -100,15 +99,15 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const ageMs =
+  const age =
     Date.now() -
     new Date(invite.created_at).getTime();
 
-  if (ageMs > INVITE_EXPIRY_MS) {
+  if (age > INVITE_EXPIRY_MS) {
     return json(
       {
         error:
-          'This invite link has expired (7-hour window). Ask HR to resend the invite.',
+          'This invite link has expired. Please ask HR to resend the invitation.',
       },
       410
     );
@@ -118,41 +117,29 @@ Deno.serve(async (req: Request) => {
     return json(
       {
         error:
-          'This invite link has already been used. Please log in normally or ask HR to resend.',
+          'This invite link has already been used.',
       },
       409
     );
   }
 
-  // ======================================================
-  // Get employee
-  // ======================================================
+  // =====================================================
+  // Get Employee
+  // =====================================================
 
   const {
     data: employee,
     error: employeeError,
   } = await admin
     .from('employees')
-    .select(
-      `
-      id,
-      name,
-      email,
-      role,
-      department,
-      designation,
-      avatar,
-      status,
-      password
-    `
-    )
+    .select('*')
     .eq('id', invite.employee_id)
     .maybeSingle();
 
   if (employeeError) {
     return json(
       {
-        error: `Employee lookup error: ${employeeError.message}`,
+        error: employeeError.message,
       },
       500
     );
@@ -161,15 +148,16 @@ Deno.serve(async (req: Request) => {
   if (!employee) {
     return json(
       {
-        error: `No employee found for id "${invite.employee_id}". Contact HR.`,
+        error:
+          'Employee record not found.',
       },
       404
     );
   }
 
-  // ======================================================
-  // Validate only
-  // ======================================================
+  // =====================================================
+  // Validation Only
+  // =====================================================
 
   if (!password) {
     return json({
@@ -187,9 +175,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // ======================================================
-  // Activate employee
-  // ======================================================
+  // =====================================================
+  // Password Validation
+  // =====================================================
 
   if (password.length < 8) {
     return json(
@@ -201,38 +189,45 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // =====================================================
+  // Find Existing Auth User
+  // =====================================================
+
   const {
-    data: authList,
-    error: listErr,
+    data: authUsers,
+    error: listError,
   } = await admin.auth.admin.listUsers();
 
-  if (listErr) {
+  if (listError) {
     return json(
       {
-        error: `Could not list auth users: ${listErr.message}`,
+        error:
+          'Failed to lookup authentication users.',
       },
       500
     );
   }
 
-  let authUser = authList.users.find(
+  let authUser = authUsers.users.find(
     (u) =>
       u.email?.toLowerCase() ===
       employee.email.toLowerCase()
   );
 
-  // Create auth user if missing
+  // =====================================================
+  // Create User If Needed
+  // =====================================================
+
   if (!authUser) {
     const {
-      data: createdUser,
-      error: createErr,
+      data: created,
+      error: createError,
     } = await admin.auth.admin.createUser({
       email: employee.email,
       password,
       email_confirm: true,
       user_metadata: {
         employee_id: employee.id,
-        name: employee.name,
         role: employee.role,
         department: employee.department,
         designation:
@@ -240,19 +235,19 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    if (createErr) {
+    if (createError) {
       return json(
         {
-          error: `Could not create login account: ${createErr.message}`,
+          error: createError.message,
         },
         500
       );
     }
 
-    authUser = createdUser.user;
+    authUser = created.user;
   } else {
     const {
-      error: passwordError,
+      error: updateError,
     } = await admin.auth.admin.updateUserById(
       authUser.id,
       {
@@ -261,42 +256,44 @@ Deno.serve(async (req: Request) => {
       }
     );
 
-    if (passwordError) {
+    if (updateError) {
       return json(
         {
-          error: `Could not set password: ${passwordError.message}`,
+          error: updateError.message,
         },
         500
       );
     }
   }
 
-  // ======================================================
-  // Accept invite
-  // ======================================================
+  // =====================================================
+  // Accept Invite
+  // =====================================================
 
-  const { error: acceptError } =
-    await admin
-      .from('employee_invites')
-      .update({
-        accepted: true,
-        accepted_at:
-          new Date().toISOString(),
-      })
-      .eq('id', invite.id);
+  const {
+    error: acceptError,
+  } = await admin
+    .from('employee_invites')
+    .update({
+      accepted: true,
+      accepted_at:
+        new Date().toISOString(),
+    })
+    .eq('id', invite.id);
 
   if (acceptError) {
     return json(
       {
-        error: `Could not update invite: ${acceptError.message}`,
+        error:
+          'Failed to mark invite as accepted.',
       },
       500
     );
   }
 
-  // ======================================================
-  // Activate employee
-  // ======================================================
+  // =====================================================
+  // Activate Employee
+  // =====================================================
 
   const {
     error: activateError,
@@ -306,41 +303,28 @@ Deno.serve(async (req: Request) => {
       status: 'Active',
       must_change_password: false,
       password: null,
+      last_login:
+        new Date().toISOString(),
     })
     .eq('id', employee.id);
 
   if (activateError) {
     return json(
       {
-        error: `Could not activate employee: ${activateError.message}`,
+        error:
+          'Failed to activate employee.',
       },
       500
     );
   }
 
-  // ======================================================
-  // Sign in
-  // ======================================================
-
-  const {
-    data: signInData,
-    error: signInErr,
-  } = await admin.auth.signInWithPassword({
-    email: employee.email,
-    password,
-  });
-
-  if (signInErr) {
-    console.warn(
-      '[validate-invite] Auto sign-in failed:',
-      signInErr.message
-    );
-  }
+  // =====================================================
+  // Return Employee Only
+  // Browser will sign in separately.
+  // =====================================================
 
   return json({
     activated: true,
-    session:
-      signInData?.session ?? null,
     employee: {
       id: employee.id,
       name: employee.name,
