@@ -68,64 +68,92 @@ export default function App() {
     auditLogs: [], employeeInvites: [], loginActivity: []
   });
 
-  // ── Fetch all data from Supabase ──────────────────────────────────────────
-  const fetchAllData = async () => {
-    try {
-      const [
-        employees, clients, adStats, smmCalendar, smmQuotes, devProjects,
-        interviews, feedback, dailyOps, attendance, leaves, advances, moms,
-        tasks, taskComments, timelogs, notifications, leads, proposals, invoices,
-        projects, auditLogs, employeeInvites, loginActivity
-      ] = await Promise.all([
-        db.getEmployees(),
-        db.getClients(),
-        db.getAdStats(),
-        db.getSmmCalendar(),
-        db.getSmmQuotes(),
-        db.getDevProjects(),      // ← fixed: was db.getProjects() (wrong)
-        db.getInterviews(),
-        db.getFeedback(),
-        db.getDailyOps(),
-        db.getAttendance(),
-        db.getLeaves(),
-        db.getAdvances(),
-        db.getMoms(),
-        db.getTasks(),
-        db.getComments(),
-        db.getTimelogs(),
-        db.getNotifications(),
-        db.getLeads(),
-        db.getProposals(),
-        db.getInvoices(),
-        db.getProjects(),
-        db.getAuditLogs(),
-        db.getEmployeeInvites(),
-        db.getLoginActivity()
-      ]);
+ // ── Fetch all data from Supabase ──────────────────────────────────────────
+const fetchAllData = async () => {
+  try {
+    const results = await Promise.allSettled([
+      db.getEmployees(),
+      db.getClients(),
+      db.getAdStats(),
+      db.getSmmCalendar(),
+      db.getSmmQuotes(),
+      db.getDevProjects(),
+      db.getInterviews(),
+      db.getFeedback(),
+      db.getDailyOps(),
+      db.getAttendance(),
+      db.getLeaves(),
+      db.getAdvances(),
+      db.getMoms(),
+      db.getTasks(),
+      db.getComments(),
+      db.getTimelogs(),
+      db.getNotifications(),
+      db.getLeads(),
+      db.getProposals(),
+      db.getInvoices(),
+      db.getProjects(),
+      db.getAuditLogs(),
+      db.getEmployeeInvites(),
+      db.getLoginActivity()
+    ]);
 
-      setState({
-        employees, clients, adStats, smmCalendar, smmQuotes, devProjects,
-        interviews, feedback, dailyOps, attendance, leaves, advances, moms,
-        tasks, taskComments, timelogs, notifications, leads, proposals, invoices,
-        projects, auditLogs, employeeInvites, loginActivity
-      });
+    // Log failed requests so you know which tables have RLS issues
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.error(`Fetch ${i} failed:`, r.reason);
+      }
+    });
 
-      // Bootstrap check — if no employees exist, show Setup Wizard
-      setIsBootstrapped(employees.length > 0);
+    const getResult = (i) =>
+      results[i].status === 'fulfilled'
+        ? results[i].value
+        : [];
 
-    } catch (err) {
-      console.error('Error loading data from Supabase:', err);
-      // If fetch fails before login (RLS blocks anon), still show setup/login
-      // Don't leave the user on a blank loading screen
-      setIsBootstrapped(true); // fall through to login; wizard needs anon policy
-    } finally {
-      setLoading(false);
-    }
-  };
+    const newState = {
+      employees: getResult(0),
+      clients: getResult(1),
+      adStats: getResult(2),
+      smmCalendar: getResult(3),
+      smmQuotes: getResult(4),
+      devProjects: getResult(5),
+      interviews: getResult(6),
+      feedback: getResult(7),
+      dailyOps: getResult(8),
+      attendance: getResult(9),
+      leaves: getResult(10),
+      advances: getResult(11),
+      moms: getResult(12),
+      tasks: getResult(13),
+      taskComments: getResult(14),
+      timelogs: getResult(15),
+      notifications: getResult(16),
+      leads: getResult(17),
+      proposals: getResult(18),
+      invoices: getResult(19),
+      projects: getResult(20),
+      auditLogs: getResult(21),
+      employeeInvites: getResult(22),
+      loginActivity: getResult(23)
+    };
+
+    setState(newState);
+
+    // Bootstrap depends only on employees table
+    setIsBootstrapped(newState.employees.length > 0);
+  } catch (err) {
+    console.error('Error loading data from Supabase:', err);
+
+    // Don't lock the app on loading
+    setIsBootstrapped(true);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchAllData();
-  }, [user]);
+  }, []);
 
   // ── Optimistic state update → background Supabase persist ─────────────────
   const updateState = (newSubState) => {
