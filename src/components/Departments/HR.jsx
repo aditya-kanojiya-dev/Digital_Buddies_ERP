@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { auth } from '../../data/auth';
+import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
 
 export default function HR({ state, updateState, user = { role: 'Super Admin', id: 'EMP01' } }) {
@@ -167,7 +168,17 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         }
       }
 
-      // Step 2: Save employee record + invite record
+      // Step 2: Save employee record + invite record directly to Supabase
+      // (not via updateState which is fire-and-forget — we need to confirm
+      //  both rows exist before showing the invite link)
+      try {
+        await db.addEmployeeInvite(newInvite);
+      } catch (inviteErr) {
+        toast.error(`Could not save invite record: ${inviteErr.message}`);
+        return;
+      }
+
+      // Also sync local state so the modal can find the token
       updateState({
         employees: [...employees, newEmp],
         employeeInvites: [...(state.employeeInvites || []), newInvite]
@@ -246,6 +257,14 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     const updated = employees.map(e =>
       e.id === emp.id ? { ...e, password: temporaryPassword, status: 'Invited', mustChangePassword: true } : e
     );
+
+    try {
+      await db.addEmployeeInvite(newInvite);
+    } catch (inviteErr) {
+      toast.error(`Could not save invite record: ${inviteErr.message}`);
+      return;
+    }
+
     updateState({
       employees: updated,
       employeeInvites: [...(state.employeeInvites || []), newInvite]
