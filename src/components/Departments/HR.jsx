@@ -1673,12 +1673,25 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       )}
 
       {/* -------------------------
-          ONBOARDING EMAIL MODAL (MOCK TOAST)
+          INVITE LINK MODAL
           ------------------------- */}
       {showInviteModal && createdInviteInfo && (() => {
-        const credText = `Hi ${createdInviteInfo.name},\n\nYour Digital Buddies ERP account has been created.\n\nLogin URL: ${window.location.origin}\nEmail: ${createdInviteInfo.email}\nTemporary Password: ${createdInviteInfo.password}\n\nPlease log in and change your password immediately.`;
-        const waUrl = `https://wa.me/?text=${encodeURIComponent(credText)}`;
-        const gmailUrl = `https://mail.google.com/mail/?view=cm&su=${encodeURIComponent('Your Digital Buddies ERP Credentials')}&body=${encodeURIComponent(credText)}`;
+        // Build the one-time invite link using the token stored on the invite record
+        const inviteRecord = (state.employeeInvites || [])
+          .filter(inv => inv.email === createdInviteInfo.email)
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+        const inviteLink = inviteRecord
+          ? `${window.location.origin}?invite=${inviteRecord.token}`
+          : window.location.origin;
+
+        const isReset  = createdInviteInfo.type === 'reset';
+        const isResend = createdInviteInfo.type === 'resend';
+        const headerTitle = isReset ? 'Password reset — new link generated' : isResend ? 'Invite resent — new link generated' : 'Employee created — invite link ready';
+        const headerSub   = `Share this link with ${createdInviteInfo.name} via WhatsApp or any chat`;
+
+        const waMessage = `Hi ${createdInviteInfo.name}! 👋\n\nYou've been invited to join the Digital Buddies ERP portal.\n\nClick the link below to set your password and get started — it expires in 7 hours and works only once:\n\n🔗 ${inviteLink}\n\nWelcome to the team! 🎉`;
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
             <div className="bg-slate-900 border border-violet-500/20 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl">
@@ -1690,8 +1703,8 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                     <Check className="w-5 h-5 text-green-400" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-100">{createdInviteInfo.type === 'reset' ? 'Password reset successfully' : createdInviteInfo.type === 'resend' ? 'Invite resent' : 'Employee created successfully'}</h3>
-                    <p className="text-xs text-slate-400">{createdInviteInfo.type === 'reset' || createdInviteInfo.type === 'resend' ? `New credentials for ${createdInviteInfo.name}` : `Share these credentials with ${createdInviteInfo.name}`}</p>
+                    <h3 className="text-sm font-bold text-slate-100">{headerTitle}</h3>
+                    <p className="text-xs text-slate-400">{headerSub}</p>
                   </div>
                 </div>
                 <button onClick={() => { setShowInviteModal(false); setCreatedInviteInfo(null); }} className="text-slate-500 hover:text-slate-300 transition cursor-pointer">
@@ -1699,42 +1712,48 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                 </button>
               </div>
 
-              {/* Credentials card */}
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider">Login URL</span>
-                  <span className="text-xs text-slate-300 font-mono">{window.location.origin}</span>
+              {/* Invite link card */}
+              <div className="bg-slate-950 border border-violet-500/20 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider flex-shrink-0">For</span>
+                  <span className="text-xs text-slate-200 font-semibold">{createdInviteInfo.name}</span>
                 </div>
                 <div className="border-t border-slate-800/60" />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider">Email</span>
-                  <span className="text-xs text-slate-200 font-mono select-all">{createdInviteInfo.email}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider flex-shrink-0">Email</span>
+                  <span className="text-xs text-slate-300 font-mono">{createdInviteInfo.email}</span>
                 </div>
                 <div className="border-t border-slate-800/60" />
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider flex-shrink-0">Temp Password</span>
-                  <span className="text-sm text-pink-400 font-mono font-bold bg-pink-950/40 px-3 py-1 rounded-lg select-all tracking-wide">{createdInviteInfo.password}</span>
+                <div className="space-y-2">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider block">One-time invite link</span>
+                  <div className="bg-slate-900 border border-violet-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <span className="text-xs text-violet-300 font-mono break-all flex-1 select-all">{inviteLink}</span>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success('Invite link copied!'); }}
+                      className="flex-shrink-0 text-slate-500 hover:text-violet-300 transition cursor-pointer"
+                      title="Copy link"
+                    >
+                      <Key className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Info note */}
-              <p className="text-xs text-slate-500 flex items-start gap-1.5">
-                <Key className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-amber-500" />
-                Employee will be forced to change this password on first login.
+              {/* Expiry note */}
+              <p className="text-xs text-amber-500/80 flex items-start gap-1.5">
+                <Key className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                This link expires in 7 hours and becomes invalid after the employee uses it once. If it expires, use "Resend Invite" to generate a new one.
               </p>
 
               {/* Share buttons */}
               <div className="space-y-2">
-                <p className="text-xs text-slate-500 font-medium">Send credentials via</p>
+                <p className="text-xs text-slate-500 font-medium">Share via</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(credText);
-                      toast.success('Credentials copied to clipboard.');
-                    }}
+                    onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success('Invite link copied to clipboard.'); }}
                     className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2.5 px-3 rounded-xl transition cursor-pointer"
                   >
-                    <Key className="w-3.5 h-3.5" /> Copy text
+                    <Key className="w-3.5 h-3.5" /> Copy link
                   </button>
                   <a
                     href={waUrl}
@@ -1745,23 +1764,6 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                     WhatsApp
                   </a>
-                  <a
-                    href={gmailUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold py-2.5 px-3 rounded-xl transition"
-                  >
-                    <Mail className="w-3.5 h-3.5" /> Gmail
-                  </a>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`Email: ${createdInviteInfo.email}\nPassword: ${createdInviteInfo.password}`);
-                      toast.success('Credentials only copied.');
-                    }}
-                    className="flex items-center justify-center gap-2 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 text-xs font-semibold py-2.5 px-3 rounded-xl transition cursor-pointer"
-                  >
-                    <Key className="w-3.5 h-3.5" /> Credentials only
-                  </button>
                 </div>
               </div>
 

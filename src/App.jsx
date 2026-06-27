@@ -16,6 +16,7 @@ import Creative from './components/Departments/Creative';
 import Developers from './components/Departments/Developers';
 import HR from './components/Departments/HR';
 
+import AcceptInvite from './components/AcceptInvite';
 import { auth } from './data/auth';
 import { db } from './data/db';
 
@@ -52,6 +53,12 @@ export default function App() {
   const [loading, setLoading]             = useState(true);
   const [isBootstrapped, setIsBootstrapped] = useState(true);
   const [activeTab, setActiveTab]         = useState('dashboard');
+
+  // Detect ?invite=TOKEN in the URL (one-time employee onboarding link)
+  const [inviteToken]                     = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('invite') || null;
+  });
 
   const [state, setState] = useState({
     employees: [], clients: [], adStats: [], smmCalendar: [], smmQuotes: [],
@@ -207,6 +214,22 @@ export default function App() {
         recordLoginActivity(founderUser.id, 'login');
         setActiveTab('founder');
       }} />
+    );
+  }
+
+  // ── 1a. One-time invite link ──────────────────────────────────────────────
+  if (inviteToken) {
+    return (
+      <AcceptInvite
+        token={inviteToken}
+        onInviteAccepted={async (sessionUser) => {
+          // Strip the ?invite= param from the URL so a refresh goes to normal login
+          window.history.replaceState({}, '', window.location.pathname);
+          setUser(sessionUser);
+          await recordLoginActivity(sessionUser.id, 'login');
+          setActiveTab('dashboard');
+        }}
+      />
     );
   }
 
