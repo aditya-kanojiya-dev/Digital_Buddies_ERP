@@ -147,17 +147,27 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         employeeId: employeeId,
         email: normalizedEmail,
         token: inviteToken,
-        expiresAt: new Date(Date.now() + 48*60*60*1000).toISOString(),
+        expiresAt: new Date(Date.now() + 7*60*60*1000).toISOString(),
         accepted: false,
         createdBy: user?.id || 'EMP01',
         createdAt: new Date().toISOString()
       };
 
-      // Step 1: Write invite record FIRST while HR session is active → RLS passes.
-      // signUpEmployee (step 2) calls supabase.auth.signUp() which clobbers the
-      // current session with the new employee's session, so any DB write after it
-      // runs as the new (unauthenticated) employee and hits the RLS block.
-      // Doing the write before signUpEmployee sidesteps the problem entirely.
+      // Step 1a: Write employee row to Supabase FIRST.
+      // The validate-invite Edge Function queries the employees table by id —
+      // if this row doesn't exist yet, the invite link returns "No employee found".
+      // We must guarantee it lands in the DB before the invite is usable.
+      try {
+        await db.addEmployee(newEmp);
+      } catch (empErr) {
+        toast.error(`Could not create employee record: ${empErr.message}`);
+        return;
+      }
+
+      // Step 1b: Write invite record while HR session is still active → RLS passes.
+      // signUpEmployee (step 2) calls supabase.auth.signUp() which replaces the
+      // current session with the new employee's unconfirmed session, so any DB
+      // write after it runs as the wrong user and hits the RLS block.
       try {
         await db.addEmployeeInvite(newInvite);
       } catch (inviteErr) {
@@ -165,14 +175,14 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         return;
       }
 
-      // Sync local state so the modal can find the token
+      // Sync local state (now just reflecting what's already in Supabase)
       updateState({
         employees: [...employees, newEmp],
         employeeInvites: [...(state.employeeInvites || []), newInvite]
       });
 
-      // Step 2: Create Supabase Auth user — done AFTER the DB write so session
-      // clobbering no longer matters.
+      // Step 2: Create Supabase Auth user — done AFTER the DB writes so session
+      // clobbering no longer affects already-committed rows.
       try {
         await auth.signUpEmployee(normalizedEmail, temporaryPassword, {
           employee_id: employeeId,
@@ -187,7 +197,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         }
       }
 
-      // Step 3: Send welcome email with temp credentials
+      // Step 3: Send welcome email with invite link (non-fatal)
       try {
         await emailService.sendWelcomeEmail({
           name: empName,
@@ -195,7 +205,6 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           password: temporaryPassword
         });
       } catch (emailErr) {
-        // Email failure is non-fatal — credentials are shown in the modal below
         console.warn('[Invite] Welcome email failed:', emailErr.message);
         toast.warning('Employee created but welcome email could not be sent. Share credentials manually.');
       }
@@ -251,7 +260,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       employeeId: emp.id,
       email: normalizedEmail,
       token: inviteToken,
-      expiresAt: new Date(Date.now() + 48*60*60*1000).toISOString(),
+      expiresAt: new Date(Date.now() + 7*60*60*1000).toISOString(),
       accepted: false,
       createdBy: user?.id || 'EMP01',
       createdAt: new Date().toISOString()
