@@ -4,7 +4,7 @@ import {
   Trash2, Edit2, Check, X, Printer, Download, Key, RefreshCw, Eye, Activity, Mail
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
-import { auth } from '../../data/auth';
+import { auth, supabase } from '../../data/auth';
 import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
 
@@ -153,7 +153,12 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         createdAt: new Date().toISOString()
       };
 
-      // Step 1: Create Supabase Auth user so the employee can log in
+      // Step 1: Save HR session — signUpEmployee calls supabase.auth.signUp()
+      // which replaces the current session with the new employee's session,
+      // causing the subsequent db.addEmployeeInvite() call to fail RLS.
+      // We capture the HR session here and restore it immediately after.
+      const { data: { session: hrSession } } = await supabase.auth.getSession();
+
       try {
         await auth.signUpEmployee(normalizedEmail, temporaryPassword, {
           employee_id: employeeId,
@@ -168,9 +173,17 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         }
       }
 
-      // Step 2: Save employee record + invite record directly to Supabase
+      // Restore HR session so subsequent DB calls pass RLS
+      if (hrSession) {
+        await supabase.auth.setSession({
+          access_token:  hrSession.access_token,
+          refresh_token: hrSession.refresh_token,
+        });
+      }
+
+      // Step 2: Save invite record directly to Supabase
       // (not via updateState which is fire-and-forget — we need to confirm
-      //  both rows exist before showing the invite link)
+      //  the row exists before showing the invite link)
       try {
         await db.addEmployeeInvite(newInvite);
       } catch (inviteErr) {
@@ -258,6 +271,8 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       e.id === emp.id ? { ...e, password: temporaryPassword, status: 'Invited', mustChangePassword: true } : e
     );
 
+    // handleResendInvite does not call signUpEmployee so no session
+    // clobbering happens here — just save the invite directly.
     try {
       await db.addEmployeeInvite(newInvite);
     } catch (inviteErr) {
