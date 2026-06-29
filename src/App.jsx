@@ -16,9 +16,11 @@ import Creative from './components/Departments/Creative';
 import Developers from './components/Departments/Developers';
 import HR from './components/Departments/HR';
 
+import NotificationsCenter from './components/shared/NotificationsCenter';
 import AcceptInvite from './components/AcceptInvite';
 import { auth, supabase } from './data/auth';
 import { db } from './data/db';
+import { runDeadlineEngine } from './lib/deadlineEngine';
 
 // Key → db.js save function mapping for Supabase persistence
 const DB_SAVE_MAP = {
@@ -145,6 +147,25 @@ const fetchAllData = async () => {
 
     setState(newState);
 
+    // ── Run deadline engine once after fetch — emits stable-ID notifications for
+    //    tasks that are overdue / due today / due tomorrow. Idempotent — safe to
+    //    run on every boot.
+    try {
+      const fresh = runDeadlineEngine({
+        tasks: newState.tasks || [],
+        notifications: newState.notifications || [],
+      });
+      if (fresh.length > 0) {
+        const mergedNotifications = [...fresh, ...newState.notifications];
+        setState(prev => ({ ...prev, notifications: mergedNotifications }));
+        db.saveNotifications(mergedNotifications).catch(err =>
+          console.error('[deadlineEngine] saveNotifications failed:', err)
+        );
+      }
+    } catch (engErr) {
+      console.warn('[deadlineEngine] run failed:', engErr);
+    }
+
     // Bootstrap depends only on employees table
     setIsBootstrapped(newState.employees.length > 0);
   } catch (err) {
@@ -237,6 +258,43 @@ useEffect(() => {
     setUser(null);
   };
 
+  // ── Notification → app navigation resolver ─────────────────────────────────
+  // Maps a notification record to a { tab, focus } pair so the Layout's bell
+  // dropdown can route the user to the source when clicked.
+  const resolveNotifTarget = (n) => {
+    if (!n) return { tab: 'dashboard', focus: null };
+
+    // Deadline engine notifications carry the originating task id
+    if (n.deadlineTaskId) return { tab: 'manager', focus: { taskId: n.deadlineTaskId } };
+
+    // Comment pings — surface in the same manager view, focused on the task
+    if (n.type === 'comment') {
+      const c = (state.taskComments || []).find(c => c.id === n.commentId);
+      if (c?.taskId) return { tab: 'manager', focus: { taskId: c.taskId } };
+    }
+
+    // Assignment / ping / generic — manager tab is the right home
+    if (n.type === 'assignment' || n.type === 'ping') {
+      return { tab: 'manager', focus: null };
+    }
+
+    // Lead / proposal / invoice — anything mentioning client-facing modules
+    const lower = (n.message || '').toLowerCase();
+    if (lower.includes('lead') || lower.includes('proposal') || lower.includes('invoice') || lower.includes('client')) {
+      return { tab: 'crm', focus: null };
+    }
+
+    return { tab: 'dashboard', focus: null };
+  };
+
+  const handleNotifNavigate = (n) => {
+    const target = resolveNotifTarget(n);
+    setActiveTab(target.tab);
+    // `focus` is consumed by individual pages that mount a TaskDetailPanel
+    // (ManagerDashboard for now). Pages can read it from a context or via a
+    // module-level cache; for v1 the resolver just sets the active tab.
+  };
+
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -302,13 +360,14 @@ useEffect(() => {
       activeTab={activeTab}
       setActiveTab={setActiveTab}
       onLogout={handleLogout}
+      onNotifNavigate={handleNotifNavigate}
     >
       {activeTab === 'founder' && user.role === 'Super Admin' && (
         <FounderDashboard state={state} />
       )}
 
       {activeTab === 'manager' && (user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Employee') && (
-        <ManagerDashboard user={user} state={state} updateState={updateState} />
+        <ManagerDashboard user={user} state={state} updateState={updateState} onNotifFocus={handleNotifNavigate} />
       )}
 
       {activeTab === 'dashboard' && (
@@ -349,6 +408,15 @@ useEffect(() => {
 
       {activeTab === 'HR' && (user.role === 'Super Admin' || user.role === 'HR' || user.role === 'Manager') && (
         <HR user={user} state={state} updateState={updateState} />
+      )}
+
+      {activeTab === 'notifications' && (
+        <NotificationsCenter
+          state={state}
+          updateState={updateState}
+          user={user}
+          onNotifNavigate={handleNotifNavigate}
+        />
       )}
 
       {activeTab === 'profile' && (

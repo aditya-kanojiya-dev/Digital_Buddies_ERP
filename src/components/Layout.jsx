@@ -26,6 +26,7 @@ export default function Layout({
   activeTab,
   setActiveTab,
   onLogout,
+  onNotifNavigate,
 }) {
   const { notifications } = state;
 
@@ -54,6 +55,19 @@ export default function Layout({
     updateState({
       notifications: updated,
     });
+  };
+
+  const handleMarkOneRead = (id) => {
+    const updated = notifications.map((n) =>
+      n.id === id ? { ...n, read: true } : n
+    );
+    updateState({ notifications: updated });
+  };
+
+  const handleNotifClick = (n) => {
+    handleMarkOneRead(n.id);
+    setShowNotifDropdown(false);
+    onNotifNavigate?.(n);
   };
 
   const allTabs = [
@@ -137,6 +151,12 @@ export default function Layout({
           : 'HR & Operations',
       icon: Users,
       roles: ['Super Admin', 'Manager', 'HR'],
+    },
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      icon: Bell,
+      roles: ['Super Admin', 'Manager', 'HR', 'Employee'],
     },
     {
       id: 'profile',
@@ -256,19 +276,37 @@ export default function Layout({
                     unreadNotifs.map((n) => (
                       <div
                         key={n.id}
-                        className="p-2.5 bg-slate-950/45 rounded-lg border border-slate-900"
+                        className="p-2.5 bg-slate-950/45 rounded-lg border border-slate-900 flex items-start gap-2"
                       >
-                        <p className="text-3xs text-slate-300">
-                          {n.message}
-                        </p>
-
-                        <span className="text-4xs text-slate-500">
-                          {n.timestamp}
-                        </span>
+                        <button
+                          onClick={() => handleNotifClick(n)}
+                          className="flex-1 text-left hover:bg-slate-900/40 -m-1 p-1 rounded transition cursor-pointer"
+                        >
+                          <p className="text-3xs text-slate-300">
+                            {n.message}
+                          </p>
+                          <span className="text-4xs text-slate-500">
+                            {n.timestamp}
+                          </span>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleMarkOneRead(n.id); }}
+                          className="text-slate-500 hover:text-emerald-400 transition p-1 flex-shrink-0"
+                          title="Mark as read"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))
                   )}
                 </div>
+
+                <button
+                  onClick={() => { setShowNotifDropdown(false); setActiveTab('notifications'); }}
+                  className="w-full text-3xs font-bold text-violet-400 hover:text-violet-300 py-1.5 border-t border-slate-900 transition cursor-pointer"
+                >
+                  View all notifications →
+                </button>
               </div>
             )}
           </div>

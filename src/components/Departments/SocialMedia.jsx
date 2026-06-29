@@ -1,74 +1,276 @@
-import React, { useState } from 'react';
-import { Calendar, Plus, Download, FileText, Clock, User, Share2, Tag, CheckSquare, Lock } from 'lucide-react';
-import { useToast } from '../shared/Toast';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Calendar, Plus, Download, FileText, Clock, Share2,
+  Lock, ChevronLeft, ChevronRight, X, Check, Edit3,
+  Trash2, Bell, Users, Tag, AlertCircle, Send,
 
+} from 'lucide-react';
+import { useToast } from '../shared/Toast';
+import { db } from '../../data/db';
+import { supabase } from '../../data/auth';
+
+// ─── helpers ───────────────────────────────────────────────────────────────
+const MONTH_NAMES = ['January','February','March','April','May','June',
+  'July','August','September','October','November','December'];
+const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+const PLATFORM_COLORS = {
+  Instagram:  { bg: 'bg-pink-500/15',    text: 'text-pink-400',    border: 'border-pink-500/40' },
+  LinkedIn:   { bg: 'bg-blue-500/15',    text: 'text-blue-400',    border: 'border-blue-500/40' },
+  Facebook:   { bg: 'bg-indigo-500/15',  text: 'text-indigo-400',  border: 'border-indigo-500/40' },
+  YouTube:    { bg: 'bg-red-500/15',     text: 'text-red-400',     border: 'border-red-500/40' },
+  Twitter:    { bg: 'bg-sky-500/15',     text: 'text-sky-400',     border: 'border-sky-500/40' },
+};
+
+const STATUS_STYLES = {
+  Scheduled: 'bg-indigo-500/15 text-indigo-400',
+  Draft:     'bg-amber-500/15  text-amber-400',
+  Published: 'bg-emerald-500/15 text-emerald-400',
+  Cancelled: 'bg-rose-500/15  text-rose-400',
+};
+
+const DEPT_COLORS = {
+  'Paid Ads':               'bg-orange-500/15 text-orange-400',
+  'Social Media':           'bg-violet-500/15 text-violet-400',
+  'Video Editors':          'bg-red-500/15    text-red-400',
+  'Graphic Designers':      'bg-pink-500/15   text-pink-400',
+  'Videography/Photography':'bg-teal-500/15   text-teal-400',
+  'Developers':             'bg-blue-500/15   text-blue-400',
+  'HR':                     'bg-emerald-500/15 text-emerald-400',
+};
+
+const today = () => new Date().toISOString().split('T')[0];
+
+const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+
+// ── Platform icon ───────────────────────────────────────────────────────────
+function PlatformDot({ platform }) {
+  const c = PLATFORM_COLORS[platform] || { bg: 'bg-slate-500/15', text: 'text-slate-400' };
+  return (
+    <span className={`inline-block w-2 h-2 rounded-full ${c.bg.replace('/15','').replace('bg-','bg-')} ${c.text}`}
+      style={{ background: 'currentColor', width: 8, height: 8, borderRadius: '50%', display: 'inline-block' }} />
+  );
+}
+
+// ─── Modal wrapper ──────────────────────────────────────────────────────────
+function Modal({ title, onClose, children, wide }) {
+  useEffect(() => {
+    const esc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className={`glass-panel border border-violet-500/20 rounded-2xl shadow-2xl w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} max-h-[90vh] overflow-y-auto`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-5 border-b border-slate-800">
+          <h3 className="font-bold text-slate-100 text-base">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────────
 export default function SocialMedia({ user, state, updateState }) {
   const toast = useToast();
-  const { smmCalendar, smmQuotes, moms, clients } = state;
+  const { smmCalendar, smmQuotes, moms, employees, tasks, notifications } = state;
 
-  // ── Role gates ────────────────────────────────────────────────────────────
-  const isManager = user.role === 'Super Admin' || user.role === 'Manager';
+  const isSocialMedia = user.department === 'Social Media';
+  const isManager     = user.role === 'Super Admin' || user.role === 'Manager';
+  const canEdit       = isManager || isSocialMedia; // SM members + admins/managers can create
 
-  // Form states for Daily Timing Updates (Post Calendar)
-  const [postTitle, setPostTitle] = useState('');
-  const [postDate, setPostDate] = useState(new Date().toISOString().split('T')[0]);
-  const [postTime, setPostTime] = useState('12:00');
-  const [postPlatform, setPostPlatform] = useState('Instagram');
-  const [postCaption, setPostCaption] = useState('');
-  const [postStatus, setPostStatus] = useState('Scheduled');
+  // ── Calendar nav ──────────────────────────────────────────────────────────
+  const now = new Date();
+  const [calYear,  setCalYear]  = useState(now.getFullYear());
+  const [calMonth, setCalMonth] = useState(now.getMonth());
 
-  // Form states for SMM Quotation (manager only)
+  // ── Modal states ──────────────────────────────────────────────────────────
+  const [showPostModal,  setShowPostModal]  = useState(false);
+  const [showTaskModal,  setShowTaskModal]  = useState(false);
+  const [showDayModal,   setShowDayModal]   = useState(false);
+  const [selectedDay,    setSelectedDay]    = useState(null);
+  const [editingPost,    setEditingPost]    = useState(null);
+  const [activeTab,      setActiveTab]      = useState('calendar'); // 'calendar' | 'tasks' | 'quotes' | 'mom'
+
+  // ── Realtime subscription ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!supabase) return;
+    const channel = supabase
+      .channel('smm-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'smm_calendar' }, () => {
+        db.getSmmCalendar().then(data => updateState({ smmCalendar: data }));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        db.getTasks().then(data => updateState({ tasks: data }));
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  // ── Post form state ───────────────────────────────────────────────────────
+  const blankPost = () => ({
+    title: '', date: today(), time: '12:00', platform: 'Instagram',
+    caption: '', status: 'Scheduled', assignedDept: 'Social Media', notes: '',
+  });
+  const [postForm, setPostForm] = useState(blankPost());
+
+  // ── Cross-dept task form ───────────────────────────────────────────────────
+  const DEPARTMENTS = ['Paid Ads','Social Media','Video Editors','Graphic Designers','Videography/Photography','Developers','HR'];
+  const blankTask = () => ({
+    title: '', description: '', targetDept: 'Video Editors',
+    assignedTo: '', dueDate: '', priority: 'Medium',
+  });
+  const [taskForm, setTaskForm] = useState(blankTask());
+
+  // ── Quote / MOM form ──────────────────────────────────────────────────────
   const [quoteClient, setQuoteClient] = useState('');
   const [quoteDetails, setQuoteDetails] = useState('');
   const [quoteCost, setQuoteCost] = useState('');
-
-  // Form states for MOM (manager only)
   const [momClient, setMomClient] = useState('');
-  const [momDate, setMomDate] = useState(new Date().toISOString().split('T')[0]);
+  const [momDate, setMomDate] = useState(today());
   const [momAttendees, setMomAttendees] = useState('');
   const [momPoints, setMomPoints] = useState('');
   const [momActionItems, setMomActionItems] = useState('');
 
-  // All employees can schedule posts
-  const handleAddPost = (e) => {
-    e.preventDefault();
-    if (!postTitle) return;
+  // ── Calendar helpers ──────────────────────────────────────────────────────
+  const daysInMonth  = getDaysInMonth(calYear, calMonth);
+  const firstDay     = getFirstDayOfMonth(calYear, calMonth);
+  const prevMonth    = () => { if (calMonth === 0) { setCalYear(y => y-1); setCalMonth(11); } else setCalMonth(m => m-1); };
+  const nextMonth    = () => { if (calMonth === 11) { setCalYear(y => y+1); setCalMonth(0); } else setCalMonth(m => m+1); };
+  const goToday      = () => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); };
 
-    const newPost = {
-      id: `POST${Date.now()}`,
-      title: postTitle,
-      date: postDate,
-      time: postTime,
-      platform: postPlatform,
-      caption: postCaption,
-      status: postStatus,
-      addedBy: user.name,
-    };
-
-    updateState({ smmCalendar: [...smmCalendar, newPost] });
-    toast.success(`"${postTitle}" scheduled on ${postPlatform}`);
-    setPostTitle('');
-    setPostCaption('');
+  const postsOnDay = (d) => {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return smmCalendar.filter(p => p.date === dateStr);
   };
 
-  // Managers only — client-facing quotation
+  const tasksOnDay = (d) => {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return tasks.filter(t => t.dueDate === dateStr && (t.department === 'Social Media' || t.sourceDept === 'Social Media'));
+  };
+
+  // ── Post CRUD ─────────────────────────────────────────────────────────────
+  const openAddPost = (dateStr) => {
+    setEditingPost(null);
+    setPostForm({ ...blankPost(), date: dateStr || today() });
+    setShowPostModal(true);
+  };
+
+  const openEditPost = (post) => {
+    setEditingPost(post);
+    setPostForm({ ...post });
+    setShowPostModal(true);
+  };
+
+  const handleSavePost = async () => {
+    if (!postForm.title) { toast.error('Post title is required.'); return; }
+    if (editingPost) {
+      // Edit existing
+      const updated = smmCalendar.map(p => p.id === editingPost.id ? { ...p, ...postForm } : p);
+      updateState({ smmCalendar: updated });
+      toast.success('Post updated on calendar.');
+    } else {
+      const newPost = {
+        id: `POST${Date.now()}`,
+        ...postForm,
+        addedBy: user.name,
+        addedById: user.id,
+        createdAt: new Date().toISOString(),
+      };
+      updateState({ smmCalendar: [...smmCalendar, newPost] });
+      // Notify relevant department
+      if (postForm.assignedDept && postForm.assignedDept !== 'Social Media') {
+        const deptMembers = employees.filter(e => e.department === postForm.assignedDept);
+        const newNotifs = deptMembers.map(emp => ({
+          id: `NOTIF${Date.now()}_${emp.id}`,
+          userId: emp.id,
+          message: `📅 New content task from Social Media: "${postForm.title}" on ${postForm.date}`,
+          timestamp: new Date().toISOString(),
+          read: false,
+        }));
+        updateState({ notifications: [...notifications, ...newNotifs] });
+      }
+      toast.success(`"${postForm.title}" added to calendar.`);
+    }
+    setShowPostModal(false);
+    setEditingPost(null);
+    setPostForm(blankPost());
+  };
+
+  const handleDeletePost = (postId) => {
+    if (!window.confirm('Delete this calendar entry?')) return;
+    updateState({ smmCalendar: smmCalendar.filter(p => p.id !== postId) });
+    toast.success('Entry removed from calendar.');
+    setShowDayModal(false);
+  };
+
+  const handleStatusChange = (postId, newStatus) => {
+    const updated = smmCalendar.map(p => p.id === postId ? { ...p, status: newStatus } : p);
+    updateState({ smmCalendar: updated });
+  };
+
+  // ── Cross-dept task assign ────────────────────────────────────────────────
+  const deptEmployees = employees.filter(e => e.department === taskForm.targetDept);
+
+  const handleAssignTask = () => {
+    if (!taskForm.title || !taskForm.targetDept) { toast.error('Task title and target department are required.'); return; }
+    const assignee = employees.find(e => e.id === taskForm.assignedTo);
+    const newTask = {
+      id: `TASK${Date.now()}`,
+      title: taskForm.title,
+      description: taskForm.description,
+      assignedTo: taskForm.assignedTo || null,
+      department: taskForm.targetDept,
+      sourceDept: 'Social Media',
+      assignedBy: user.name,
+      assignedById: user.id,
+      priority: taskForm.priority,
+      dueDate: taskForm.dueDate || '',
+      status: 'To Do',
+      createdAt: new Date().toISOString(),
+    };
+    updateState({ tasks: [...tasks, newTask] });
+
+    // Notify assignee or whole dept
+    const toNotify = taskForm.assignedTo
+      ? [employees.find(e => e.id === taskForm.assignedTo)].filter(Boolean)
+      : employees.filter(e => e.department === taskForm.targetDept);
+    const newNotifs = toNotify.map(emp => ({
+      id: `NOTIF${Date.now()}_${emp.id}`,
+      userId: emp.id,
+      message: `📌 Social Media assigned you a task: "${taskForm.title}"${taskForm.dueDate ? ` — due ${taskForm.dueDate}` : ''}`,
+      timestamp: new Date().toISOString(),
+      read: false,
+    }));
+    if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });
+
+    toast.success(`Task "${taskForm.title}" assigned to ${taskForm.targetDept}.`);
+    setShowTaskModal(false);
+    setTaskForm(blankTask());
+  };
+
+  // ── Quote ─────────────────────────────────────────────────────────────────
   const handleCreateQuote = (e) => {
     e.preventDefault();
-    if (!isManager) return;
     if (!quoteClient || !quoteCost) return;
-
     const newQuote = {
       id: `QT${Date.now()}`,
       clientName: quoteClient,
       details: quoteDetails,
       cost: parseFloat(quoteCost),
-      date: new Date().toISOString().split('T')[0],
+      date: today(),
       createdBy: user.name,
     };
-
     updateState({ smmQuotes: [...smmQuotes, newQuote] });
-
-    const quoteText = `
+    const blob = new Blob([`
 ========================================
 SOCIAL MEDIA MANAGEMENT QUOTATION
 ========================================
@@ -88,39 +290,21 @@ Terms:
 
 Prepared by: ${user.name} — Social Media Department
 ========================================
-`;
-    const blob = new Blob([quoteText], { type: 'text/plain' });
+`], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `SMM_Quotation_${newQuote.clientName.replace(/\s+/g, '_')}.txt`;
-    a.click();
-
+    a.href = url; a.download = `SMM_Quotation_${newQuote.clientName.replace(/\s+/g,'_')}.txt`; a.click();
     toast.success('Quotation generated and downloaded.');
-    setQuoteClient('');
-    setQuoteDetails('');
-    setQuoteCost('');
+    setQuoteClient(''); setQuoteDetails(''); setQuoteCost('');
   };
 
-  // Managers only — client-facing MOM
+  // ── MOM ───────────────────────────────────────────────────────────────────
   const handleCreateMom = (e) => {
     e.preventDefault();
-    if (!isManager) return;
     if (!momClient || !momPoints) return;
-
-    const newMom = {
-      id: `MOM${Date.now()}`,
-      clientName: momClient,
-      date: momDate,
-      attendees: momAttendees,
-      points: momPoints,
-      actionItems: momActionItems,
-      createdBy: user.name,
-    };
-
-    updateState({ moms: [...moms, newMom] });
-
-    const momText = `
+    const newMom = { id: `MOM${Date.now()}`, clientName: momClient, date: momDate, attendees: momAttendees, points: momPoints, actionItems: momActionItems, createdBy: user.name };
+    updateState({ moms: [...(state.moms||[]), newMom] });
+    const blob = new Blob([`
 ========================================
 MINUTES OF MEETING (MOM)
 ========================================
@@ -136,226 +320,567 @@ ${newMom.actionItems || 'No specific action items assigned.'}
 
 Generated by: ${user.name} — Social Media Department
 ========================================
-`;
-    const blob = new Blob([momText], { type: 'text/plain' });
+`], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `MOM_${newMom.clientName.replace(/\s+/g, '_')}_${newMom.date}.txt`;
-    a.click();
-
+    a.href = url; a.download = `MOM_${newMom.clientName.replace(/\s+/g,'_')}_${newMom.date}.txt`; a.click();
     toast.success('MOM compiled and downloaded.');
-    setMomClient('');
-    setMomAttendees('');
-    setMomPoints('');
-    setMomActionItems('');
+    setMomClient(''); setMomAttendees(''); setMomPoints(''); setMomActionItems('');
   };
 
+  // ── Derived stats ─────────────────────────────────────────────────────────
+  const myAssignedTasks = tasks.filter(t => t.sourceDept === 'Social Media');
+  const todayPosts = smmCalendar.filter(p => p.date === today());
+
+  // ══ Render ════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">Scheduled Posts</p>
-            <h3 className="text-3xl font-bold mt-1 text-glow">
-              {smmCalendar.filter(p => p.status === 'Scheduled').length}
-            </h3>
-          </div>
-          <div className="p-3 bg-violet-500/10 rounded-xl text-violet-400">
-            <Calendar className="w-6 h-6" />
-          </div>
-        </div>
+    <div className="space-y-6 animate-fade-in">
 
-        <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">Quotations Prepared</p>
-            <h3 className="text-3xl font-bold mt-1 text-glow">{smmQuotes.length}</h3>
-          </div>
-          <div className="p-3 bg-fuchsia-500/10 rounded-xl text-fuchsia-400">
-            <FileText className="w-6 h-6" />
-          </div>
+      {/* ── Header ── */}
+      <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-100 tracking-tight">Social Media</h1>
+          <p className="text-sm text-slate-400 mt-0.5">Content calendar, cross-dept tasks, and client tools</p>
         </div>
-
-        <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">MOM Briefs</p>
-            <h3 className="text-3xl font-bold mt-1 text-glow">{moms.length} Logs</h3>
+        {canEdit && (
+          <div className="flex gap-2">
+            <button onClick={() => openAddPost(today())} className="bg-neon-gradient px-4 py-2 rounded-xl text-white text-xs font-bold flex items-center gap-2 shadow-lg">
+              <Plus className="w-4 h-4" /> Add Post
+            </button>
+            <button onClick={() => setShowTaskModal(true)} className="bg-slate-800 hover:bg-slate-700 border border-violet-500/20 px-4 py-2 rounded-xl text-violet-300 text-xs font-bold flex items-center gap-2 transition">
+              <Send className="w-4 h-4" /> Assign to Dept
+            </button>
           </div>
-          <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
-            <Clock className="w-6 h-6" />
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Post Scheduler + Calendar — all roles */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="glass-panel p-6 rounded-2xl space-y-6 lg:col-span-1">
-          <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-violet-400" />
-            Daily Timing Updates
-          </h2>
-          <form onSubmit={handleAddPost} className="space-y-4">
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Post Concept Title</label>
-              <input
-                type="text"
-                value={postTitle}
-                onChange={(e) => setPostTitle(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm"
-                placeholder="e.g. Skincare Serum Reel"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Date</label>
-                <input type="date" value={postDate} onChange={(e) => setPostDate(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" required />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Time</label>
-                <input type="time" value={postTime} onChange={(e) => setPostTime(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" required />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Platform</label>
-                <select value={postPlatform} onChange={(e) => setPostPlatform(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm">
-                  <option value="Instagram">Instagram</option>
-                  <option value="LinkedIn">LinkedIn</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="YouTube">YouTube</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Status</label>
-                <select value={postStatus} onChange={(e) => setPostStatus(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm">
-                  <option value="Draft">Draft</option>
-                  <option value="Scheduled">Scheduled</option>
-                  <option value="Published">Published</option>
-                </select>
-              </div>
+      {/* ── Stats row ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Today's Posts",    val: todayPosts.length,                              color: 'text-violet-400', bg: 'bg-violet-500/10' },
+          { label: 'Scheduled',        val: smmCalendar.filter(p=>p.status==='Scheduled').length, color:'text-indigo-400', bg:'bg-indigo-500/10' },
+          { label: 'Published',        val: smmCalendar.filter(p=>p.status==='Published').length, color:'text-emerald-400',bg:'bg-emerald-500/10'},
+          { label: 'Cross-Dept Tasks', val: myAssignedTasks.length,                         color: 'text-orange-400', bg: 'bg-orange-500/10' },
+        ].map(s => (
+          <div key={s.label} className={`glass-card p-4 rounded-2xl flex items-center gap-4`}>
+            <div className={`p-2.5 rounded-xl ${s.bg}`}>
+              <Calendar className={`w-5 h-5 ${s.color}`} />
             </div>
             <div>
-              <label className="block text-sm text-slate-400 mb-1">Post Caption</label>
-              <textarea value={postCaption} onChange={(e) => setPostCaption(e.target.value)} className="w-full glass-input p-3 rounded-xl h-20 text-sm" placeholder="Include hashtags and tags..." />
+              <div className={`text-2xl font-extrabold ${s.color}`}>{s.val}</div>
+              <div className="text-xs text-slate-400">{s.label}</div>
             </div>
-            <button type="submit" className="w-full bg-neon-gradient py-3 rounded-xl text-white font-medium shadow-md transition duration-250 flex items-center justify-center gap-2">
-              <Plus className="w-5 h-5" /> Add to Content Calendar
-            </button>
-          </form>
-        </div>
+          </div>
+        ))}
+      </div>
 
-        <div className="glass-panel p-6 rounded-2xl space-y-6 lg:col-span-2">
-          <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-fuchsia-400" />
-            Interactive Content Calendar
-          </h2>
-          <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
-            {smmCalendar.length === 0 ? (
-              <p className="text-slate-400 text-center py-10">No items in the content calendar yet.</p>
-            ) : (
-              smmCalendar.map(post => (
-                <div key={post.id} className="glass-card p-4 rounded-xl flex items-start justify-between gap-4 border-l-4 border-l-violet-500">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-violet-500/10 text-violet-400 px-2.5 py-0.5 rounded-full font-medium">{post.platform}</span>
-                      <span className="text-xs text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" /> {post.date} @ {post.time}</span>
-                    </div>
-                    <h4 className="font-semibold text-slate-200">{post.title}</h4>
-                    <p className="text-sm text-slate-400 line-clamp-2 italic">{post.caption}</p>
-                    {post.addedBy && <p className="text-xs text-slate-600">Added by {post.addedBy}</p>}
+      {/* ── Sub-tabs ── */}
+      <div className="flex gap-1 p-1 bg-slate-900/60 rounded-xl w-fit border border-slate-800">
+        {[
+          { id: 'calendar', label: 'Live Calendar' },
+          { id: 'tasks',    label: 'Dept Tasks' },
+          { id: 'quotes',   label: 'Quotations' },
+          { id: 'mom',      label: 'MOMs' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
+              activeTab === t.id ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ══ CALENDAR TAB ══════════════════════════════════════════════════════ */}
+      {activeTab === 'calendar' && (
+        <div className="glass-panel rounded-2xl overflow-hidden border border-violet-500/10">
+          {/* Calendar header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/40">
+            <div className="flex items-center gap-3">
+              <button onClick={prevMonth} className="p-1.5 hover:bg-slate-800 rounded-lg transition text-slate-400">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <h2 className="text-lg font-extrabold text-slate-100 w-48 text-center">
+                {MONTH_NAMES[calMonth]} {calYear}
+              </h2>
+              <button onClick={nextMonth} className="p-1.5 hover:bg-slate-800 rounded-lg transition text-slate-400">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button onClick={goToday} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 transition border border-slate-700">
+                Today
+              </button>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-500">
+              {Object.entries(PLATFORM_COLORS).slice(0,4).map(([pl, c]) => (
+                <span key={pl} className={`flex items-center gap-1 ${c.text}`}>
+                  <span className="w-2 h-2 rounded-full" style={{background:'currentColor'}} />
+                  {pl}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Day names */}
+          <div className="grid grid-cols-7 border-b border-slate-800">
+            {DAY_NAMES.map(d => (
+              <div key={d} className="py-2 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7">
+            {/* Empty cells before first day */}
+            {Array.from({ length: firstDay }).map((_, i) => (
+              <div key={`e${i}`} className="min-h-[100px] border-r border-b border-slate-800/50 bg-slate-900/20" />
+            ))}
+
+            {/* Day cells */}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+              const dayPosts = postsOnDay(day);
+              const dayTasks = tasksOnDay(day);
+              const isToday  = dateStr === today();
+
+              return (
+                <div
+                  key={day}
+                  onClick={() => { setSelectedDay({ day, dateStr, posts: dayPosts, tasks: dayTasks }); setShowDayModal(true); }}
+                  className={`min-h-[100px] border-r border-b border-slate-800/50 p-1.5 cursor-pointer transition group relative
+                    ${isToday ? 'bg-violet-950/30' : 'hover:bg-slate-800/20'}`}
+                >
+                  {/* Day number */}
+                  <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-1 ${
+                    isToday ? 'bg-violet-600 text-white' : 'text-slate-400 group-hover:text-slate-200'
+                  }`}>
+                    {day}
                   </div>
-                  <div>
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                      post.status === 'Published' ? 'bg-emerald-500/10 text-emerald-400' :
-                      post.status === 'Scheduled' ? 'bg-indigo-500/10 text-indigo-400' :
-                      'bg-amber-500/10 text-amber-400'
-                    }`}>{post.status}</span>
+
+                  {/* Post chips */}
+                  <div className="space-y-0.5">
+                    {dayPosts.slice(0, 3).map(post => {
+                      const c = PLATFORM_COLORS[post.platform] || PLATFORM_COLORS.Instagram;
+                      return (
+                        <div key={post.id}
+                          className={`text-3xs px-1.5 py-0.5 rounded ${c.bg} ${c.text} truncate flex items-center gap-1`}
+                          title={post.title}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background:'currentColor'}} />
+                          {post.title}
+                        </div>
+                      );
+                    })}
+                    {dayTasks.slice(0, 2).map(t => (
+                      <div key={t.id}
+                        className="text-3xs px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400 truncate"
+                        title={t.title}
+                      >
+                        📌 {t.title}
+                      </div>
+                    ))}
+                    {(dayPosts.length + dayTasks.length) > 4 && (
+                      <div className="text-3xs text-slate-500 pl-1">+{dayPosts.length + dayTasks.length - 4} more</div>
+                    )}
                   </div>
+
+                  {/* Quick add button on hover */}
+                  {canEdit && (
+                    <button
+                      onClick={e => { e.stopPropagation(); openAddPost(dateStr); }}
+                      className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition p-1 rounded-lg bg-violet-600/80 text-white"
+                      title="Add post"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
-              ))
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ══ DEPT TASKS TAB ════════════════════════════════════════════════════ */}
+      {activeTab === 'tasks' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-slate-200 flex items-center gap-2">
+              <Send className="w-4 h-4 text-orange-400" />
+              Tasks Assigned by Social Media
+            </h2>
+            {canEdit && (
+              <button onClick={() => setShowTaskModal(true)} className="bg-neon-gradient px-4 py-2 rounded-xl text-white text-xs font-bold flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Assign Task
+              </button>
+            )}
+          </div>
+
+          {myAssignedTasks.length === 0 ? (
+            <div className="glass-panel rounded-2xl p-12 text-center text-slate-500">
+              <Send className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p>No cross-department tasks assigned yet.</p>
+              {canEdit && <button onClick={() => setShowTaskModal(true)} className="mt-4 text-violet-400 text-sm">Assign your first task →</button>}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myAssignedTasks.map(t => {
+                const assignee = employees.find(e => e.id === t.assignedTo);
+                const dc = DEPT_COLORS[t.department] || 'bg-slate-500/15 text-slate-400';
+                const isOverdue = t.dueDate && t.dueDate < today() && t.status !== 'Completed';
+                return (
+                  <div key={t.id} className={`glass-card p-4 rounded-xl border ${isOverdue ? 'border-rose-500/30' : 'border-slate-800'}`}>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="space-y-1">
+                        <span className={`text-3xs px-2 py-0.5 rounded-full font-bold ${dc}`}>{t.department}</span>
+                        <h4 className="font-bold text-sm text-slate-200">{t.title}</h4>
+                      </div>
+                      <span className={`text-3xs px-2 py-0.5 rounded-full shrink-0 ${
+                        t.priority === 'High' ? 'bg-rose-500/15 text-rose-400' :
+                        t.priority === 'Low'  ? 'bg-slate-600/40 text-slate-400' :
+                        'bg-amber-500/15 text-amber-400'
+                      }`}>{t.priority}</span>
+                    </div>
+                    {t.description && <p className="text-xs text-slate-400 mb-3 line-clamp-2">{t.description}</p>}
+                    <div className="flex items-center justify-between text-3xs text-slate-500">
+                      <span>{assignee ? `→ ${assignee.name}` : `→ ${t.department} team`}</span>
+                      <span className={`font-medium ${isOverdue ? 'text-rose-400' : ''}`}>
+                        {t.dueDate ? `Due ${t.dueDate}` : 'No due date'}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className={`text-3xs px-2 py-0.5 rounded-full ${STATUS_STYLES[t.status] || 'bg-slate-700 text-slate-300'}`}>
+                        {t.status || 'To Do'}
+                      </span>
+                      <span className="text-3xs text-slate-600">by {t.assignedBy}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ QUOTATIONS TAB ════════════════════════════════════════════════════ */}
+      {activeTab === 'quotes' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="glass-panel p-6 rounded-2xl space-y-5">
+            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <Share2 className="w-4 h-4 text-violet-400" /> New SMM Quotation
+              {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3 h-3" /> Manager only</span>}
+            </h2>
+            {isManager ? (
+              <form onSubmit={handleCreateQuote} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Client Name</label>
+                  <input type="text" value={quoteClient} onChange={e=>setQuoteClient(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Luna Fashion" required />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Service Details</label>
+                  <textarea value={quoteDetails} onChange={e=>setQuoteDetails(e.target.value)} className="w-full glass-input p-3 rounded-xl h-24 text-sm" placeholder="e.g. 15 Reels, 10 Static Posts..." />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Monthly Retainer (₹)</label>
+                  <input type="number" value={quoteCost} onChange={e=>setQuoteCost(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" placeholder="80000" required />
+                </div>
+                <button type="submit" className="w-full bg-violet-600 hover:bg-violet-700 py-2.5 rounded-xl text-white text-sm font-bold transition flex items-center justify-center gap-2">
+                  <Download className="w-4 h-4" /> Generate & Download
+                </button>
+              </form>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center gap-3 border border-dashed border-slate-800 rounded-xl">
+                <Lock className="w-8 h-8 text-slate-600" />
+                <p className="text-sm text-slate-500">Only managers can generate client quotations.</p>
+              </div>
+            )}
+          </div>
+          <div className="glass-panel p-6 rounded-2xl space-y-4">
+            <h3 className="text-sm font-bold text-slate-300">Recent Quotations</h3>
+            {smmQuotes.length === 0 ? (
+              <p className="text-slate-500 text-sm text-center py-8">No quotations yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {[...smmQuotes].reverse().map(q => (
+                  <div key={q.id} className="glass-card p-3 rounded-xl border border-slate-800">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-sm text-slate-200">{q.clientName}</span>
+                      <span className="text-xs font-bold text-violet-400">₹{Number(q.cost).toLocaleString()}/mo</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">{q.date} · by {q.createdBy}</p>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Quotation + MOM — managers only */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glass-panel p-6 rounded-2xl space-y-6">
-          <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
-            <Share2 className="w-5 h-5 text-violet-400" />
-            Plan Proposal (SMM Quotation)
-            {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3.5 h-3.5" /> Manager only</span>}
-          </h2>
-          {isManager ? (
-            <form onSubmit={handleCreateQuote} className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Target Client Name</label>
-                <input type="text" value={quoteClient} onChange={(e) => setQuoteClient(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="e.g. Luna Fashion" required />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Proposal Service Details</label>
-                <textarea value={quoteDetails} onChange={(e) => setQuoteDetails(e.target.value)} className="w-full glass-input p-3 rounded-xl h-24 text-sm" placeholder="e.g. 15 Reels, 10 Static Grid Posts..." required />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Proposed Monthly Retainer (₹)</label>
-                <input type="number" value={quoteCost} onChange={(e) => setQuoteCost(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="80000" required />
-              </div>
-              <button type="submit" className="w-full bg-violet-600 hover:bg-violet-700 py-3 rounded-xl text-white font-medium transition flex items-center justify-center gap-2">
-                <Download className="w-5 h-5" /> Generate & Download Quotation
-              </button>
-            </form>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center gap-3 border border-dashed border-slate-800 rounded-xl">
-              <Lock className="w-8 h-8 text-slate-600" />
-              <p className="text-sm text-slate-500">Only managers can generate client quotations.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="glass-panel p-6 rounded-2xl space-y-6">
-          <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-fuchsia-400" />
-            Minutes of Meeting (MOM)
-            {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3.5 h-3.5" /> Manager only</span>}
-          </h2>
-          {isManager ? (
-            <form onSubmit={handleCreateMom} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Client Name</label>
-                  <input type="text" value={momClient} onChange={(e) => setMomClient(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" placeholder="Aura Cosmetics" required />
+      {/* ══ MOM TAB ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'mom' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="glass-panel p-6 rounded-2xl space-y-5">
+            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-fuchsia-400" /> Minutes of Meeting
+              {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3 h-3" /> Manager only</span>}
+            </h2>
+            {isManager ? (
+              <form onSubmit={handleCreateMom} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Client Name</label>
+                    <input type="text" value={momClient} onChange={e=>setMomClient(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" placeholder="Aura Cosmetics" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Meeting Date</label>
+                    <input type="date" value={momDate} onChange={e=>setMomDate(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" required />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Meeting Date</label>
-                  <input type="date" value={momDate} onChange={(e) => setMomDate(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" required />
+                  <label className="block text-xs text-slate-400 mb-1">Attendees</label>
+                  <input type="text" value={momAttendees} onChange={e=>setMomAttendees(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" placeholder="Aarav (Paid Ads), Priya (Client CEO)" />
                 </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Discussion Points</label>
+                  <textarea value={momPoints} onChange={e=>setMomPoints(e.target.value)} className="w-full glass-input p-3 rounded-xl h-20 text-sm" placeholder="Key items discussed..." required />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Action Items</label>
+                  <textarea value={momActionItems} onChange={e=>setMomActionItems(e.target.value)} className="w-full glass-input p-3 rounded-xl h-20 text-sm" placeholder="e.g. Sneha to build landing page..." />
+                </div>
+                <button type="submit" className="w-full bg-fuchsia-600 hover:bg-fuchsia-700 py-2.5 rounded-xl text-white text-sm font-bold transition flex items-center justify-center gap-2">
+                  <Download className="w-4 h-4" /> Compile & Download MOM
+                </button>
+              </form>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center gap-3 border border-dashed border-slate-800 rounded-xl">
+                <Lock className="w-8 h-8 text-slate-600" />
+                <p className="text-sm text-slate-500">Only managers can compile meeting minutes.</p>
               </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Attendees</label>
-                <input type="text" value={momAttendees} onChange={(e) => setMomAttendees(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm" placeholder="Aarav (Paid Ads), Priya (Client CEO)" required />
+            )}
+          </div>
+          <div className="glass-panel p-6 rounded-2xl space-y-4">
+            <h3 className="text-sm font-bold text-slate-300">Recent MOMs</h3>
+            {(state.moms||[]).length === 0 ? (
+              <p className="text-slate-500 text-sm text-center py-8">No MOMs logged yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {[...(state.moms||[])].reverse().map(m => (
+                  <div key={m.id} className="glass-card p-3 rounded-xl border border-slate-800">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-sm text-slate-200">{m.clientName}</span>
+                      <span className="text-xs text-slate-500">{m.date}</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{m.points}</p>
+                    <p className="text-3xs text-slate-600 mt-1">by {m.createdBy}</p>
+                  </div>
+                ))}
               </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Key Discussion Points</label>
-                <textarea value={momPoints} onChange={(e) => setMomPoints(e.target.value)} className="w-full glass-input p-3 rounded-xl h-20 text-sm" placeholder="List major items discussed..." required />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Action Items / Assignments</label>
-                <textarea value={momActionItems} onChange={(e) => setMomActionItems(e.target.value)} className="w-full glass-input p-3 rounded-xl h-20 text-sm" placeholder="e.g. Sneha to build landing page..." />
-              </div>
-              <button type="submit" className="w-full bg-fuchsia-600 hover:bg-fuchsia-700 py-3 rounded-xl text-white font-medium transition flex items-center justify-center gap-2">
-                <Download className="w-5 h-5" /> Compile & Download MOM
-              </button>
-            </form>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center gap-3 border border-dashed border-slate-800 rounded-xl">
-              <Lock className="w-8 h-8 text-slate-600" />
-              <p className="text-sm text-slate-500">Only managers can compile client meeting minutes.</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ══ MODALS ════════════════════════════════════════════════════════════ */}
+
+      {/* Day detail modal */}
+      {showDayModal && selectedDay && (
+        <Modal
+          title={`${MONTH_NAMES[calMonth]} ${selectedDay.day}, ${calYear}`}
+          onClose={() => setShowDayModal(false)}
+          wide
+        >
+          <div className="space-y-4">
+            {canEdit && (
+              <button onClick={() => { setShowDayModal(false); openAddPost(selectedDay.dateStr); }}
+                className="w-full border border-dashed border-violet-500/40 rounded-xl py-2.5 text-violet-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-violet-500/5 transition">
+                <Plus className="w-4 h-4" /> Add post on this day
+              </button>
+            )}
+
+            {selectedDay.posts.length === 0 && selectedDay.tasks.length === 0 && (
+              <p className="text-slate-500 text-center py-6">Nothing scheduled for this day.</p>
+            )}
+
+            {selectedDay.posts.map(post => {
+              const c = PLATFORM_COLORS[post.platform] || PLATFORM_COLORS.Instagram;
+              return (
+                <div key={post.id} className={`glass-card rounded-xl border ${c.border} p-4 space-y-2`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <span className={`text-3xs px-2 py-0.5 rounded-full font-bold ${c.bg} ${c.text}`}>{post.platform}</span>
+                      <h4 className="font-bold text-sm text-slate-200">{post.title}</h4>
+                      {post.caption && <p className="text-xs text-slate-400 italic">{post.caption}</p>}
+                      <p className="text-3xs text-slate-500">@ {post.time} · by {post.addedBy}</p>
+                    </div>
+                    {canEdit && (
+                      <div className="flex gap-1">
+                        <button onClick={() => { setShowDayModal(false); openEditPost(post); }}
+                          className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleDeletePost(post.id)}
+                          className="p-1.5 hover:bg-rose-900/40 rounded-lg text-slate-400 hover:text-rose-400 transition">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {canEdit && (
+                    <div className="flex gap-2 pt-1">
+                      {['Draft','Scheduled','Published','Cancelled'].map(s => (
+                        <button key={s} onClick={() => { handleStatusChange(post.id, s); setSelectedDay(prev => ({ ...prev, posts: prev.posts.map(p => p.id === post.id ? {...p, status: s} : p) })); }}
+                          className={`text-3xs px-2 py-0.5 rounded-full transition ${post.status === s ? STATUS_STYLES[s] : 'text-slate-500 hover:text-slate-300'}`}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!canEdit && (
+                    <span className={`text-3xs px-2 py-0.5 rounded-full ${STATUS_STYLES[post.status] || ''}`}>{post.status}</span>
+                  )}
+                </div>
+              );
+            })}
+
+            {selectedDay.tasks.map(t => (
+              <div key={t.id} className="glass-card rounded-xl border border-orange-500/20 p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-3xs px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 font-bold">📌 Task</span>
+                  <span className="text-3xs text-slate-500">{t.department}</span>
+                </div>
+                <h4 className="font-bold text-sm text-slate-200">{t.title}</h4>
+                {t.description && <p className="text-xs text-slate-400 mt-1">{t.description}</p>}
+                <p className="text-3xs text-slate-500 mt-1">by {t.assignedBy || 'Social Media'}</p>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {/* Post add/edit modal */}
+      {showPostModal && (
+        <Modal
+          title={editingPost ? 'Edit Calendar Entry' : 'Add to Content Calendar'}
+          onClose={() => { setShowPostModal(false); setEditingPost(null); setPostForm(blankPost()); }}
+          wide
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Post / Content Title *</label>
+              <input type="text" value={postForm.title} onChange={e=>setPostForm(f=>({...f,title:e.target.value}))}
+                className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Skincare Serum Reel" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Date</label>
+                <input type="date" value={postForm.date} onChange={e=>setPostForm(f=>({...f,date:e.target.value}))}
+                  className="w-full glass-input p-3 rounded-xl text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Time</label>
+                <input type="time" value={postForm.time} onChange={e=>setPostForm(f=>({...f,time:e.target.value}))}
+                  className="w-full glass-input p-3 rounded-xl text-sm" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Platform</label>
+                <select value={postForm.platform} onChange={e=>setPostForm(f=>({...f,platform:e.target.value}))} className="w-full glass-input p-3 rounded-xl text-sm">
+                  {Object.keys(PLATFORM_COLORS).map(p => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Status</label>
+                <select value={postForm.status} onChange={e=>setPostForm(f=>({...f,status:e.target.value}))} className="w-full glass-input p-3 rounded-xl text-sm">
+                  {['Draft','Scheduled','Published','Cancelled'].map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Assign to Department (for content needs)</label>
+              <select value={postForm.assignedDept} onChange={e=>setPostForm(f=>({...f,assignedDept:e.target.value}))} className="w-full glass-input p-3 rounded-xl text-sm">
+                {['Social Media','Video Editors','Graphic Designers','Videography/Photography','Developers','Paid Ads'].map(d => <option key={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Caption / Notes</label>
+              <textarea value={postForm.caption} onChange={e=>setPostForm(f=>({...f,caption:e.target.value}))}
+                className="w-full glass-input p-3 rounded-xl h-20 text-sm" placeholder="Include hashtags, tags, brief..." />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={handleSavePost}
+                className="flex-1 bg-neon-gradient py-2.5 rounded-xl text-white text-sm font-bold flex items-center justify-center gap-2">
+                <Check className="w-4 h-4" /> {editingPost ? 'Save Changes' : 'Add to Calendar'}
+              </button>
+              <button onClick={() => { setShowPostModal(false); setEditingPost(null); setPostForm(blankPost()); }}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 text-sm font-bold transition">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Cross-dept task modal */}
+      {showTaskModal && (
+        <Modal title="Assign Task to Another Department" onClose={() => { setShowTaskModal(false); setTaskForm(blankTask()); }} wide>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Task Title *</label>
+              <input type="text" value={taskForm.title} onChange={e=>setTaskForm(f=>({...f,title:e.target.value}))}
+                className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Create 3 reels for client campaign" />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Description</label>
+              <textarea value={taskForm.description} onChange={e=>setTaskForm(f=>({...f,description:e.target.value}))}
+                className="w-full glass-input p-3 rounded-xl h-20 text-sm" placeholder="Details, references, links..." />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Target Department *</label>
+                <select value={taskForm.targetDept} onChange={e=>setTaskForm(f=>({...f,targetDept:e.target.value,assignedTo:''}))} className="w-full glass-input p-3 rounded-xl text-sm">
+                  {['Video Editors','Graphic Designers','Videography/Photography','Developers','Paid Ads','HR'].map(d => <option key={d}>{d}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Assign to (optional)</label>
+                <select value={taskForm.assignedTo} onChange={e=>setTaskForm(f=>({...f,assignedTo:e.target.value}))} className="w-full glass-input p-3 rounded-xl text-sm">
+                  <option value="">Whole department</option>
+                  {deptEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Priority</label>
+                <select value={taskForm.priority} onChange={e=>setTaskForm(f=>({...f,priority:e.target.value}))} className="w-full glass-input p-3 rounded-xl text-sm">
+                  {['Low','Medium','High'].map(p => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Due Date</label>
+                <input type="date" value={taskForm.dueDate} onChange={e=>setTaskForm(f=>({...f,dueDate:e.target.value}))}
+                  className="w-full glass-input p-3 rounded-xl text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={handleAssignTask}
+                className="flex-1 bg-neon-gradient py-2.5 rounded-xl text-white text-sm font-bold flex items-center justify-center gap-2">
+                <Send className="w-4 h-4" /> Send Task
+              </button>
+              <button onClick={() => { setShowTaskModal(false); setTaskForm(blankTask()); }}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 text-sm font-bold transition">
+                Cancel
+              </button>
+            </div>
+            {deptEmployees.length === 0 && (
+              <p className="text-xs text-slate-500 text-center">No employees found in {taskForm.targetDept} — task will be visible to that department when they check their workspace.</p>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

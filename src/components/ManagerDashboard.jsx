@@ -1,46 +1,17 @@
 import React, { useState } from 'react';
-import { Plus, Bell, BellOff, RefreshCw, Clock, User, AlertTriangle, AlertCircle, CalendarClock } from 'lucide-react';
+import { Plus, Bell, BellOff, RefreshCw, Clock, User, AlertCircle } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
+import TaskCard from './shared/TaskCard';
+import TaskDetailPanel from './shared/TaskDetailPanel';
+import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
 
-// ── Deadline badge helpers ────────────────────────────────────────────────────
+// ── Date helpers (kept here because they're used by handlers, not just the badge) ──
 const todayStr = () => new Date().toISOString().split('T')[0];
-const tomorrowStr = () => {
-  const d = new Date(); d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
-};
-
-function DeadlineBadge({ dueDate, status }) {
-  if (!dueDate || status === 'Completed' || status === 'Blocked') return null;
-  const today = todayStr();
-  const tomorrow = tomorrowStr();
-  if (dueDate < today) {
-    return (
-      <span className="flex items-center gap-1 text-3xs font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-        <AlertCircle className="w-3 h-3" /> OVERDUE
-      </span>
-    );
-  }
-  if (dueDate === today) {
-    return (
-      <span className="flex items-center gap-1 text-3xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-        <AlertTriangle className="w-3 h-3" /> DUE TODAY
-      </span>
-    );
-  }
-  if (dueDate === tomorrow) {
-    return (
-      <span className="flex items-center gap-1 text-3xs font-bold text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">
-        <CalendarClock className="w-3 h-3" /> DUE TOMORROW
-      </span>
-    );
-  }
-  return null;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function ManagerDashboard({ user, state, updateState }) {
+export default function ManagerDashboard({ user, state, updateState, onNotifFocus, setActiveTab }) {
   const toast = useToast();
   const { employees, tasks, timelogs, projects, notifications } = state;
 
@@ -63,10 +34,11 @@ export default function ManagerDashboard({ user, state, updateState }) {
   const [reassignEmpId,  setReassignEmpId]  = useState('');
 
   // ── Ping state ────────────────────────────────────────────────────────────
-  // activePingTaskId: which task's ping compose box is open
-  // pingMessages: { [taskId]: string } — custom message per task
   const [activePingTaskId, setActivePingTaskId] = useState('');
   const [pingMessages,     setPingMessages]     = useState({});
+
+  // ── TaskDetailPanel state ─────────────────────────────────────────────────
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -157,7 +129,6 @@ export default function ManagerDashboard({ user, state, updateState }) {
       ? `📌 ${user.name} pinged you on "${task.title}": ${customMsg}`
       : `🔔 ${user.name} pinged you on "${task.title}" — please update your status!`;
 
-    // Stamp lastPingedAt + increment pinged counter
     updateState({ tasks: tasks.map(t =>
       t.id === task.id
         ? { ...t, pinged: (t.pinged || 0) + 1, lastPingedAt: now }
@@ -181,15 +152,120 @@ export default function ManagerDashboard({ user, state, updateState }) {
 
     toast.success('Ping dispatched to assignee.', `"${task.title}"`);
 
-    // Close compose box and clear message
     setActivePingTaskId('');
     setPingMessages(prev => { const n = { ...prev }; delete n[task.id]; return n; });
   };
+
+  // ── Helper: pre-compute comment counts per task ─────────────────────────
+  const commentCounts = (state.taskComments || []).reduce((acc, c) => {
+    acc[c.taskId] = (acc[c.taskId] || 0) + 1;
+    return acc;
+  }, {});
+
+  // ── renderActions: ping + reassign compose boxes, passed to TaskCard ───
+  const renderPingReassign = (task) => {
+    const assignee       = employees.find(e => e.id === task.assignedTo);
+    const isReassigning  = reassignTaskId === task.id;
+    const isPingOpen     = activePingTaskId === task.id;
+    const cooldown       = formatCooldown(task);
+    const isCompleted    = task.status === 'Completed';
+
+    // Top row: action buttons (rendered above the compose boxes)
+    if (!isReassigning && !isPingOpen) {
+      return (
+        <div className="flex flex-wrap gap-2 justify-end border-t border-slate-800/40 pt-2.5">
+          <button
+            onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); }}
+            className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
+          >
+            <RefreshCw className="w-3 h-3 text-fuchsia-400" /> Reassign
+          </button>
+          {isCompleted ? (
+            <span className="px-3 py-1.5 rounded-xl text-2xs font-bold text-slate-600 border border-slate-800">
+              Done
+            </span>
+          ) : cooldown ? (
+            <button disabled
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-2xs font-bold text-slate-600 border border-slate-800 cursor-not-allowed">
+              <BellOff className="w-3 h-3" /> {cooldown}
+            </button>
+          ) : (
+            <button
+              onClick={() => { setActivePingTaskId(task.id); setReassignTaskId(''); }}
+              className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-xl text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+            >
+              <Bell className="w-3 h-3" /> Ping
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {isPingOpen && (
+          <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-3 space-y-2.5">
+            <p className="text-2xs font-semibold text-violet-300">
+              Send ping to {assignee?.name || 'assignee'}
+            </p>
+            <textarea
+              value={pingMessages[task.id] || ''}
+              onChange={e => setPingMessages(prev => ({ ...prev, [task.id]: e.target.value }))}
+              className="w-full glass-input p-2.5 rounded-lg text-xs h-14 resize-none"
+              placeholder="Optional message — leave blank for a generic status-check ping…"
+              maxLength={200}
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setActivePingTaskId(''); setPingMessages(p => { const n={...p}; delete n[task.id]; return n; }); }}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-2xs font-semibold cursor-pointer transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handlePingAssignee(task)}
+                className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-2xs font-bold flex items-center gap-1 cursor-pointer transition"
+              >
+                <Bell className="w-3 h-3" /> Send Ping
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isReassigning && (
+          <form onSubmit={e => handleReassignSubmit(e, task.id)}
+            className="flex gap-2 flex-wrap">
+            <select value={reassignEmpId} onChange={e => setReassignEmpId(e.target.value)}
+              className="glass-input p-2 rounded text-2xs cursor-pointer flex-1" required>
+              <option value="">-- Select new assignee --</option>
+              {deptStaff.filter(e => e.id !== task.assignedTo).map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+            <button type="submit"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-2xs font-bold cursor-pointer">
+              Confirm
+            </button>
+            <button type="button" onClick={() => setReassignTaskId('')}
+              className="bg-slate-800 text-slate-300 px-3 py-1.5 rounded text-2xs cursor-pointer">
+              Cancel
+            </button>
+          </form>
+        )}
+      </>
+    );
+  };
+
+  const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
 
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-8 animate-fade-in">
+
+      {/* ── KPI strip (pending HR / ad-stats actions) ── */}
+      <DepartmentKpiStrip state={state} setActiveTab={setActiveTab} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         {/* ── Task Creator ── */}
@@ -259,134 +335,17 @@ export default function ManagerDashboard({ user, state, updateState }) {
             {deptTasks.length === 0 ? (
               <p className="text-slate-400 text-center py-12 text-sm">No tasks in queue.</p>
             ) : (
-              deptTasks.map(task => {
-                const assignee       = employees.find(e => e.id === task.assignedTo);
-                const isReassigning  = reassignTaskId === task.id;
-                const isPingOpen     = activePingTaskId === task.id;
-                const cooldown       = formatCooldown(task);
-                const isCompleted    = task.status === 'Completed';
-
-                // Border color by deadline urgency
-                const borderColor =
-                  !isCompleted && task.dueDate < todayStr()  ? 'border-l-rose-500' :
-                  !isCompleted && task.dueDate === todayStr() ? 'border-l-amber-500' :
-                  'border-l-violet-500';
-
-                return (
-                  <div key={task.id}
-                    className={`glass-card p-5 rounded-2xl flex flex-col gap-3 border-l-4 ${borderColor}`}>
-
-                    {/* ── Task header ── */}
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                      <div className="space-y-1.5 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-3xs bg-violet-600/10 text-violet-400 px-2 py-0.5 rounded font-mono font-semibold">
-                            {task.status}
-                          </span>
-                          <span className="text-3xs text-slate-400">Due: {task.dueDate}</span>
-                          <DeadlineBadge dueDate={task.dueDate} status={task.status} />
-                        </div>
-                        <h4 className="font-bold text-sm text-slate-100">{task.title}</h4>
-                        <p className="text-xs text-slate-400 line-clamp-1">{task.description}</p>
-                        <div className="text-3xs text-slate-500 flex flex-wrap items-center gap-2">
-                          <span className="flex items-center gap-1">
-                            <User className="w-3.5 h-3.5" /> {assignee ? assignee.name : 'Unassigned'}
-                          </span>
-                          {task.pinged > 0 && (
-                            <span className="text-amber-400 font-bold">
-                              · {task.pinged} ping{task.pinged > 1 ? 's' : ''} sent
-                            </span>
-                          )}
-                          {cooldown && !isCompleted && (
-                            <span className="text-slate-600 font-mono">· {cooldown}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* ── Action buttons ── */}
-                      {!isReassigning && !isPingOpen && (
-                        <div className="flex gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); }}
-                            className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
-                          >
-                            <RefreshCw className="w-3 h-3 text-fuchsia-400" /> Reassign
-                          </button>
-                          {isCompleted ? (
-                            <span className="px-3 py-1.5 rounded-xl text-2xs font-bold text-slate-600 border border-slate-800">
-                              Done
-                            </span>
-                          ) : cooldown ? (
-                            <button disabled
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-2xs font-bold text-slate-600 border border-slate-800 cursor-not-allowed">
-                              <BellOff className="w-3 h-3" /> {cooldown}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => { setActivePingTaskId(task.id); setReassignTaskId(''); }}
-                              className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-xl text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
-                            >
-                              <Bell className="w-3 h-3" /> Ping
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── Ping compose box ── */}
-                    {isPingOpen && (
-                      <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-3 space-y-2.5">
-                        <p className="text-2xs font-semibold text-violet-300">
-                          Send ping to {assignee?.name || 'assignee'}
-                        </p>
-                        <textarea
-                          value={pingMessages[task.id] || ''}
-                          onChange={e => setPingMessages(prev => ({ ...prev, [task.id]: e.target.value }))}
-                          className="w-full glass-input p-2.5 rounded-lg text-xs h-14 resize-none"
-                          placeholder="Optional message — leave blank for a generic status-check ping…"
-                          maxLength={200}
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => { setActivePingTaskId(''); setPingMessages(p => { const n={...p}; delete n[task.id]; return n; }); }}
-                            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-2xs font-semibold cursor-pointer transition"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => handlePingAssignee(task)}
-                            className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-2xs font-bold flex items-center gap-1 cursor-pointer transition"
-                          >
-                            <Bell className="w-3 h-3" /> Send Ping
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── Reassign form ── */}
-                    {isReassigning && (
-                      <form onSubmit={e => handleReassignSubmit(e, task.id)}
-                        className="flex gap-2 flex-wrap">
-                        <select value={reassignEmpId} onChange={e => setReassignEmpId(e.target.value)}
-                          className="glass-input p-2 rounded text-2xs cursor-pointer flex-1" required>
-                          <option value="">-- Select new assignee --</option>
-                          {deptStaff.filter(e => e.id !== task.assignedTo).map(emp => (
-                            <option key={emp.id} value={emp.id}>{emp.name}</option>
-                          ))}
-                        </select>
-                        <button type="submit"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-2xs font-bold cursor-pointer">
-                          Confirm
-                        </button>
-                        <button type="button" onClick={() => setReassignTaskId('')}
-                          className="bg-slate-800 text-slate-300 px-3 py-1.5 rounded text-2xs cursor-pointer">
-                          Cancel
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                );
-              })
+              deptTasks.map(task => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  assignee={employees.find(e => e.id === task.assignedTo)}
+                  commentsCount={commentCounts[task.id] || 0}
+                  viewMode="manager"
+                  onOpenDetail={(t) => setSelectedTaskId(t.id)}
+                  renderActions={renderPingReassign}
+                />
+              ))
             )}
           </div>
         </div>
@@ -400,7 +359,7 @@ export default function ManagerDashboard({ user, state, updateState }) {
             {deptStaff.map(emp => {
               const empTasks  = tasks.filter(t => t.assignedTo === emp.id);
               const completed = empTasks.filter(t => t.status === 'Completed').length;
-              const overdue   = empTasks.filter(t => t.status !== 'Completed' && t.dueDate < todayStr()).length;
+              const overdue   = empTasks.filter(t => t.status !== 'Completed' && t.dueDate && t.dueDate < todayStr()).length;
               const pending   = empTasks.filter(t => t.status !== 'Completed').length;
               return (
                 <div key={emp.id} className="p-3 bg-slate-950/45 border border-slate-900 rounded-xl text-xs">
@@ -458,6 +417,17 @@ export default function ManagerDashboard({ user, state, updateState }) {
           </div>
         </div>
       </div>
+
+      {/* ── Task detail slide-in ── */}
+      {selectedTask && (
+        <TaskDetailPanel
+          task={selectedTask}
+          state={state}
+          updateState={updateState}
+          currentUser={user}
+          onClose={() => setSelectedTaskId(null)}
+        />
+      )}
     </div>
   );
 }
