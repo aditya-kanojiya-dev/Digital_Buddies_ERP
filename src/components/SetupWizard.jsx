@@ -54,8 +54,12 @@ export default function SetupWizard({ onSetupComplete }) {
 
       // ── Step 3: Write the founder employee row ─────────────────────────────
       // NOTE: Do NOT store the password here. Supabase Auth owns credentials.
+      // Capture the auth user's UUID so the employee row can be linked for RLS.
+      const founderAuthId = signUpData?.user?.id || null;
+
       const founderEmp = {
         id:                 'EMP01',
+        authUserId:         founderAuthId,
         name:               name.trim(),
         email:              normalizedEmail,
         phone:              '',

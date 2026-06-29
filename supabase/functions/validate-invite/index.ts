@@ -305,6 +305,10 @@ Deno.serve(async (req: Request) => {
       password: null,
       last_login:
         new Date().toISOString(),
+      // Link this employee row to the auth user that just signed in.
+      // Without this the new granular RLS policies (auth_user_id = auth.uid())
+      // would block every future login by this employee.
+      auth_user_id: authUser.id,
     })
     .eq('id', employee.id);
 

@@ -49,14 +49,56 @@ export const auth = {
 
     if (authError) throw authError;
 
-    // Step 2: Look up employee profile from Supabase employees table
-    const { data: employee, error: dbError } = await supabase
+    // Step 2: Get the authenticated user's UUID (the value auth.uid() returns
+    // inside RLS policies). We need this to match employees.auth_user_id.
+    const { data: { user: authUser }, error: userErr } =
+      await supabase.auth.getUser();
+
+    if (userErr || !authUser) {
+      throw new Error('Authenticated but could not load your user record. Try again.');
+    }
+
+    // Step 3: Look up the employee by auth_user_id. This is the join RLS uses.
+    let { data: employee, error: dbError } = await supabase
       .from('employees')
       .select('*')
-      .eq('email', normalizedEmail)
-      .single();
+      .eq('auth_user_id', authUser.id)
+      .maybeSingle();
 
-    if (dbError || !employee) {
+    // ── Self-heal: row may exist by email but auth_user_id wasn't set yet
+    // (e.g. employee created before phase-1 migration ran, or via an older
+    // code path). Backfill it now and retry the lookup.
+    if (!employee && dbError?.code === 'PGRST116') {
+      dbError = null; // maybeSingle returned no rows, not an actual error
+    }
+
+    if (!employee) {
+      const { data: byEmail, error: emailErr } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (byEmail && !byEmail.auth_user_id) {
+        // Backfill auth_user_id so this employee can use granular RLS.
+        const { error: updateErr } = await supabase
+          .from('employees')
+          .update({ auth_user_id: authUser.id })
+          .eq('id', byEmail.id);
+
+        if (!updateErr) {
+          employee = { ...byEmail, auth_user_id: authUser.id };
+        } else {
+          console.warn('[auth] Could not self-heal auth_user_id:', updateErr);
+        }
+      } else if (byEmail) {
+        employee = byEmail;
+      } else if (emailErr) {
+        dbError = emailErr;
+      }
+    }
+
+    if (!employee) {
       throw new Error(
         'Authentication succeeded but no employee profile found. Please run the Setup Wizard first or ask your admin to invite you.'
       );
@@ -70,7 +112,7 @@ export const auth = {
       throw new Error('Access denied. This account has been terminated.');
     }
 
-    // Step 3: Build session user and store in sessionStorage
+    // Step 4: Build session user and store in sessionStorage
     const sessionUser = toSessionUser(employee);
     sessionStorage.setItem(
       'neomax_session',
