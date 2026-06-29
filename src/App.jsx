@@ -414,12 +414,12 @@ useEffect(() => {
         <Settings user={user} state={state} />
       )}
 
-      {activeTab === 'Paid Ads' && (
-        <PaidAds user={user} state={state} updateState={updateState} />
-      )}
-
       {activeTab === 'Social Media' && (
         <SocialMedia user={user} state={state} updateState={updateState} />
+      )}
+
+      {activeTab === 'Paid Ads' && (
+        <PaidAds user={user} state={state} updateState={updateState} />
       )}
 
       {activeTab === 'Video Editors' && (
