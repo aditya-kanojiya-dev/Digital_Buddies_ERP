@@ -18,6 +18,9 @@ import HR from './components/Departments/HR';
 
 import NotificationsCenter from './components/shared/NotificationsCenter';
 import AcceptInvite from './components/AcceptInvite';
+import Analytics from './components/Analytics';
+import Settings from './components/Settings';
+import CommandPalette from './components/CommandPalette';
 import { auth, supabase } from './data/auth';
 import { db } from './data/db';
 import { runDeadlineEngine } from './lib/deadlineEngine';
@@ -55,6 +58,7 @@ export default function App() {
   const [loading, setLoading]             = useState(true);
   const [isBootstrapped, setIsBootstrapped] = useState(true);
   const [activeTab, setActiveTab]         = useState('dashboard');
+  const [searchOpen, setSearchOpen]       = useState(false);
 
   // Detect ?invite=TOKEN in the URL (one-time employee onboarding link)
   const [inviteToken]                     = useState(() => {
@@ -191,6 +195,18 @@ useEffect(() => {
 
   init();
 }, [user]);
+
+// ── Global Ctrl/Cmd+K to open the command palette ─────────────────────────
+useEffect(() => {
+  const onKey = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      setSearchOpen((s) => !s);
+    }
+  };
+  window.addEventListener('keydown', onKey);
+  return () => window.removeEventListener('keydown', onKey);
+}, []);
 
   // ── Optimistic state update → background Supabase persist ─────────────────
   const updateState = (newSubState) => {
@@ -361,7 +377,15 @@ useEffect(() => {
       setActiveTab={setActiveTab}
       onLogout={handleLogout}
       onNotifNavigate={handleNotifNavigate}
+      onOpenSearch={() => setSearchOpen(true)}
     >
+      <CommandPalette
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        state={state}
+        onNavigate={(tab) => setActiveTab(tab)}
+      />
+
       {activeTab === 'founder' && user.role === 'Super Admin' && (
         <FounderDashboard state={state} />
       )}
@@ -380,6 +404,14 @@ useEffect(() => {
 
       {activeTab === 'crm' && (user.role === 'Super Admin' || user.role === 'Manager') && (
         <CRM state={state} updateState={updateState} />
+      )}
+
+      {activeTab === 'analytics' && (user.role === 'Super Admin' || user.role === 'Manager') && (
+        <Analytics state={state} />
+      )}
+
+      {activeTab === 'settings' && (user.role === 'Super Admin' || user.role === 'Manager') && (
+        <Settings user={user} state={state} />
       )}
 
       {activeTab === 'Paid Ads' && (

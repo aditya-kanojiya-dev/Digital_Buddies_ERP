@@ -1,12 +1,58 @@
 @import "tailwindcss";
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Design tokens — single source of truth for the dark-glass theme.
+   Components reference these via the helper classes below or arbitrary values.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg-base: #0c0817;
+  --surface-1: rgba(18, 12, 36, 0.65);   /* glass-panel */
+  --surface-2: rgba(25, 18, 48, 0.45);   /* glass-card  */
+  --surface-input: rgba(15, 10, 30, 0.8);
+
+  /* Brand accents */
+  --accent: #8b5cf6;          /* violet-500  */
+  --accent-strong: #7c3aed;   /* violet-600  */
+  --accent-2: #d946ef;        /* fuchsia-500 */
+  --accent-ring: rgba(167, 139, 250, 0.6);
+
+  /* Borders */
+  --border-soft: rgba(139, 92, 246, 0.1);
+  --border: rgba(139, 92, 246, 0.15);
+  --border-strong: rgba(139, 92, 246, 0.3);
+
+  /* Text */
+  --text-1: #f1f5f9;
+  --text-2: #cbd5e1;
+  --text-3: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Radius */
+  --r-sm: 0.5rem;
+  --r-md: 0.75rem;
+  --r-lg: 1rem;
+  --r-xl: 1.5rem;
+
+  /* Shadows / glow */
+  --glow: 0 0 20px rgba(139, 92, 246, 0.15);
+  --glow-strong: 0 0 28px rgba(139, 92, 246, 0.28);
+}
+
 @layer base {
   body {
     font-family: 'Inter', sans-serif;
-    background-color: #0c0817;
+    background-color: var(--bg-base);
+    color: var(--text-2);
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Outfit', sans-serif;
+  }
+  /* Consistent focus ring for keyboard users across all interactive elements */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent-ring);
+    border-radius: var(--r-sm);
   }
 }
 
@@ -100,4 +146,88 @@
 
 .animate-toast-bar {
   animation: toast-bar linear forwards;
+}
+
+/* ── Fade / rise entrance used by panels and modals ─────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes modal-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-modal-pop {
+  animation: modal-pop 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+/* ── Button primitive ───────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  border-radius: var(--r-md);
+  transition: all 0.18s ease;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent-2) 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
+}
+.btn-primary:not(:disabled):hover { box-shadow: var(--glow-strong); transform: translateY(-1px); }
+
+.btn-secondary {
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--text-1);
+  border-color: var(--border);
+}
+.btn-secondary:not(:disabled):hover { background: rgba(139, 92, 246, 0.2); border-color: var(--border-strong); }
+
+.btn-ghost { background: transparent; color: var(--text-3); }
+.btn-ghost:not(:disabled):hover { background: rgba(148, 163, 184, 0.1); color: var(--text-1); }
+
+.btn-danger {
+  background: rgba(244, 63, 94, 0.14);
+  color: #fb7185;
+  border-color: rgba(244, 63, 94, 0.25);
+}
+.btn-danger:not(:disabled):hover { background: rgba(244, 63, 94, 0.24); }
+
+/* ── Badge primitive ────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+/* ── Respect reduced-motion preferences ─────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
