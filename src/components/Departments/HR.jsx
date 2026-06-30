@@ -6,6 +6,7 @@ import {
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
+import { logger } from '../../lib/logger';
 
 export default function HR({ state, updateState, user = { role: 'Super Admin', id: 'EMP01' } }) {
   const toast = useToast();
@@ -188,7 +189,7 @@ const normalizedEmail =
           email: normalizedEmail
         });
       } catch (emailErr) {
-        console.warn('[Invite] Welcome email failed:', emailErr.message);
+        logger.warn('[Invite] Welcome email failed:', emailErr.message);
         toast.warning('Employee created but welcome email could not be sent. Share credentials manually.');
       }
 
@@ -284,7 +285,7 @@ const normalizedEmail =
         email: normalizedEmail
       });
     } catch (emailErr) {
-      console.warn(
+      logger.warn(
         '[ResendInvite] Email failed:',
         emailErr.message
       );
@@ -365,7 +366,7 @@ const normalizedEmail =
         email: normalizedEmail
       });
     } catch (emailErr) {
-      console.warn(
+      logger.warn(
         '[ResetPassword] Email failed:',
         emailErr.message
       );

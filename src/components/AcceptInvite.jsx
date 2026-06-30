@@ -8,6 +8,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '../data/auth';
+import { logger } from '../lib/logger';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -59,7 +60,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
       setInviteId(data.inviteId);
       setStatus('ready');
     } catch (err) {
-      console.error(err);
+      logger.error('[AcceptInvite] validate failed:', err);
       setErrorMsg(err.message);
       setStatus('error');
     }
@@ -87,9 +88,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
         password,
       });
 
-      console.log('EDGE RESPONSE:', data);
-
-      // Restore Supabase session
+      // Restore Supabase session returned by the edge function.
       if (data.session) {
         const { error: sessionErr } =
           await supabase.auth.setSession({
@@ -97,15 +96,11 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
             refresh_token: data.session.refresh_token,
           });
 
-        console.log('SET SESSION ERROR:', sessionErr);
-
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        console.log('SESSION AFTER SET:', session);
+        if (sessionErr) {
+          logger.error('[AcceptInvite] setSession failed:', sessionErr);
+        }
       } else {
-        console.error('NO SESSION RETURNED FROM EDGE FUNCTION');
+        logger.error('[AcceptInvite] No session returned from edge function');
       }
 
       const sessionUser = {
@@ -118,23 +113,13 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
         JSON.stringify(sessionUser)
       );
 
-      console.log(
-        'SESSION STORAGE:',
-        sessionStorage.getItem('neomax_session')
-      );
-
       setStatus('done');
 
       setTimeout(() => {
-        console.log(
-          'Calling onInviteAccepted',
-          sessionUser
-        );
-
         onInviteAccepted(sessionUser);
       }, 1400);
     } catch (err) {
-      console.error(err);
+      logger.error('[AcceptInvite] activation failed:', err);
       setErrorMsg(err.message);
       setStatus('ready');
     }
