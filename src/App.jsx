@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
-import ErrorBoundary from './components/shared/ErrorBoundary';
 import Login from './components/Login';
 import SetupWizard from './components/SetupWizard';
 import ChangePassword from './components/ChangePassword';
@@ -18,7 +17,6 @@ import Developers from './components/Departments/Developers';
 import HR from './components/Departments/HR';
 
 import NotificationsCenter from './components/shared/NotificationsCenter';
-import PersonalCalendar from './components/shared/PersonalCalendar';
 import AcceptInvite from './components/AcceptInvite';
 import Analytics from './components/Analytics';
 import Settings from './components/Settings';
@@ -26,6 +24,7 @@ import CommandPalette from './components/CommandPalette';
 import { auth, supabase } from './data/auth';
 import { db } from './data/db';
 import { runDeadlineEngine } from './lib/deadlineEngine';
+import { logger } from './lib/logger';
 
 // Key → db.js save function mapping for Supabase persistence
 const DB_SAVE_MAP = {
@@ -79,10 +78,10 @@ export default function App() {
  // ── Fetch all data from Supabase ──────────────────────────────────────────
 const fetchAllData = async () => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    
+    // Ensure the Supabase session is restored from storage before issuing
+    // RLS-gated reads (the client auto-restores, but await makes it explicit).
+    await supabase.auth.getSession();
+
     const results = await Promise.allSettled([
       db.getEmployees(),
       db.getClients(),
@@ -113,7 +112,7 @@ const fetchAllData = async () => {
     // Log failed requests so you know which tables have RLS issues
     results.forEach((r, i) => {
       if (r.status === 'rejected') {
-        console.error(`Fetch ${i} failed:`, r.reason);
+        logger.error(`Fetch ${i} failed:`, r.reason);
       }
     });
 
@@ -163,17 +162,17 @@ const fetchAllData = async () => {
         const mergedNotifications = [...fresh, ...newState.notifications];
         setState(prev => ({ ...prev, notifications: mergedNotifications }));
         db.saveNotifications(mergedNotifications).catch(err =>
-          console.error('[deadlineEngine] saveNotifications failed:', err)
+          logger.error('[deadlineEngine] saveNotifications failed:', err)
         );
       }
     } catch (engErr) {
-      console.warn('[deadlineEngine] run failed:', engErr);
+      logger.warn('[deadlineEngine] run failed:', engErr);
     }
 
     // Bootstrap depends only on employees table
     setIsBootstrapped(newState.employees.length > 0);
   } catch (err) {
-    console.error('Error loading data from Supabase:', err);
+    logger.error('Error loading data from Supabase:', err);
 
     // Don't lock the app on loading
     setIsBootstrapped(true);
@@ -183,13 +182,7 @@ const fetchAllData = async () => {
 };
 
 useEffect(() => {
-  const init = async () => {
-    await supabase.auth.getSession();
-
-    await fetchAllData();
-  };
-
-  init();
+  fetchAllData();
 }, [user]);
 
 // ── Global Ctrl/Cmd+K to open the command palette ─────────────────────────
@@ -214,10 +207,10 @@ useEffect(() => {
       const saveFn = DB_SAVE_MAP[key];
       if (saveFn) {
         saveFn(val).catch(err =>
-          console.error(`[updateState] Failed to persist "${key}" to Supabase:`, err)
+          logger.error(`[updateState] Failed to persist "${key}" to Supabase:`, err)
         );
       } else {
-        console.warn(`[updateState] No save function mapped for key: "${key}"`);
+        logger.warn(`[updateState] No save function mapped for key: "${key}"`);
       }
     });
   };
@@ -382,8 +375,6 @@ useEffect(() => {
         onNavigate={(tab) => setActiveTab(tab)}
       />
 
-      <ErrorBoundary key={activeTab}>
-
       {activeTab === 'founder' && user.role === 'Super Admin' && (
         <FounderDashboard state={state} />
       )}
@@ -393,11 +384,7 @@ useEffect(() => {
       )}
 
       {activeTab === 'dashboard' && (
-        <Dashboard user={user} state={state} updateState={updateState} onNavigate={setActiveTab} />
-      )}
-
-      {activeTab === 'my-calendar' && (
-        <PersonalCalendar user={user} state={state} updateState={updateState} />
+        <Dashboard user={user} state={state} updateState={updateState} />
       )}
 
       {activeTab === 'projects' && (
@@ -456,8 +443,6 @@ useEffect(() => {
       {activeTab === 'profile' && (
         <Profile user={user} state={state} updateState={updateState} />
       )}
-
-      </ErrorBoundary>
     </Layout>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, Mail, Phone, Calendar, Code, Heart, Save, Image, Shield, Briefcase } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { useToast } from './shared/Toast';
+import { logger } from '../lib/logger';
 
 export default function Profile({ user, state, updateState }) {
   const toast = useToast();
@@ -54,7 +55,7 @@ export default function Profile({ user, state, updateState }) {
         u.avatar = avatar;
         sessionStorage.setItem('neomax_session', JSON.stringify(u));
       } catch (err) {
-        console.error(err);
+        logger.error('[Profile] session update failed:', err);
       }
     }
 

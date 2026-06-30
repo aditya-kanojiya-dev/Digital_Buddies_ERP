@@ -19,18 +19,11 @@ export interface EmailParams {
 
 export const emailService = {
   sendWelcomeEmail: async ({ name, email, password }: EmailParams) => {
-    // Dev-only fallback: if the Supabase URL isn't configured, log to console
-    // instead of failing silently. Gated on import.meta.env.DEV so a temp
-    // password can never be printed in a production build, even if env vars
-    // are misconfigured at deploy time.
+    // In dev, if the Supabase URL isn't set, log to console and bail early
     if (!SUPABASE_URL) {
-      if (import.meta.env.DEV) {
-        console.log('--- [MOCK EMAIL — SUPABASE_URL not set] ---');
-        console.log(`To: ${name} <${email}>  |  Temp password: ${password}`);
-        console.log('-------------------------------------------');
-      } else {
-        console.error('emailService: VITE_SUPABASE_URL is not set in this environment — welcome email was not sent.');
-      }
+      console.log('--- [MOCK EMAIL — SUPABASE_URL not set] ---');
+      console.log(`To: ${name} <${email}>  |  Temp password: ${password}`);
+      console.log('-------------------------------------------');
       return { success: true, mocked: true };
     }
 

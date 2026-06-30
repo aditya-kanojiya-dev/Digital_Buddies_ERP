@@ -21,7 +21,6 @@ import {
   ChevronLeft,
   PieChart,
   Settings as SettingsIcon,
-  CalendarDays,
 } from 'lucide-react';
 import { auth } from '../data/auth';
 import { timeAgo, initials } from '../lib/format';
@@ -31,7 +30,6 @@ const ALL_TABS = [
   { id: 'founder', label: 'Founder Center', icon: Shield, roles: ['Super Admin'], group: 'Overview' },
   { id: 'manager', label: 'Work Assignment', icon: Briefcase, roles: ['Super Admin', 'Manager', 'Employee'], group: 'Overview' },
   { id: 'dashboard', label: 'My Workspace', icon: CheckCircle, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Overview' },
-  { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Overview' },
   { id: 'analytics', label: 'Analytics', icon: PieChart, roles: ['Super Admin', 'Manager'], group: 'Overview' },
 
   { id: 'projects', label: 'Projects Kanban', icon: Layers, roles: ['Super Admin', 'Manager'], group: 'Work' },
