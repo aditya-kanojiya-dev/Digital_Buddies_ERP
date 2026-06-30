@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   PieChart,
   Settings as SettingsIcon,
+  CalendarDays,
 } from 'lucide-react';
 import { auth } from '../data/auth';
 import { timeAgo, initials } from '../lib/format';
@@ -30,13 +31,13 @@ const ALL_TABS = [
   { id: 'founder', label: 'Founder Center', icon: Shield, roles: ['Super Admin'], group: 'Overview' },
   { id: 'manager', label: 'Work Assignment', icon: Briefcase, roles: ['Super Admin', 'Manager', 'Employee'], group: 'Overview' },
   { id: 'dashboard', label: 'My Workspace', icon: CheckCircle, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Overview' },
+  { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Overview' },
   { id: 'analytics', label: 'Analytics', icon: PieChart, roles: ['Super Admin', 'Manager'], group: 'Overview' },
 
   { id: 'projects', label: 'Projects Kanban', icon: Layers, roles: ['Super Admin', 'Manager'], group: 'Work' },
   { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, roles: ['Super Admin', 'Manager'], group: 'Work' },
-
-  { id: 'Paid Ads', label: 'Paid Ads', icon: BarChart2, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Paid Ads', group: 'Departments' },
   { id: 'Social Media', label: 'Social Media', icon: Calendar, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Social Media', group: 'Departments' },
+  { id: 'Paid Ads', label: 'Paid Ads', icon: BarChart2, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Paid Ads', group: 'Departments' },
   { id: 'Video Editors', label: 'Video Editors', icon: Film, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Video Editors', group: 'Departments' },
   { id: 'Graphic Designers', label: 'Graphic Designers', icon: Image, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Graphic Designers', group: 'Departments' },
   { id: 'Videography/Photography', label: 'Videography', icon: Camera, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Videography/Photography', group: 'Departments' },
