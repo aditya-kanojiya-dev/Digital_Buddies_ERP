@@ -21,22 +21,24 @@ import {
   ChevronLeft,
   PieChart,
   Settings as SettingsIcon,
+  CalendarDays,
 } from 'lucide-react';
 import { auth } from '../data/auth';
 import { timeAgo, initials } from '../lib/format';
+import ThemeToggle from './ThemeToggle';
 
 // ── Tab registry. `group` controls the sidebar section it renders under. ──────
 const ALL_TABS = [
   { id: 'founder', label: 'Founder Center', icon: Shield, roles: ['Super Admin'], group: 'Overview' },
   { id: 'manager', label: 'Work Assignment', icon: Briefcase, roles: ['Super Admin', 'Manager', 'Employee'], group: 'Overview' },
   { id: 'dashboard', label: 'My Workspace', icon: CheckCircle, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Overview' },
+  { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Overview' },
   { id: 'analytics', label: 'Analytics', icon: PieChart, roles: ['Super Admin', 'Manager'], group: 'Overview' },
 
   { id: 'projects', label: 'Projects Kanban', icon: Layers, roles: ['Super Admin', 'Manager'], group: 'Work' },
   { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, roles: ['Super Admin', 'Manager'], group: 'Work' },
-
-  { id: 'Paid Ads', label: 'Paid Ads', icon: BarChart2, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Paid Ads', group: 'Departments' },
   { id: 'Social Media', label: 'Social Media', icon: Calendar, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Social Media', group: 'Departments' },
+  { id: 'Paid Ads', label: 'Paid Ads', icon: BarChart2, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Paid Ads', group: 'Departments' },
   { id: 'Video Editors', label: 'Video Editors', icon: Film, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Video Editors', group: 'Departments' },
   { id: 'Graphic Designers', label: 'Graphic Designers', icon: Image, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Graphic Designers', group: 'Departments' },
   { id: 'Videography/Photography', label: 'Videography', icon: Camera, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Videography/Photography', group: 'Departments' },
@@ -152,16 +154,17 @@ export default function Layout({
                   key={tab.id}
                   onClick={() => goTo(tab.id)}
                   title={tab.label}
-                  className={`w-full flex items-center gap-3 ${
+                  aria-current={active ? 'page' : undefined}
+                  className={`w-full flex items-center gap-3 cursor-pointer ${
                     showLabels ? 'px-3.5' : 'px-0 justify-center'
                   } py-2.5 rounded-xl text-xs font-bold transition group relative ${
                     active
-                      ? 'bg-violet-650 text-white shadow-lg shadow-violet-900/30'
-                      : 'text-slate-400 hover:bg-slate-900/40 hover:text-slate-100'
+                      ? 'bg-[var(--color-accent-soft)] text-[var(--color-text-1)] shadow-lg'
+                      : 'text-[var(--color-text-3)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-text-1)]'
                   }`}
                 >
                   {active && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-fuchsia-400" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-[var(--color-accent-2)]" />
                   )}
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   {showLabels && <span className="truncate">{tab.label}</span>}
@@ -181,7 +184,7 @@ export default function Layout({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden p-2 text-slate-300 hover:bg-slate-900/50 rounded-lg"
+            className="md:hidden p-2 text-[var(--color-text-2)] hover:bg-[var(--color-accent-soft)] rounded-lg cursor-pointer transition"
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
@@ -204,32 +207,37 @@ export default function Layout({
           {/* Global search trigger */}
           <button
             onClick={() => onOpenSearch?.()}
-            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-400 bg-slate-900/40 border border-slate-800/50 hover:border-violet-500/30 hover:text-slate-200 transition"
+            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[var(--color-text-3)] bg-[var(--color-surface-2)] border border-[var(--color-border-muted)] hover:border-[var(--color-accent)]/40 hover:text-[var(--color-text-1)] transition cursor-pointer"
           >
             <Search className="w-4 h-4" />
             <span>Search…</span>
-            <kbd className="text-[0.6rem] bg-slate-800/70 px-1.5 py-0.5 rounded border border-slate-700/50">
+            <kbd className="text-[0.6rem] bg-[var(--color-surface-input)] px-1.5 py-0.5 rounded border border-[var(--color-border-muted)] text-[var(--color-text-3)]">
               Ctrl K
             </kbd>
           </button>
           <button
             onClick={() => onOpenSearch?.()}
-            className="sm:hidden p-2 text-slate-300 hover:bg-slate-900/50 rounded-lg"
+            className="sm:hidden p-2 text-[var(--color-text-2)] hover:bg-[var(--color-accent-soft)] rounded-lg cursor-pointer transition"
             aria-label="Search"
           >
             <Search className="w-5 h-5" />
           </button>
 
+          {/* Theme toggle — light/dark switch */}
+          <ThemeToggle className="hidden sm:inline-flex" />
+
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifDropdown((s) => !s)}
-              className="p-2 hover:bg-slate-900/60 rounded-xl text-slate-400 hover:text-slate-200 border border-slate-800/40 relative"
+              className="p-2 hover:bg-[var(--color-accent-soft)] rounded-xl text-[var(--color-text-3)] hover:text-[var(--color-text-1)] border border-[var(--color-border-muted)] relative cursor-pointer transition"
               aria-label="Notifications"
+              aria-haspopup="true"
+              aria-expanded={showNotifDropdown}
             >
               <Bell className="w-5 h-5" />
               {unreadNotifs.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-bold text-[0.6rem] min-w-[1rem] h-4 px-1 rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-[var(--color-danger)] text-white font-bold text-[0.6rem] min-w-[1rem] h-4 px-1 rounded-full flex items-center justify-center">
                   {unreadNotifs.length > 9 ? '9+' : unreadNotifs.length}
                 </span>
               )}
@@ -237,12 +245,12 @@ export default function Layout({
 
             {showNotifDropdown && (
               <div className="absolute right-0 mt-3 w-80 glass-panel border border-violet-500/20 rounded-2xl p-4 shadow-2xl z-50 space-y-3 animate-fade-in">
-                <div className="flex justify-between items-center border-b border-slate-800/60 pb-2">
-                  <h4 className="font-bold text-xs text-slate-200">Notifications</h4>
+                <div className="flex justify-between items-center border-b border-[var(--color-border-muted)] pb-2">
+                  <h4 className="font-bold text-xs text-[var(--color-text-1)]">Notifications</h4>
                   {unreadNotifs.length > 0 && (
                     <button
                       onClick={handleMarkAllRead}
-                      className="text-[0.65rem] text-violet-400 hover:text-violet-300"
+                      className="text-[0.65rem] text-[var(--color-accent)] hover:text-[var(--color-accent-2)] cursor-pointer transition"
                     >
                       Mark all read
                     </button>
@@ -252,21 +260,21 @@ export default function Layout({
                 <div className="space-y-2 max-h-[260px] overflow-y-auto">
                   {unreadNotifs.length === 0 ? (
                     <div className="flex flex-col items-center text-center py-8">
-                      <Bell className="w-6 h-6 text-slate-600 mb-2" />
-                      <p className="text-[0.7rem] text-slate-500">You're all caught up</p>
+                      <Bell className="w-6 h-6 text-[var(--color-text-muted)] mb-2" />
+                      <p className="text-[0.7rem] text-[var(--color-text-muted)]">You're all caught up</p>
                     </div>
                   ) : (
                     unreadNotifs.map((n) => (
                       <div
                         key={n.id}
-                        className="p-2.5 bg-slate-950/50 rounded-xl border border-slate-800/60 flex items-start gap-2 hover:border-violet-500/30 transition"
+                        className="p-2.5 bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-border-muted)] flex items-start gap-2 hover:border-[var(--color-accent)]/40 transition"
                       >
                         <button
                           onClick={() => handleNotifClick(n)}
-                          className="flex-1 text-left min-w-0"
+                          className="flex-1 text-left min-w-0 cursor-pointer"
                         >
-                          <p className="text-[0.7rem] text-slate-300 leading-snug">{n.message}</p>
-                          <span className="text-[0.6rem] text-slate-500">
+                          <p className="text-[0.7rem] text-[var(--color-text-2)] leading-snug">{n.message}</p>
+                          <span className="text-[0.6rem] text-[var(--color-text-muted)]">
                             {timeAgo(n.timestamp)}
                           </span>
                         </button>
@@ -275,8 +283,9 @@ export default function Layout({
                             e.stopPropagation();
                             handleMarkOneRead(n.id);
                           }}
-                          className="text-slate-500 hover:text-emerald-400 transition p-1 flex-shrink-0"
+                          className="text-[var(--color-text-muted)] hover:text-[var(--color-success)] transition p-1 flex-shrink-0 cursor-pointer"
                           title="Mark as read"
+                          aria-label="Mark notification as read"
                         >
                           <CheckCircle className="w-3.5 h-3.5" />
                         </button>
@@ -290,7 +299,7 @@ export default function Layout({
                     setShowNotifDropdown(false);
                     goTo('notifications');
                   }}
-                  className="w-full text-[0.7rem] font-bold text-violet-400 hover:text-violet-300 py-1.5 border-t border-slate-800/60 transition"
+                  className="w-full text-[0.7rem] font-bold text-[var(--color-accent)] hover:text-[var(--color-accent-2)] py-1.5 border-t border-[var(--color-border-muted)] transition cursor-pointer"
                 >
                   View all notifications →
                 </button>
@@ -302,9 +311,11 @@ export default function Layout({
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu((s) => !s)}
-              className="flex items-center gap-2.5 bg-slate-900/40 pl-1.5 pr-2 sm:pr-3.5 py-1.5 rounded-xl border border-slate-800/50 hover:border-violet-500/30 transition"
+              className="flex items-center gap-2.5 bg-[var(--color-surface-2)] pl-1.5 pr-2 sm:pr-3.5 py-1.5 rounded-xl border border-[var(--color-border-muted)] hover:border-[var(--color-accent)]/40 cursor-pointer transition"
+              aria-haspopup="true"
+              aria-expanded={showUserMenu}
             >
-              <div className="w-7 h-7 rounded-lg bg-violet-650 flex items-center justify-center font-bold text-xs text-white overflow-hidden">
+              <div className="w-7 h-7 rounded-lg bg-[var(--color-accent)] flex items-center justify-center font-bold text-xs text-white overflow-hidden">
                 {user.avatar ? (
                   <img src={user.avatar} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -312,8 +323,8 @@ export default function Layout({
                 )}
               </div>
               <div className="hidden md:block text-left">
-                <div className="text-xs font-bold text-slate-200 leading-tight">{user.name}</div>
-                <div className="text-[0.65rem] text-slate-400">{user.designation}</div>
+                <div className="text-xs font-bold text-[var(--color-text-1)] leading-tight">{user.name}</div>
+                <div className="text-[0.65rem] text-[var(--color-text-3)]">{user.designation}</div>
               </div>
             </button>
 
@@ -331,7 +342,7 @@ export default function Layout({
                     setShowUserMenu(false);
                     goTo('profile');
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-900/50 transition"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--color-text-2)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-text-1)] transition cursor-pointer"
                 >
                   <User className="w-4 h-4" /> My Profile
                 </button>
@@ -341,14 +352,14 @@ export default function Layout({
                       setShowUserMenu(false);
                       goTo('settings');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-900/50 transition"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--color-text-2)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-text-1)] transition cursor-pointer"
                   >
                     <SettingsIcon className="w-4 h-4" /> Settings
                   </button>
                 )}
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition mt-1 border-t border-slate-800/60 pt-2"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--color-danger-text)] hover:bg-[var(--color-danger-soft)] transition mt-1 border-t border-[var(--color-border-muted)] pt-2 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" /> Sign Out
                 </button>
@@ -371,7 +382,8 @@ export default function Layout({
           </div>
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="mt-3 flex items-center gap-2 text-slate-500 hover:text-slate-300 text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-slate-900/40 transition"
+            className="mt-3 flex items-center gap-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-1)] text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-[var(--color-accent-soft)] transition cursor-pointer"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <ChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
             {!collapsed && 'Collapse'}
@@ -385,12 +397,13 @@ export default function Layout({
               className="absolute inset-0 bg-black/70 backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
-            <aside className="relative w-72 max-w-[80%] glass-panel border-r border-violet-500/10 p-4 overflow-y-auto animate-fade-in">
+            <aside className="relative w-72 max-w-[80%] glass-panel border-r border-[var(--color-border)] p-4 overflow-y-auto animate-fade-in">
               <div className="flex items-center justify-between mb-5">
-                <span className="text-sm font-bold text-slate-200">Modules</span>
+                <span className="text-sm font-bold text-[var(--color-text-1)]">Modules</span>
                 <button
                   onClick={() => setMobileOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg"
+                  className="p-1.5 text-[var(--color-text-3)] hover:text-[var(--color-text-1)] hover:bg-[var(--color-accent-soft)] rounded-lg cursor-pointer transition"
+                  aria-label="Close menu"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -398,7 +411,7 @@ export default function Layout({
               <SidebarContent showLabels />
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 mt-5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 border-t border-slate-800/60 pt-4"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 mt-5 rounded-xl text-xs font-bold text-[var(--color-danger-text)] hover:bg-[var(--color-danger-soft)] border-t border-[var(--color-border-muted)] pt-4 cursor-pointer transition"
               >
                 <LogOut className="w-4 h-4" /> Sign Out
               </button>
