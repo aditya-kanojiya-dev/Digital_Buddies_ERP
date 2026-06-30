@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { logger } from '../lib/logger';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -90,7 +89,7 @@ export const auth = {
         if (!updateErr) {
           employee = { ...byEmail, auth_user_id: authUser.id };
         } else {
-          logger.warn('[auth] Could not self-heal auth_user_id:', updateErr);
+          console.warn('[auth] Could not self-heal auth_user_id:', updateErr);
         }
       } else if (byEmail) {
         employee = byEmail;
@@ -143,7 +142,10 @@ export const auth = {
       .eq('id', employeeId);
 
     if (dbError) {
-      logger.error('Failed to update employee record:', dbError);
+      console.error(
+        'Failed to update employee record:',
+        dbError
+      );
     }
 
     // Step 3: Update active session
@@ -162,7 +164,7 @@ export const auth = {
           JSON.stringify(user)
         );
       } catch (e) {
-        logger.error('Session parse error:', e);
+        console.error('Session parse error:', e);
       }
     }
 
@@ -202,7 +204,7 @@ export const auth = {
 
         return user;
       } catch (e) {
-        logger.error('Session parse error:', e);
+        console.error('Session parse error:', e);
       }
     }
 

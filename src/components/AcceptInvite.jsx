@@ -8,7 +8,6 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '../data/auth';
-import { logger } from '../lib/logger';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -60,7 +59,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
       setInviteId(data.inviteId);
       setStatus('ready');
     } catch (err) {
-      logger.error('[AcceptInvite] validate failed:', err);
+      console.error(err);
       setErrorMsg(err.message);
       setStatus('error');
     }
@@ -88,11 +87,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
         password,
       });
 
-<<<<<<< HEAD
       // Restore Supabase session
-=======
-      // Restore Supabase session returned by the edge function.
->>>>>>> 1ba145169db494da93230a17aa1f8bf6d026ee33
       if (data.session) {
         const { error: sessionErr } =
           await supabase.auth.setSession({
@@ -101,17 +96,10 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
           });
 
         if (sessionErr) {
-<<<<<<< HEAD
           console.error('Failed to restore session after invite acceptance:', sessionErr.message);
         }
       } else {
         console.error('No session returned from invite edge function');
-=======
-          logger.error('[AcceptInvite] setSession failed:', sessionErr);
-        }
-      } else {
-        logger.error('[AcceptInvite] No session returned from edge function');
->>>>>>> 1ba145169db494da93230a17aa1f8bf6d026ee33
       }
 
       const sessionUser = {
@@ -130,7 +118,7 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
         onInviteAccepted(sessionUser);
       }, 1400);
     } catch (err) {
-      logger.error('[AcceptInvite] activation failed:', err);
+      console.error(err);
       setErrorMsg(err.message);
       setStatus('ready');
     }

@@ -26,7 +26,6 @@ import CommandPalette from './components/CommandPalette';
 import { auth, supabase } from './data/auth';
 import { db } from './data/db';
 import { runDeadlineEngine } from './lib/deadlineEngine';
-import { logger } from './lib/logger';
 
 // Key → db.js save function mapping for Supabase persistence
 const DB_SAVE_MAP = {
@@ -80,17 +79,10 @@ export default function App() {
  // ── Fetch all data from Supabase ──────────────────────────────────────────
 const fetchAllData = async () => {
   try {
-<<<<<<< HEAD
     const {
       data: { session },
     } = await supabase.auth.getSession();
     
-=======
-    // Ensure the Supabase session is restored from storage before issuing
-    // RLS-gated reads (the client auto-restores, but await makes it explicit).
-    await supabase.auth.getSession();
-
->>>>>>> 1ba145169db494da93230a17aa1f8bf6d026ee33
     const results = await Promise.allSettled([
       db.getEmployees(),
       db.getClients(),
@@ -121,7 +113,7 @@ const fetchAllData = async () => {
     // Log failed requests so you know which tables have RLS issues
     results.forEach((r, i) => {
       if (r.status === 'rejected') {
-        logger.error(`Fetch ${i} failed:`, r.reason);
+        console.error(`Fetch ${i} failed:`, r.reason);
       }
     });
 
@@ -171,17 +163,17 @@ const fetchAllData = async () => {
         const mergedNotifications = [...fresh, ...newState.notifications];
         setState(prev => ({ ...prev, notifications: mergedNotifications }));
         db.saveNotifications(mergedNotifications).catch(err =>
-          logger.error('[deadlineEngine] saveNotifications failed:', err)
+          console.error('[deadlineEngine] saveNotifications failed:', err)
         );
       }
     } catch (engErr) {
-      logger.warn('[deadlineEngine] run failed:', engErr);
+      console.warn('[deadlineEngine] run failed:', engErr);
     }
 
     // Bootstrap depends only on employees table
     setIsBootstrapped(newState.employees.length > 0);
   } catch (err) {
-    logger.error('Error loading data from Supabase:', err);
+    console.error('Error loading data from Supabase:', err);
 
     // Don't lock the app on loading
     setIsBootstrapped(true);
@@ -191,7 +183,6 @@ const fetchAllData = async () => {
 };
 
 useEffect(() => {
-<<<<<<< HEAD
   const init = async () => {
     await supabase.auth.getSession();
 
@@ -199,9 +190,6 @@ useEffect(() => {
   };
 
   init();
-=======
-  fetchAllData();
->>>>>>> 1ba145169db494da93230a17aa1f8bf6d026ee33
 }, [user]);
 
 // ── Global Ctrl/Cmd+K to open the command palette ─────────────────────────
@@ -226,10 +214,10 @@ useEffect(() => {
       const saveFn = DB_SAVE_MAP[key];
       if (saveFn) {
         saveFn(val).catch(err =>
-          logger.error(`[updateState] Failed to persist "${key}" to Supabase:`, err)
+          console.error(`[updateState] Failed to persist "${key}" to Supabase:`, err)
         );
       } else {
-        logger.warn(`[updateState] No save function mapped for key: "${key}"`);
+        console.warn(`[updateState] No save function mapped for key: "${key}"`);
       }
     });
   };
