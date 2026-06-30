@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Shield, User, Key, Mail, Building, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { db } from '../data/db';
 import { auth, supabase } from '../data/auth';
+import { logger } from '../lib/logger';
 
 export default function SetupWizard({ onSetupComplete }) {
   const [name, setName]               = useState('');
@@ -114,7 +115,7 @@ export default function SetupWizard({ onSetupComplete }) {
       setTimeout(() => onSetupComplete(sessionUser), 1200);
 
     } catch (err) {
-      console.error('Setup error:', err);
+      logger.error('Setup error:', err);
       setError(err.message || 'Setup failed. Check your Supabase config and try again.');
     } finally {
       setLoading(false);

@@ -1,36 +1,9 @@
 import { supabase } from './auth';
+import { toSnake, toCamel } from '../lib/caseConvert';
 
-// ============================================================================
-// Column-name conversion utilities
-// ============================================================================
-
-// camelCase → snake_case  (top-level keys only)
-const camelToSnake = (key) =>
-  key.replace(/([A-Z])/g, '_$1').toLowerCase();
-
-// snake_case → camelCase  (top-level keys only)
-const snakeToCamel = (key) =>
-  key.replace(/(_[a-z])/g, (m) => m[1].toUpperCase());
-
-/** Convert a JS object's top-level keys from camelCase → snake_case */
-const toSnake = (obj) => {
-  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
-  const out = {};
-  for (const [k, v] of Object.entries(obj)) {
-    out[camelToSnake(k)] = v;
-  }
-  return out;
-};
-
-/** Convert a JS object's top-level keys from snake_case → camelCase */
-const toCamel = (obj) => {
-  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
-  const out = {};
-  for (const [k, v] of Object.entries(obj)) {
-    out[snakeToCamel(k)] = v;
-  }
-  return out;
-};
+// Column-name conversion utilities (toSnake / toCamel) live in
+// ../lib/caseConvert so they can be unit-tested without loading the Supabase
+// client. Imported above.
 
 // ============================================================================
 // Guard — every function calls this first
