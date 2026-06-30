@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 import Login from './components/Login';
 import SetupWizard from './components/SetupWizard';
 import ChangePassword from './components/ChangePassword';
@@ -17,6 +18,7 @@ import Developers from './components/Departments/Developers';
 import HR from './components/Departments/HR';
 
 import NotificationsCenter from './components/shared/NotificationsCenter';
+import PersonalCalendar from './components/shared/PersonalCalendar';
 import AcceptInvite from './components/AcceptInvite';
 import Analytics from './components/Analytics';
 import Settings from './components/Settings';
@@ -80,8 +82,6 @@ const fetchAllData = async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    
-    console.log('FETCH SESSION:', session);
     
     const results = await Promise.allSettled([
       db.getEmployees(),
@@ -184,11 +184,7 @@ const fetchAllData = async () => {
 
 useEffect(() => {
   const init = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    console.log('APP SESSION:', session);
+    await supabase.auth.getSession();
 
     await fetchAllData();
   };
@@ -386,6 +382,8 @@ useEffect(() => {
         onNavigate={(tab) => setActiveTab(tab)}
       />
 
+      <ErrorBoundary key={activeTab}>
+
       {activeTab === 'founder' && user.role === 'Super Admin' && (
         <FounderDashboard state={state} />
       )}
@@ -395,7 +393,11 @@ useEffect(() => {
       )}
 
       {activeTab === 'dashboard' && (
-        <Dashboard user={user} state={state} updateState={updateState} />
+        <Dashboard user={user} state={state} updateState={updateState} onNavigate={setActiveTab} />
+      )}
+
+      {activeTab === 'my-calendar' && (
+        <PersonalCalendar user={user} state={state} updateState={updateState} />
       )}
 
       {activeTab === 'projects' && (
@@ -454,6 +456,8 @@ useEffect(() => {
       {activeTab === 'profile' && (
         <Profile user={user} state={state} updateState={updateState} />
       )}
+
+      </ErrorBoundary>
     </Layout>
   );
 }

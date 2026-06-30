@@ -87,8 +87,6 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
         password,
       });
 
-      console.log('EDGE RESPONSE:', data);
-
       // Restore Supabase session
       if (data.session) {
         const { error: sessionErr } =
@@ -97,15 +95,11 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
             refresh_token: data.session.refresh_token,
           });
 
-        console.log('SET SESSION ERROR:', sessionErr);
-
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        console.log('SESSION AFTER SET:', session);
+        if (sessionErr) {
+          console.error('Failed to restore session after invite acceptance:', sessionErr.message);
+        }
       } else {
-        console.error('NO SESSION RETURNED FROM EDGE FUNCTION');
+        console.error('No session returned from invite edge function');
       }
 
       const sessionUser = {
@@ -118,19 +112,9 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
         JSON.stringify(sessionUser)
       );
 
-      console.log(
-        'SESSION STORAGE:',
-        sessionStorage.getItem('neomax_session')
-      );
-
       setStatus('done');
 
       setTimeout(() => {
-        console.log(
-          'Calling onInviteAccepted',
-          sessionUser
-        );
-
         onInviteAccepted(sessionUser);
       }, 1400);
     } catch (err) {

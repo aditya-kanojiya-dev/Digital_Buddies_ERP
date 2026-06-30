@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Square, Clock, Calendar, CheckSquare, Plus, Bell, Eye, LogIn, LogOut, Coffee } from 'lucide-react';
 import { useToast } from './shared/Toast';
+import PersonalCalendar from './shared/PersonalCalendar';
 
-export default function Dashboard({ user, state, updateState }) {
+export default function Dashboard({ user, state, updateState, onNavigate }) {
   const toast = useToast();
   const { tasks, timelogs, attendance, notifications, employees } = state;
 
@@ -277,7 +278,16 @@ export default function Dashboard({ user, state, updateState }) {
 
       {/* Overview Cards & Clock in actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
+        {/* My Calendar widget — tasks/leaves/attendance preview */}
+        <PersonalCalendar
+          user={user}
+          state={state}
+          updateState={updateState}
+          compact
+          onExpand={() => onNavigate && onNavigate('my-calendar')}
+        />
+
         {/* Attendance card clock-in/out */}
         <div className="glass-panel p-6 rounded-2xl space-y-5">
           <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
