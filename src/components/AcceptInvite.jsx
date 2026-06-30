@@ -88,7 +88,15 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
         password,
       });
 
+<<<<<<< HEAD
       // Restore Supabase session returned by the edge function.
+=======
+<<<<<<< HEAD
+      // Restore Supabase session
+=======
+      // Restore Supabase session returned by the edge function.
+>>>>>>> 1ba145169db494da93230a17aa1f8bf6d026ee33
+>>>>>>> e678b4d024412d6feaaf96a3253d6e3a5b73352f
       if (data.session) {
         const { error: sessionErr } =
           await supabase.auth.setSession({
@@ -97,10 +105,24 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
           });
 
         if (sessionErr) {
+<<<<<<< HEAD
           logger.error('[AcceptInvite] setSession failed:', sessionErr);
         }
       } else {
         logger.error('[AcceptInvite] No session returned from edge function');
+=======
+<<<<<<< HEAD
+          console.error('Failed to restore session after invite acceptance:', sessionErr.message);
+        }
+      } else {
+        console.error('No session returned from invite edge function');
+=======
+          logger.error('[AcceptInvite] setSession failed:', sessionErr);
+        }
+      } else {
+        logger.error('[AcceptInvite] No session returned from edge function');
+>>>>>>> 1ba145169db494da93230a17aa1f8bf6d026ee33
+>>>>>>> e678b4d024412d6feaaf96a3253d6e3a5b73352f
       }
 
       const sessionUser = {
