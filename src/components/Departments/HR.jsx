@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Users, Calendar, Clock, DollarSign, Send, Star, ShieldCheck, Briefcase, Plus, 
-  Trash2, Edit2, Check, X, Printer, Download, Key, RefreshCw, Eye, Activity, Mail
+  Trash2, Edit2, Check, X, Printer, Download, Key, RefreshCw, Activity
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';

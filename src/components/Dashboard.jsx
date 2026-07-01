@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Square, Clock, Calendar, CheckSquare, Plus, Bell, Eye, LogIn, LogOut, Coffee } from 'lucide-react';
+import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import PersonalCalendar from './shared/PersonalCalendar';
 
 export default function Dashboard({ user, state, updateState, onNavigate }) {
   const toast = useToast();
-  const { tasks, timelogs, attendance, notifications, employees } = state;
+  const { tasks, timelogs, attendance, notifications } = state;
 
   // Filter only personal assets
   const myTasks = tasks.filter(t => t.assignedTo === user.id);
@@ -131,7 +131,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   const [timerTaskId, setTimerTaskId] = useState('');
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
-  const [timerIntervalId, setTimerIntervalId] = useState(null);
+  const timerIntervalRef = useRef(null);
   const [logDesc, setLogDesc] = useState('');
 
   // Manual Log form
@@ -144,15 +144,15 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       const id = setInterval(() => {
         setTimerSeconds(s => s + 1);
       }, 1000);
-      setTimerIntervalId(id);
+      timerIntervalRef.current = id;
     } else {
-      if (timerIntervalId) {
-        clearInterval(timerIntervalId);
-        setTimerIntervalId(null);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
     }
     return () => {
-      if (timerIntervalId) clearInterval(timerIntervalId);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
   }, [timerRunning]);
 
@@ -428,6 +428,72 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
             </div>
           </div>
         </div>
+        {/* Calendar Summary Widgets */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 lg:col-span-3">
+          {(() => {
+            const weekStart = todayStr();
+            const weekEnd = new Date();
+            weekEnd.setDate(weekEnd.getDate() + 7);
+            const weekEndStr = weekEnd.toISOString().split('T')[0];
+            const monthStart = todayStr().substring(0, 7);
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            const widgets = [
+              {
+                label: "Today's Tasks",
+                val: myTasks.filter(t => t.dueDate === todayStr() && t.status !== 'Completed').length,
+                color: 'text-violet-400', bg: 'bg-violet-500/10',
+                icon: Clock,
+              },
+              {
+                label: 'Due This Week',
+                val: myTasks.filter(t => t.dueDate && t.dueDate >= weekStart && t.dueDate <= weekEndStr && t.status !== 'Completed').length,
+                color: 'text-indigo-400', bg: 'bg-indigo-500/10',
+                icon: CalendarIcon,
+              },
+              {
+                label: 'Overdue',
+                val: myTasks.filter(t => t.dueDate && t.dueDate < todayStr() && t.status !== 'Completed').length,
+                color: 'text-rose-400', bg: 'bg-rose-500/10',
+                icon: AlertCircle,
+              },
+              {
+                label: 'Completed This Month',
+                val: myTasks.filter(t => t.status === 'Completed' && t.createdAt?.startsWith(monthStart)).length,
+                color: 'text-emerald-400', bg: 'bg-emerald-500/10',
+                icon: CheckSquare,
+              },
+              {
+                label: 'Recently Assigned',
+                val: myTasks.filter(t => t.createdAt && new Date(t.createdAt) >= sevenDaysAgo).length,
+                color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10',
+                icon: Plus,
+              },
+              {
+                label: 'Upcoming Deadlines',
+                val: (() => {
+                  const upcoming = myTasks.filter(t => t.dueDate && t.dueDate >= todayStr() && t.status !== 'Completed').sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+                  return upcoming.length > 0 ? upcoming[0].dueDate : '—';
+                })(),
+                color: 'text-amber-400', bg: 'bg-amber-500/10',
+                icon: Bell,
+              },
+            ];
+            return widgets.map(w => (
+              <div key={w.label} className="glass-card p-3 rounded-xl flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${w.bg}`}>
+                  <w.icon className={`w-4 h-4 ${w.color}`} />
+                </div>
+                <div className="min-w-0">
+                  <div className={`text-lg font-extrabold ${w.color}`}>{w.val}</div>
+                  <div className="text-3xs text-slate-400 truncate">{w.label}</div>
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+
         <div className="glass-panel p-6 rounded-3xl space-y-5 lg:col-span-3 relative overflow-hidden">
           <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <Calendar className="w-6 h-6 text-fuchsia-400" /> My Calendar

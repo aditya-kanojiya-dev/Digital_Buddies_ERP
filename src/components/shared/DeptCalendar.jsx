@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-    Calendar as CalendarIcon, Plus, X, Edit3, Trash2, Send, ChevronLeft, ChevronRight, Clock, User, MessageSquare,
+    Calendar as CalendarIcon, Plus, X, Edit3, Trash2, Send, ChevronLeft, ChevronRight, MessageSquare,
 } from 'lucide-react';
 import { useToast } from './Toast';
 import TaskDetailPanel from './TaskDetailPanel';
@@ -102,7 +102,7 @@ export default function DeptCalendar({
     const now = new Date();
     const [calYear,  setCalYear]  = useState(now.getFullYear());
     const [calMonth, setCalMonth] = useState(now.getMonth());
-    const [tick,     setTick]     = useState(0); // re-derive "today" when month changes
+    const [, setTick]     = useState(0); // re-derive "today" when month changes
 
     // ── Modal state ────────────────────────────────────────────────────────
     const [selectedDay,   setSelectedDay]   = useState(null);

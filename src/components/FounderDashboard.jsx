@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Shield, CreditCard, Users, Briefcase, FileText, Download, Wallet } from 'lucide-react';
 import { useToast } from './shared/Toast';
-import { PageHeader, StatCard, Card, Button, EmptyState, LineChart, Sparkline } from './ui';
+import { PageHeader, StatCard, Card, EmptyState, LineChart, Sparkline } from './ui';
 import { exportCsv } from '../lib/exportCsv';
 import { fmtCurrency, fmtDateTime } from '../lib/format';
 

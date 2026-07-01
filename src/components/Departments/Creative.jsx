@@ -7,7 +7,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const toast = useToast();
 
   const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department === 'Social Media';
-  const CREATIVE_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography'];
 
   // Filter employees for this specific creative department
   const creativeStaff = employees.filter(emp =>

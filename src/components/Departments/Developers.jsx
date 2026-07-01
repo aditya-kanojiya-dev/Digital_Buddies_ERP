@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Download, Code, Layers, FileText, Check, Clock, Shield, Lock } from 'lucide-react';
+import { Download, Code, Layers, FileText, Clock, Shield, Lock } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 
 export default function Developers({ user, state, updateState }) {
   const toast = useToast();
-  const { devProjects, employees, clients } = state;
+  const { devProjects, employees } = state;
   const devStaff = employees.filter(e => e.department === 'Developers');
 
   // ── Role gates ────────────────────────────────────────────────────────────

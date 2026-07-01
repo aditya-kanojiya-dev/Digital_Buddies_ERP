@@ -79,10 +79,8 @@ export default function App() {
  // ── Fetch all data from Supabase ──────────────────────────────────────────
 const fetchAllData = async () => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    
+    await supabase.auth.getSession();
+
     const results = await Promise.allSettled([
       db.getEmployees(),
       db.getClients(),
@@ -257,6 +255,16 @@ useEffect(() => {
   };
 
   // ── Login activity tracking ───────────────────────────────────────────────
+  const getClientIp = async () => {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      return data.ip;
+    } catch {
+      return 'unavailable';
+    }
+  };
+
   const recordLoginActivity = async (empId, type) => {
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
@@ -264,7 +272,7 @@ useEffect(() => {
       const newLog = {
         id:          `LOG${Date.now()}`,
         employeeId:  empId,
-        ipAddress:   '192.168.1.92',
+        ipAddress:   await getClientIp(),
         device:      navigator.userAgent.substring(0, 60),
         loginAt:     timeStr,
         logoutAt:    null,
@@ -423,7 +431,7 @@ useEffect(() => {
       )}
 
       {activeTab === 'manager' && (user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Employee') && (
-        <ManagerDashboard user={user} state={state} updateState={updateState} onNotifFocus={handleNotifNavigate} />
+        <ManagerDashboard user={user} state={state} updateState={updateState} setActiveTab={setActiveTab} />
       )}
 
       {activeTab === 'my-calendar' && (

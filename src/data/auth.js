@@ -175,7 +175,7 @@ export const auth = {
   logout: async () => {
     try {
       await supabase.auth.signOut();
-    } catch (e) {
+    } catch {
       // ignore
     }
 

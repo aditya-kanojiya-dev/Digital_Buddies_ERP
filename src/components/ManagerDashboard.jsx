@@ -1,39 +1,56 @@
 import React, { useState } from 'react';
-import { Plus, Bell, BellOff, RefreshCw, Clock, User, AlertCircle } from 'lucide-react';
+import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
 import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
 import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
 
-// ── Date helpers (kept here because they're used by handlers, not just the badge) ──
+// ── Date helpers ────────────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().split('T')[0];
+const addDays = (dateStr, days) => {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split('T')[0];
+};
+
+const ALLOWED_TARGET_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography', 'Paid Ads'];
+const CREATIVE_DEPTS = ['Video Editors', 'Graphic Designers', 'Videography/Photography'];
+
+const DEPT_TIMELINE_RULES = {
+  'Developers':              { mode: 'manual', label: 'Manual' },
+  'Paid Ads':                { mode: 'manual', label: 'Manual' },
+  'Video Editors':           { mode: 'select', options: [3, 5], label: 'Editors timeline' },
+  'Graphic Designers':       { mode: 'select', options: [3, 5], label: 'Designers timeline' },
+  'Videography/Photography': { mode: 'fixed',  days: 5, label: 'Fixed 5 days' },
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function ManagerDashboard({ user, state, updateState, onNotifFocus, setActiveTab }) {
+export default function ManagerDashboard({ user, state, updateState, setActiveTab }) {
   const toast = useToast();
   const { employees, tasks, timelogs, projects, notifications } = state;
 
   const isSuperAdmin = user.role === 'Super Admin';
   const managerDept  = user.department;
 
-  const deptStaff = employees.filter(emp  => isSuperAdmin ? true : emp.department  === managerDept);
-  const deptTasks = tasks.filter(task => isSuperAdmin ? true : task.department === managerDept);
+  const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department === 'Social Media';
 
   // ── Task creation form ────────────────────────────────────────────────────
+  const [targetDept,   setTargetDept]   = useState('');
   const [taskTitle,    setTaskTitle]    = useState('');
   const [taskDesc,     setTaskDesc]     = useState('');
   const [assigneeId,   setAssigneeId]   = useState('');
   const [taskProject,  setTaskProject]  = useState('');
   const [taskPriority, setTaskPriority] = useState('Medium');
   const [taskDue,      setTaskDue]      = useState('');
+  const [timelineDays, setTimelineDays] = useState('3');
   const [taskScheduledDate, setTaskScheduledDate] = useState('');
 
-  const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department === 'Social Media';
-  const CREATIVE_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography'];
-  const selectedAssignee = employees.find(emp => emp.id === assigneeId);
-  const isCreativeDept = selectedAssignee && CREATIVE_DEPTS.includes(selectedAssignee.department);
+  const rule = DEPT_TIMELINE_RULES[targetDept] || {};
+  const deptStaff = targetDept ? employees.filter(emp => emp.department === targetDept) : [];
+  const deptTasks = tasks.filter(task => isSuperAdmin ? true : ALLOWED_TARGET_DEPTS.includes(task.department));
+  const isCreativeDept = CREATIVE_DEPTS.includes(targetDept);
 
   // ── Reassignment ──────────────────────────────────────────────────────────
   const [reassignTaskId, setReassignTaskId] = useState('');
@@ -48,9 +65,16 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
+  const computeDueDate = () => {
+    if (rule.mode === 'manual') return taskDue || addDays(todayStr(), 7);
+    if (rule.mode === 'fixed') return addDays(todayStr(), rule.days);
+    if (rule.mode === 'select') return addDays(todayStr(), parseInt(timelineDays));
+    return taskDue || addDays(todayStr(), 7);
+  };
+
   const handleCreateTask = (e) => {
     e.preventDefault();
-    if (!taskTitle || !assigneeId) return;
+    if (!taskTitle || !assigneeId || !targetDept) return;
 
     const staffMember = employees.find(emp => emp.id === assigneeId);
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
@@ -61,11 +85,11 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
       description:   taskDesc,
       assignedTo:    assigneeId,
       assignedBy:    user.id,
-      department:    staffMember?.department || managerDept,
+      department:    targetDept,
       projectId:     taskProject || 'General',
       priority:      taskPriority,
       status:        'New',
-      dueDate:       taskDue || new Date(Date.now() + 5 * 86_400_000).toISOString().split('T')[0],
+      dueDate:       computeDueDate(),
       createdAt:     new Date().toISOString().split('T')[0],
       pinged:        0,
       lastPingedAt:  null,
@@ -85,12 +109,12 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
       id:        `AUD${Date.now()}`,
       userId:    user.id,
       action:    'Task Created',
-      details:   `${user.name} assigned task "${taskTitle}" to ${staffMember?.name}.`,
+      details:   `${user.name} assigned task "${taskTitle}" to ${staffMember?.name} (${targetDept}).`,
       timestamp: now,
     }, ...state.auditLogs] });
 
     toast.success(`Task assigned to ${staffMember?.name}.`, `"${taskTitle}"`);
-    setTaskTitle(''); setTaskDesc(''); setAssigneeId(''); setTaskDue(''); setTaskScheduledDate('');
+    setTaskTitle(''); setTaskDesc(''); setAssigneeId(''); setTaskDue(''); setTaskScheduledDate(''); setTargetDept(''); setTimelineDays('3');
   };
 
   const handleReassignSubmit = (e, taskId) => {
@@ -292,11 +316,19 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
                 <textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)}
                   className="w-full glass-input p-3 rounded-xl text-sm h-16" placeholder="Details of deliverables..." required />
               </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Target Department</label>
+                <select value={targetDept} onChange={e => { setTargetDept(e.target.value); setAssigneeId(''); }}
+                  className="w-full glass-input p-3 rounded-xl text-xs" required>
+                  <option value="">-- Select department --</option>
+                  {ALLOWED_TARGET_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Assignee</label>
                   <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs" required>
+                    className="w-full glass-input p-3 rounded-xl text-xs" required disabled={!targetDept}>
                     <option value="">-- Select --</option>
                     {deptStaff.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                   </select>
@@ -320,11 +352,28 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
                     <option value="Low">Low Priority</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Due Date</label>
-                  <input type="date" value={taskDue} onChange={e => setTaskDue(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs" required />
-                </div>
+                {rule.mode === 'manual' ? (
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Due Date</label>
+                    <input type="date" value={taskDue} onChange={e => setTaskDue(e.target.value)}
+                      className="w-full glass-input p-3 rounded-xl text-xs" required />
+                  </div>
+                ) : rule.mode === 'select' ? (
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Timeline</label>
+                    <select value={timelineDays} onChange={e => setTimelineDays(e.target.value)}
+                      className="w-full glass-input p-3 rounded-xl text-xs">
+                      <option value="3">3 Days from today</option>
+                      <option value="5">5 Days from today</option>
+                    </select>
+                    <p className="text-3xs text-slate-500 mt-1">Due: {addDays(todayStr(), parseInt(timelineDays))}</p>
+                  </div>
+                ) : rule.mode === 'fixed' ? (
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Due Date</label>
+                    <p className="text-xs text-slate-300 mt-2">Auto: {addDays(todayStr(), rule.days)} (fixed {rule.days} days)</p>
+                  </div>
+                ) : null}
               </div>
               {isCreativeDept && (
                 <div>

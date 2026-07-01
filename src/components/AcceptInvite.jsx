@@ -34,7 +34,6 @@ async function callEdge(body) {
 export default function AcceptInvite({ token, onInviteAccepted }) {
   const [status, setStatus] = useState('validating');
   const [employee, setEmployee] = useState(null);
-  const [inviteId, setInviteId] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -48,22 +47,21 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
       return;
     }
 
+    const validateToken = async () => {
+      try {
+        const data = await callEdge({ token });
+        setEmployee(data.employee);
+        setInviteId(data.inviteId);
+        setStatus('ready');
+      } catch (err) {
+        console.error(err);
+        setErrorMsg(err.message);
+        setStatus('error');
+      }
+    };
+
     validateToken();
   }, [token]);
-
-  const validateToken = async () => {
-    try {
-      const data = await callEdge({ token });
-
-      setEmployee(data.employee);
-      setInviteId(data.inviteId);
-      setStatus('ready');
-    } catch (err) {
-      console.error(err);
-      setErrorMsg(err.message);
-      setStatus('error');
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

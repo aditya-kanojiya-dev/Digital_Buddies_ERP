@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, FileText, Briefcase, TrendingUp, DollarSign, Send, ArrowRight, UserCheck } from 'lucide-react';
+import { Plus, Download, FileText, Briefcase, DollarSign, UserCheck } from 'lucide-react';
 import { useToast } from './shared/Toast';
 
 export default function CRM({ state, updateState }) {

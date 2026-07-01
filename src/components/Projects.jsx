@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Plus, Calendar, CheckSquare, Clock, ArrowRight } from 'lucide-react';
+import { Layers, Plus } from 'lucide-react';
 import { useToast } from './shared/Toast';
 
 export default function Projects({ state, updateState }) {

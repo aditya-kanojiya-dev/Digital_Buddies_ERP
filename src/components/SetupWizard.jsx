@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, User, Key, Mail, Building, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { db } from '../data/db';
-import { auth, supabase } from '../data/auth';
+import { supabase } from '../data/auth';
 
 export default function SetupWizard({ onSetupComplete }) {
   const [name, setName]               = useState('');
@@ -94,7 +94,7 @@ export default function SetupWizard({ onSetupComplete }) {
           companyName,
           setupDate: new Date().toISOString().split('T')[0]
         }));
-      } catch (_) { /* non-critical */ }
+      } catch { /* non-critical */ }
 
       const sessionUser = {
         id:                 founderEmp.id,

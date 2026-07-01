@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, Calendar, Code, Heart, Save, Image, Shield, Briefcase } from 'lucide-react';
+import { User, Mail, Calendar, Code, Save, Image, Shield, Briefcase } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { useToast } from './shared/Toast';
 
