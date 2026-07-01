@@ -51,7 +51,6 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
       try {
         const data = await callEdge({ token });
         setEmployee(data.employee);
-        setInviteId(data.inviteId);
         setStatus('ready');
       } catch (err) {
         console.error(err);
