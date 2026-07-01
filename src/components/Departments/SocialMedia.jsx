@@ -118,6 +118,9 @@ export default function SocialMedia({ user, state, updateState }) {
   });
   const [taskForm, setTaskForm] = useState(blankTask());
 
+  // Employees filter for the assignee dropdown in the cross-dept modal
+  const deptEmployees = employees.filter(e => e.department === taskForm.targetDept);
+
   // ── Quote / MOM form ──────────────────────────────────────────────────────
   const [quoteClient, setQuoteClient] = useState('');
   const [quoteDetails, setQuoteDetails] = useState('');
