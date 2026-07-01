@@ -431,18 +431,18 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
         {/* Calendar Summary Widgets */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 lg:col-span-3">
           {(() => {
-            const weekStart = todayStr();
+            const weekStart = todayStr;
             const weekEnd = new Date();
             weekEnd.setDate(weekEnd.getDate() + 7);
             const weekEndStr = weekEnd.toISOString().split('T')[0];
-            const monthStart = todayStr().substring(0, 7);
+            const monthStart = todayStr.substring(0, 7);
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
             const widgets = [
               {
                 label: "Today's Tasks",
-                val: myTasks.filter(t => t.dueDate === todayStr() && t.status !== 'Completed').length,
+                val: myTasks.filter(t => t.dueDate === todayStr && t.status !== 'Completed').length,
                 color: 'text-violet-400', bg: 'bg-violet-500/10',
                 icon: Clock,
               },
@@ -454,7 +454,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
               },
               {
                 label: 'Overdue',
-                val: myTasks.filter(t => t.dueDate && t.dueDate < todayStr() && t.status !== 'Completed').length,
+                val: myTasks.filter(t => t.dueDate && t.dueDate < todayStr && t.status !== 'Completed').length,
                 color: 'text-rose-400', bg: 'bg-rose-500/10',
                 icon: AlertCircle,
               },
@@ -473,7 +473,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
               {
                 label: 'Upcoming Deadlines',
                 val: (() => {
-                  const upcoming = myTasks.filter(t => t.dueDate && t.dueDate >= todayStr() && t.status !== 'Completed').sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+                  const upcoming = myTasks.filter(t => t.dueDate && t.dueDate >= todayStr && t.status !== 'Completed').sort((a, b) => a.dueDate.localeCompare(b.dueDate));
                   return upcoming.length > 0 ? upcoming[0].dueDate : '—';
                 })(),
                 color: 'text-amber-400', bg: 'bg-amber-500/10',
