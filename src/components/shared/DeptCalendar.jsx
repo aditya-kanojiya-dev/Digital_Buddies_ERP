@@ -185,6 +185,18 @@ export default function DeptCalendar({
         updateState({
             tasks: tasks.map(x => x.id === taskId ? { ...x, status: nextStatus } : x),
         });
+        // Notify the task creator/assigner
+        if (t.assignedBy && t.assignedBy !== user.id) {
+            const now = new Date().toISOString();
+            updateState({ notifications: [{
+                id: `NTF${Date.now()}`,
+                userId: t.assignedBy,
+                message: `${user.name} moved "${t.title}" from "${t.status}" to "${nextStatus}".`,
+                type: 'info',
+                timestamp: now,
+                read: false,
+            }, ...(state.notifications || [])] });
+        }
     };
 
     // ── Post CRUD ──────────────────────────────────────────────────────────
@@ -218,11 +230,13 @@ export default function DeptCalendar({
             // Notify target dept if it's not the source
             if (postForm.assignedDept && postForm.assignedDept !== 'Social Media') {
                 const deptMembers = employees.filter(e => e.department === postForm.assignedDept);
+                const now = new Date().toISOString();
                 const newNotifs = deptMembers.map(emp => ({
                     id: `NTF${Date.now()}_${emp.id}`,
                     userId: emp.id,
-                    message: `📅 New content task from Social Media: "${postForm.title}" on ${postForm.date}`,
-                    timestamp: new Date().toISOString(),
+                    message: `📅 New content task from ${deptName}: "${postForm.title}" on ${postForm.date}`,
+                    type: 'assignment',
+                    timestamp: now,
                     read: false,
                 }));
                 if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });
@@ -277,11 +291,13 @@ export default function DeptCalendar({
         const toNotify = taskForm.assignedTo
             ? [employees.find(e => e.id === taskForm.assignedTo)].filter(Boolean)
             : employees.filter(e => e.department === taskForm.targetDept);
+        const now = new Date().toISOString();
         const newNotifs = toNotify.map(emp => ({
             id: `NTF${Date.now()}_${emp.id}`,
             userId: emp.id,
             message: `📌 ${deptName} assigned you a task: "${taskForm.title}"${taskForm.dueDate ? ` — due ${taskForm.dueDate}` : ''}`,
-            timestamp: new Date().toISOString(),
+            type: 'assignment',
+            timestamp: now,
             read: false,
         }));
         if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });

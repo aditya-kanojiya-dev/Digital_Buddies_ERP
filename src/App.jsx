@@ -199,7 +199,10 @@ useEffect(() => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
       db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data })));
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'notifications',
+      filter: `user_id=eq.${user.id}`,
+    }, () => {
       db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data })));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'smm_calendar' }, () => {

@@ -189,11 +189,13 @@ export default function SocialMedia({ user, state, updateState }) {
       // Notify relevant department
       if (postForm.assignedDept && postForm.assignedDept !== 'Social Media') {
         const deptMembers = employees.filter(e => e.department === postForm.assignedDept);
+        const now = new Date().toISOString();
         const newNotifs = deptMembers.map(emp => ({
-          id: `NOTIF${Date.now()}_${emp.id}`,
+          id: `NTF${Date.now()}_${emp.id}`,
           userId: emp.id,
           message: `📅 New content task from Social Media: "${postForm.title}" on ${postForm.date}`,
-          timestamp: new Date().toISOString(),
+          type: 'assignment',
+          timestamp: now,
           read: false,
         }));
         updateState({ notifications: [...notifications, ...newNotifs] });
@@ -253,11 +255,13 @@ export default function SocialMedia({ user, state, updateState }) {
     const toNotify = taskForm.assignedTo
       ? [employees.find(e => e.id === taskForm.assignedTo)].filter(Boolean)
       : employees.filter(e => e.department === taskForm.targetDept);
+    const now = new Date().toISOString();
     const newNotifs = toNotify.map(emp => ({
-      id: `NOTIF${Date.now()}_${emp.id}`,
+      id: `NTF${Date.now()}_${emp.id}`,
       userId: emp.id,
       message: `📌 Social Media assigned you a task: "${taskForm.title}"${taskForm.dueDate ? ` — due ${taskForm.dueDate}` : ''}`,
-      timestamp: new Date().toISOString(),
+      type: 'assignment',
+      timestamp: now,
       read: false,
     }));
     if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });

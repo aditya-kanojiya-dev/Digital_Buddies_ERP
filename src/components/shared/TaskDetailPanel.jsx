@@ -47,16 +47,31 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
         updateState({ taskComments: [newComment, ...(state.taskComments || [])] });
 
         // Ping assignee if commenter is not the assignee themselves
+        const commentNotifs = [];
         if (task.assignedTo && task.assignedTo !== currentUser.id) {
-            const notif = {
-                id:        `NTF${Date.now()}`,
+            commentNotifs.push({
+                id:        `NTF${Date.now()}_a`,
                 userId:    task.assignedTo,
                 message:   `💬 ${currentUser.name} commented on "${task.title}": "${text.substring(0, 80)}${text.length > 80 ? '…' : ''}"`,
                 type:      'comment',
+                commentId: task.id,
                 timestamp: now.replace('T', ' ').substring(0, 16),
                 read:      false,
-            };
-            updateState({ notifications: [notif, ...(state.notifications || [])] });
+            });
+        }
+        if (task.assignedBy && task.assignedBy !== currentUser.id && task.assignedBy !== task.assignedTo) {
+            commentNotifs.push({
+                id:        `NTF${Date.now()}_b`,
+                userId:    task.assignedBy,
+                message:   `💬 ${currentUser.name} commented on "${task.title}": "${text.substring(0, 80)}${text.length > 80 ? '…' : ''}"`,
+                type:      'comment',
+                commentId: task.id,
+                timestamp: now.replace('T', ' ').substring(0, 16),
+                read:      false,
+            });
+        }
+        if (commentNotifs.length) {
+            updateState({ notifications: [...commentNotifs, ...(state.notifications || [])] });
         }
         setCommentText('');
         toast.success('Comment posted.');
@@ -65,10 +80,22 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
     const handleStatusChange = (nextStatus) => {
         if (nextStatus === task.status) return;
         const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+        const statusNotifs = [];
+        if (task.assignedBy && task.assignedBy !== currentUser.id) {
+            statusNotifs.push({
+                id:        `NTF${Date.now()}`,
+                userId:    task.assignedBy,
+                message:   `${currentUser.name} moved "${task.title}" from "${task.status}" to "${nextStatus}".`,
+                type:      'info',
+                timestamp: now,
+                read:      false,
+            });
+        }
         updateState({
             tasks: (state.tasks || []).map(t =>
                 t.id === task.id ? { ...t, status: nextStatus } : t
             ),
+            notifications: [...statusNotifs, ...(state.notifications || [])],
             auditLogs: [{
                 id:        `AUD${Date.now()}`,
                 userId:    currentUser.id,

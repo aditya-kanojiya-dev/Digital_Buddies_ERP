@@ -120,21 +120,34 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const handleReassignSubmit = (e, taskId) => {
     e.preventDefault();
     if (!reassignEmpId) return;
+    const task      = tasks.find(t => t.id === taskId);
     const staffMember = employees.find(emp => emp.id === reassignEmpId);
-    const origTitle   = tasks.find(t => t.id === taskId)?.title;
-    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const origTitle = task?.title;
+    const now       = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
     updateState({ tasks: tasks.map(t =>
       t.id === taskId ? { ...t, assignedTo: reassignEmpId, department: staffMember?.department || t.department } : t
     )});
-    updateState({ notifications: [{
-      id:        `NTF${Date.now()}`,
+
+    const reassignNotifs = [{
+      id:        `NTF${Date.now()}_a`,
       userId:    reassignEmpId,
       message:   `${user.name} reassigned task "${origTitle}" to you.`,
       type:      'assignment',
       timestamp: now,
       read:      false,
-    }, ...notifications] });
+    }];
+    if (task?.assignedTo && task.assignedTo !== reassignEmpId) {
+      reassignNotifs.push({
+        id:        `NTF${Date.now()}_b`,
+        userId:    task.assignedTo,
+        message:   `Task "${origTitle}" was reassigned from you to ${staffMember?.name}.`,
+        type:      'info',
+        timestamp: now,
+        read:      false,
+      });
+    }
+    updateState({ notifications: [...reassignNotifs, ...notifications] });
 
     toast.info(`Task reassigned to ${staffMember?.name}.`, `"${origTitle}"`);
     setReassignTaskId(''); setReassignEmpId('');

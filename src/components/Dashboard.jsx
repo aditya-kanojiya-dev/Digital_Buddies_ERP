@@ -217,24 +217,37 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   // -------------------------
   // TASK UPDATE
   // -------------------------
-  const handleUpdateStatus = (taskId, status) => {
-    const updated = tasks.map(t => {
-      if (t.id === taskId) {
-        return { ...t, status };
+  const handleUpdateStatus = (taskId, newStatus) => {
+    const found = tasks.find(x => x.id === taskId);
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const updated = tasks.map(task => {
+      if (task.id === taskId) {
+        return { ...task, status: newStatus };
       }
-      return t;
+      return task;
     });
-    updateState({ tasks: updated });
-    
-    // Log Audit Log
-    const newAudit = {
-      id: `AUD${Date.now()}`,
-      userId: user.id,
-      action: "Task Updated",
-      details: `${user.name} changed task status to '${status}'.`,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    };
-    updateState({ auditLogs: [newAudit, ...state.auditLogs] });
+    const notifUpdates = {};
+    if (found?.assignedBy && found.assignedBy !== user.id) {
+      notifUpdates.notifications = [{
+        id: `NTF${Date.now()}`,
+        userId: found.assignedBy,
+        message: `${user.name} moved "${found.title}" from "${found.status}" to "${newStatus}".`,
+        type: 'info',
+        timestamp: now,
+        read: false,
+      }, ...state.notifications];
+    }
+    updateState({
+      tasks: updated,
+      auditLogs: [{
+        id: `AUD${Date.now()}`,
+        userId: user.id,
+        action: 'Task Updated',
+        details: `${user.name} changed task status to '${newStatus}'.`,
+        timestamp: now,
+      }, ...state.auditLogs],
+      ...notifUpdates,
+    });
   };
 
   // -------------------------

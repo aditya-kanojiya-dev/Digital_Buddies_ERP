@@ -38,6 +38,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
     const assignee = employees.find(e => e.id === assigneeId);
 
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     const newTask = {
       id:                `CT${Date.now()}`,
       title:             taskTitle.trim(),
@@ -46,15 +47,25 @@ export default function Creative({ user, state, updateState, activeDepartment })
       deadlineDaysPrior: parseInt(daysPrior),
       assignedTo:        assigneeId,
       assigneeName:      assignee?.name || '',
-      assignedBy:        '',
+      assignedBy:        user.id,
       priority:          'Medium',
       status:            'Pending',
       dueDate:           null,
       scheduledDate:     scheduledDate || null,
-      createdAt:         new Date().toISOString().replace('T', ' ').substring(0, 16),
+      createdAt:         now,
     };
 
     updateState({ tasks: [...(tasks || []), newTask] });
+    if (assignee) {
+      updateState({ notifications: [{
+        id:        `NTF${Date.now()}`,
+        userId:    assigneeId,
+        message:   `${user.name} assigned you a task: "${taskTitle.trim()}"`,
+        type:      'assignment',
+        timestamp: now,
+        read:      false,
+      }, ...(state.notifications || [])] });
+    }
     toast.success(`"${taskTitle}" added to ${activeDepartment} queue.`);
     setTaskTitle('');
     setAssigneeId('');
@@ -63,10 +74,26 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
   // ── Update status ─────────────────────────────────────────────────────────
   const handleUpdateStatus = (taskId, nextStatus) => {
-    const updated = (tasks || []).map(t =>
-      t.id === taskId ? { ...t, status: nextStatus } : t
+    const t = (tasks || []).find(x => x.id === taskId);
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const updated = (tasks || []).map(x =>
+      x.id === taskId ? { ...x, status: nextStatus } : x
     );
-    updateState({ tasks: updated });
+    const statusNotifs = [];
+    if (t?.assignedBy && t.assignedBy !== user.id) {
+      statusNotifs.push({
+        id:        `NTF${Date.now()}`,
+        userId:    t.assignedBy,
+        message:   `${user.name} moved "${t.title}" from "${t.status}" to "${nextStatus}".`,
+        type:      'info',
+        timestamp: now,
+        read:      false,
+      });
+    }
+    updateState({
+      tasks: updated,
+      ...(statusNotifs.length ? { notifications: [...statusNotifs, ...(state.notifications || [])] } : {}),
+    });
     toast.success(`Task marked as ${nextStatus}.`);
   };
 
