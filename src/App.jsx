@@ -23,7 +23,6 @@ import AcceptInvite from './components/AcceptInvite';
 import Analytics from './components/Analytics';
 import Settings from './components/Settings';
 import CommandPalette from './components/CommandPalette';
-import PersonalCalendar from './components/shared/PersonalCalendar';
 import { auth, supabase } from './data/auth';
 import { db } from './data/db';
 import { runDeadlineEngine } from './lib/deadlineEngine';
