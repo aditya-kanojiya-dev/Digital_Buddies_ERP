@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useToast } from './Toast';
 import TaskDetailPanel from './TaskDetailPanel';
+import { db } from '../../data/db';
 
 // ─── Date / calendar helpers ────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
@@ -235,6 +236,7 @@ export default function DeptCalendar({
 
     const handleDeletePost = (postId) => {
         if (!window.confirm('Delete this calendar entry?')) return;
+        db.deleteCalendarPost(postId).catch(err => console.error(err));
         updateState({ smmCalendar: smmCalendar.filter(p => p.id !== postId) });
         toast.success('Entry removed from calendar.');
         setSelectedDay(null);
@@ -260,13 +262,14 @@ export default function DeptCalendar({
             description: taskForm.description,
             assignedTo: taskForm.assignedTo || null,
             department: taskForm.targetDept,
-            sourceDept: deptName,           // <-- generalizes SM's hardcoded value
-            assignedBy: user.name,
-            assignedById: user.id,
+            sourceDept: deptName,
+            assignedBy: user.id,
             priority: taskForm.priority,
+            projectId: 'General',
             dueDate: taskForm.dueDate || '',
-            status: 'New',                  // <-- matches TaskCard's status pipeline
-            createdAt: new Date().toISOString(),
+            scheduledDate: null,
+            status: 'New',
+            createdAt: new Date().toISOString().split('T')[0],
         };
         updateState({ tasks: [...tasks, newTask] });
 

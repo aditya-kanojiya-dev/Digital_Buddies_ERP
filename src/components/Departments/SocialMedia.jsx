@@ -6,6 +6,7 @@ import {
 
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
+import { db } from '../../data/db';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
@@ -206,6 +207,7 @@ export default function SocialMedia({ user, state, updateState }) {
 
   const handleDeletePost = (postId) => {
     if (!window.confirm('Delete this calendar entry?')) return;
+    db.deleteCalendarPost(postId).catch(err => console.error(err));
     updateState({ smmCalendar: smmCalendar.filter(p => p.id !== postId) });
     toast.success('Entry removed from calendar.');
     setShowDayModal(false);
@@ -237,13 +239,13 @@ export default function SocialMedia({ user, state, updateState }) {
       assignedTo: taskForm.assignedTo || null,
       department: taskForm.targetDept,
       sourceDept: 'Social Media',
-      assignedBy: user.name,
-      assignedById: user.id,
+      assignedBy: user.id,
       priority: taskForm.priority,
+      projectId: 'General',
       dueDate: computeDueDate(),
       scheduledDate: isCreative ? taskForm.scheduledDate || null : null,
-      status: 'To Do',
-      createdAt: new Date().toISOString(),
+      status: 'New',
+      createdAt: new Date().toISOString().split('T')[0],
     };
     updateState({ tasks: [...tasks, newTask] });
 
