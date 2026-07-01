@@ -442,10 +442,6 @@ useEffect(() => {
         <Dashboard user={user} state={state} updateState={updateState} onNavigate={setActiveTab} />
       )}
 
-      {activeTab === 'my-calendar' && (
-        <PersonalCalendar user={user} state={state} updateState={updateState} />
-      )}
-
       {activeTab === 'projects' && (
         <Projects state={state} updateState={updateState} />
       )}

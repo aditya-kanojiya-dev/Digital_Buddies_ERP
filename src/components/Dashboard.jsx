@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee } from 'lucide-react';
+import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import PersonalCalendar from './shared/PersonalCalendar';
 
@@ -450,7 +450,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                 label: 'Due This Week',
                 val: myTasks.filter(t => t.dueDate && t.dueDate >= weekStart && t.dueDate <= weekEndStr && t.status !== 'Completed').length,
                 color: 'text-indigo-400', bg: 'bg-indigo-500/10',
-                icon: CalendarIcon,
+                icon: Calendar,
               },
               {
                 label: 'Overdue',
