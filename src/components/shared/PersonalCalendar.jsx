@@ -73,8 +73,8 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
     const [dayDetail, setDayDetail] = useState(null); // yyyy-mm-dd or null
 
     const myTasks = useMemo(
-        () => (state.tasks || []).filter(t => t.assignedTo === user.id),
-        [state.tasks, user.id]
+        () => (state.tasks || []).filter(t => t.assignedTo === user.id || (!t.assignedTo && t.department === user.department)),
+        [state.tasks, user.id, user.department]
     );
     const myLeaves = useMemo(
         () => (state.leaves || []).filter(l => l.employeeId === user.id),
@@ -94,6 +94,9 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
         };
         myTasks.forEach(t => {
             if (t.dueDate) ensure(t.dueDate).tasks.push(t);
+            if (t.scheduledDate && t.scheduledDate !== t.dueDate) {
+                ensure(t.scheduledDate).tasks.push(t);
+            }
         });
         myLeaves.forEach(l => {
             expandLeaveDays(l).forEach(date => ensure(date).leaves.push(l));

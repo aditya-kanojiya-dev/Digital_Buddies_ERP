@@ -6,6 +6,9 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const { tasks, employees } = state;
   const toast = useToast();
 
+  const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department === 'Social Media';
+  const CREATIVE_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography'];
+
   // Filter employees for this specific creative department
   const creativeStaff = employees.filter(emp =>
     emp.department === activeDepartment
@@ -15,6 +18,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const [taskTitle,  setTaskTitle]  = useState('');
   const [daysPrior,  setDaysPrior]  = useState('3');
   const [assigneeId, setAssigneeId] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
 
   // Timeline filter
   const [timelineFilter, setTimelineFilter] = useState('all');
@@ -47,6 +51,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
       priority:          'Medium',
       status:            'Pending',
       dueDate:           null,
+      scheduledDate:     scheduledDate || null,
       createdAt:         new Date().toISOString().replace('T', ' ').substring(0, 16),
     };
 
@@ -54,6 +59,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
     toast.success(`"${taskTitle}" added to ${activeDepartment} queue.`);
     setTaskTitle('');
     setAssigneeId('');
+    setScheduledDate('');
   };
 
   // ── Update status ─────────────────────────────────────────────────────────
@@ -121,7 +127,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         {/* Task board */}
-        <div className="glass-panel p-6 rounded-2xl lg:col-span-2 space-y-6">
+        <div className={`glass-panel p-6 rounded-2xl ${canAssignTasks ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6`}>
           <h3 className="text-lg font-semibold text-slate-200">Production Backlog</h3>
 
           {deptTasks.length === 0 ? (
@@ -155,6 +161,9 @@ export default function Creative({ user, state, updateState, activeDepartment })
                         <User className="w-3.5 h-3.5" />
                         {assignee ? assignee.name : task.assigneeName || 'Unassigned'}
                       </p>
+                      {task.scheduledDate && (
+                        <p className="text-3xs text-slate-500">Prior Date: {task.scheduledDate}</p>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 pt-2 border-t border-slate-800/40">
@@ -188,57 +197,74 @@ export default function Creative({ user, state, updateState, activeDepartment })
         <div className="glass-panel p-6 rounded-2xl space-y-6 lg:col-span-1">
           <h3 className="text-lg font-semibold text-slate-200">Log Creative Asset</h3>
 
-          <form onSubmit={handleAddTask} className="space-y-4">
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Asset / Task Name</label>
-              <input
-                type="text"
-                value={taskTitle}
-                onChange={(e) => setTaskTitle(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm"
-                placeholder="e.g. Aura Serum Instagram Ad V1"
-                required
-              />
-            </div>
+          {canAssignTasks ? (
+            <form onSubmit={handleAddTask} className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Asset / Task Name</label>
+                <input
+                  type="text"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-sm"
+                  placeholder="e.g. Aura Serum Instagram Ad V1"
+                  required
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Timeline Milestone</label>
-              <select
-                value={daysPrior}
-                onChange={(e) => setDaysPrior(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm"
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Timeline Milestone</label>
+                <select
+                  value={daysPrior}
+                  onChange={(e) => setDaysPrior(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-sm"
+                >
+                  <option value="3">3 Days Prior — Review / Renders</option>
+                  <option value="4">4 Days Prior — Dailies / Rough Drafts</option>
+                  <option value="12">12 Days Prior — Shoot / Storyboard</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Assign to</label>
+                <select
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-sm"
+                  required
+                >
+                  <option value="">— Choose member —</option>
+                  {creativeStaff.length === 0 && (
+                    <option disabled>No {activeDepartment} staff found</option>
+                  )}
+                  {creativeStaff.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Prior Date</label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-sm"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-neon-gradient py-3 rounded-xl text-white font-medium shadow-md transition duration-200 flex items-center justify-center gap-2 hover:opacity-90"
               >
-                <option value="3">3 Days Prior — Review / Renders</option>
-                <option value="4">4 Days Prior — Dailies / Rough Drafts</option>
-                <option value="12">12 Days Prior — Shoot / Storyboard</option>
-              </select>
+                <Plus className="w-5 h-5" /> Queue Asset
+              </button>
+            </form>
+          ) : (
+            <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl">
+              <AlertCircle className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+              <p className="text-slate-400 text-sm">Task assignment is restricted to Managers, Admins, and Social Media department</p>
             </div>
-
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Assign to</label>
-              <select
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm"
-                required
-              >
-                <option value="">— Choose member —</option>
-                {creativeStaff.length === 0 && (
-                  <option disabled>No {activeDepartment} staff found</option>
-                )}
-                {creativeStaff.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-neon-gradient py-3 rounded-xl text-white font-medium shadow-md transition duration-200 flex items-center justify-center gap-2 hover:opacity-90"
-            >
-              <Plus className="w-5 h-5" /> Queue Asset
-            </button>
-          </form>
+          )}
         </div>
 
       </div>

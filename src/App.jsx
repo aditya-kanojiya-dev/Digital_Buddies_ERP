@@ -21,6 +21,7 @@ import AcceptInvite from './components/AcceptInvite';
 import Analytics from './components/Analytics';
 import Settings from './components/Settings';
 import CommandPalette from './components/CommandPalette';
+import PersonalCalendar from './components/shared/PersonalCalendar';
 import { auth, supabase } from './data/auth';
 import { db } from './data/db';
 import { runDeadlineEngine } from './lib/deadlineEngine';
@@ -183,6 +184,40 @@ const fetchAllData = async () => {
 
 useEffect(() => {
   fetchAllData();
+}, [user]);
+
+// ── Global Realtime subscription ───────────────────────────────────────────
+useEffect(() => {
+  if (!supabase || !user) return;
+
+  const channel = supabase
+    .channel('erp-global-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'smm_calendar' }, () => {
+      db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
+      db.getProjects().then(data => setState(prev => ({ ...prev, projects: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => {
+      db.getAttendance().then(data => setState(prev => ({ ...prev, attendance: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'leaves' }, () => {
+      db.getLeaves().then(data => setState(prev => ({ ...prev, leaves: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'advances' }, () => {
+      db.getAdvances().then(data => setState(prev => ({ ...prev, advances: data })));
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }, [user]);
 
 // ── Global Ctrl/Cmd+K to open the command palette ─────────────────────────
@@ -381,6 +416,10 @@ useEffect(() => {
 
       {activeTab === 'manager' && (user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Employee') && (
         <ManagerDashboard user={user} state={state} updateState={updateState} onNotifFocus={handleNotifNavigate} />
+      )}
+
+      {activeTab === 'my-calendar' && (
+        <PersonalCalendar user={user} state={state} updateState={updateState} />
       )}
 
       {activeTab === 'dashboard' && (

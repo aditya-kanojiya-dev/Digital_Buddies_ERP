@@ -28,6 +28,12 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
   const [taskProject,  setTaskProject]  = useState('');
   const [taskPriority, setTaskPriority] = useState('Medium');
   const [taskDue,      setTaskDue]      = useState('');
+  const [taskScheduledDate, setTaskScheduledDate] = useState('');
+
+  const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department === 'Social Media';
+  const CREATIVE_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography'];
+  const selectedAssignee = employees.find(emp => emp.id === assigneeId);
+  const isCreativeDept = selectedAssignee && CREATIVE_DEPTS.includes(selectedAssignee.department);
 
   // ── Reassignment ──────────────────────────────────────────────────────────
   const [reassignTaskId, setReassignTaskId] = useState('');
@@ -50,19 +56,20 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
     const newTask = {
-      id:          `TSK${Date.now()}`,
-      title:       taskTitle,
-      description: taskDesc,
-      assignedTo:  assigneeId,
-      assignedBy:  user.id,
-      department:  staffMember?.department || managerDept,
-      projectId:   taskProject || 'General',
-      priority:    taskPriority,
-      status:      'New',
-      dueDate:     taskDue || new Date(Date.now() + 5 * 86_400_000).toISOString().split('T')[0],
-      createdAt:   new Date().toISOString().split('T')[0],
-      pinged:      0,
-      lastPingedAt: null,
+      id:            `TSK${Date.now()}`,
+      title:         taskTitle,
+      description:   taskDesc,
+      assignedTo:    assigneeId,
+      assignedBy:    user.id,
+      department:    staffMember?.department || managerDept,
+      projectId:     taskProject || 'General',
+      priority:      taskPriority,
+      status:        'New',
+      dueDate:       taskDue || new Date(Date.now() + 5 * 86_400_000).toISOString().split('T')[0],
+      createdAt:     new Date().toISOString().split('T')[0],
+      pinged:        0,
+      lastPingedAt:  null,
+      scheduledDate: isCreativeDept ? taskScheduledDate || null : null,
     };
 
     updateState({ tasks: [...tasks, newTask] });
@@ -83,7 +90,7 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
     }, ...state.auditLogs] });
 
     toast.success(`Task assigned to ${staffMember?.name}.`, `"${taskTitle}"`);
-    setTaskTitle(''); setTaskDesc(''); setAssigneeId(''); setTaskDue('');
+    setTaskTitle(''); setTaskDesc(''); setAssigneeId(''); setTaskDue(''); setTaskScheduledDate('');
   };
 
   const handleReassignSubmit = (e, taskId) => {
@@ -269,64 +276,73 @@ export default function ManagerDashboard({ user, state, updateState, onNotifFocu
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         {/* ── Task Creator ── */}
-        <div className="glass-panel p-6 rounded-2xl lg:col-span-1 space-y-5">
-          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-violet-400" /> Assign Team Task
-          </h3>
-          <form onSubmit={handleCreateTask} className="space-y-4">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Task Title</label>
-              <input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Design Summer Banner" required />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Description / Brief</label>
-              <textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm h-16" placeholder="Details of deliverables..." required />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+        {canAssignTasks && (
+          <div className="glass-panel p-6 rounded-2xl lg:col-span-1 space-y-5">
+            <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <Plus className="w-5 h-5 text-violet-400" /> Assign Team Task
+            </h3>
+            <form onSubmit={handleCreateTask} className="space-y-4">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Assignee</label>
-                <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-xs" required>
-                  <option value="">-- Select --</option>
-                  {deptStaff.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                </select>
+                <label className="block text-xs text-slate-400 mb-1">Task Title</label>
+                <input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Design Summer Banner" required />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Project</label>
-                <select value={taskProject} onChange={e => setTaskProject(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-xs">
-                  <option value="General">General Task</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <label className="block text-xs text-slate-400 mb-1">Description / Brief</label>
+                <textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-sm h-16" placeholder="Details of deliverables..." required />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Priority</label>
-                <select value={taskPriority} onChange={e => setTaskPriority(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-xs">
-                  <option value="High">High Priority</option>
-                  <option value="Medium">Medium Priority</option>
-                  <option value="Low">Low Priority</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Assignee</label>
+                  <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
+                    className="w-full glass-input p-3 rounded-xl text-xs" required>
+                    <option value="">-- Select --</option>
+                    {deptStaff.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Project</label>
+                  <select value={taskProject} onChange={e => setTaskProject(e.target.value)}
+                    className="w-full glass-input p-3 rounded-xl text-xs">
+                    <option value="General">General Task</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Due Date</label>
-                <input type="date" value={taskDue} onChange={e => setTaskDue(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-xs" required />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Priority</label>
+                  <select value={taskPriority} onChange={e => setTaskPriority(e.target.value)}
+                    className="w-full glass-input p-3 rounded-xl text-xs">
+                    <option value="High">High Priority</option>
+                    <option value="Medium">Medium Priority</option>
+                    <option value="Low">Low Priority</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Due Date</label>
+                  <input type="date" value={taskDue} onChange={e => setTaskDue(e.target.value)}
+                    className="w-full glass-input p-3 rounded-xl text-xs" required />
+                </div>
               </div>
-            </div>
-            <button type="submit"
-              className="w-full bg-violet-650 hover:bg-violet-755 py-3 rounded-xl text-sm text-white font-bold transition cursor-pointer">
-              Assign Work Entry
-            </button>
-          </form>
-        </div>
+              {isCreativeDept && (
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Prior Date</label>
+                  <input type="date" value={taskScheduledDate} onChange={e => setTaskScheduledDate(e.target.value)}
+                    className="w-full glass-input p-3 rounded-xl text-xs" />
+                </div>
+              )}
+              <button type="submit"
+                className="w-full bg-violet-650 hover:bg-violet-755 py-3 rounded-xl text-sm text-white font-bold transition cursor-pointer">
+                Assign Work Entry
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* ── Task List with enhanced Ping ── */}
-        <div className="glass-panel p-6 rounded-2xl lg:col-span-2 space-y-6">
+        <div className={`glass-panel p-6 rounded-2xl ${canAssignTasks ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6`}>
           <h3 className="text-lg font-bold text-slate-100">
             Team Tasks {!isSuperAdmin && `— ${managerDept}`}
           </h3>

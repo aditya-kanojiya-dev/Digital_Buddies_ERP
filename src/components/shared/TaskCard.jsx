@@ -72,6 +72,12 @@ export default function TaskCard({
                             <Clock className="w-3 h-3" />
                             {task.dueDate ? `Due: ${task.dueDate}` : 'No due date'}
                         </span>
+                        {task.scheduledDate && (
+                            <span className="text-3xs text-violet-400 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Prior: {task.scheduledDate}
+                            </span>
+                        )}
                         <DeadlineBadge dueDate={task.dueDate} status={task.status} size="sm" />
                     </div>
 

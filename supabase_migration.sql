@@ -193,18 +193,22 @@ CREATE TABLE moms (
 
 -- ── tasks ───────────────────────────────────────────────────────────────────
 CREATE TABLE tasks (
-  id          TEXT PRIMARY KEY,
-  title       TEXT NOT NULL,
-  description TEXT DEFAULT '',
-  assigned_to TEXT DEFAULT NULL,
-  assigned_by TEXT DEFAULT '',
-  department  TEXT DEFAULT '',
-  project_id  TEXT DEFAULT 'General',
-  priority    TEXT NOT NULL DEFAULT 'Medium',
-  status      TEXT NOT NULL DEFAULT 'New',
-  due_date    DATE,
-  created_at  DATE NOT NULL DEFAULT CURRENT_DATE,
-  pinged      INT DEFAULT 0
+  id             TEXT PRIMARY KEY,
+  title          TEXT NOT NULL,
+  description    TEXT DEFAULT '',
+  assigned_to    TEXT DEFAULT NULL,
+  assigned_by    TEXT DEFAULT '',
+  department     TEXT DEFAULT '',
+  project_id     TEXT DEFAULT 'General',
+  priority       TEXT NOT NULL DEFAULT 'Medium',
+  status         TEXT NOT NULL DEFAULT 'New',
+  due_date       DATE,
+  created_at     DATE NOT NULL DEFAULT CURRENT_DATE,
+  pinged         INT DEFAULT 0,
+  last_pinged_at TIMESTAMPTZ DEFAULT NULL,
+  scheduled_date DATE DEFAULT NULL,
+  lead_id        TEXT DEFAULT NULL,
+  source_dept    TEXT DEFAULT NULL
 );
 
 -- ── task_comments ───────────────────────────────────────────────────────────
