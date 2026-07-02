@@ -246,10 +246,20 @@ export const db = {
   saveAuditLogs: (data) => saveTable('audit_logs', data),
   addAuditLog: (log) => addRow('audit_logs', log),
 
-  // ── Department: Paid Ads ──────────────────────────────────────────────────
+  // ── Department: Paid Ads — Stats ──────────────────────────────────────────
   getAdStats: () => getTable('ad_stats'),
-  saveAdStats: (data) => saveTable('ad_stats', data),       // was missing
+  saveAdStats: (data) => saveTable('ad_stats', data),
   addAdStat: (stat) => addRow('ad_stats', stat),
+
+  // ── Department: Paid Ads — Campaigns ─────────────────────────────────────
+  getAdCampaigns: () => getTable('ad_campaigns'),
+  saveAdCampaigns: (data) => saveTable('ad_campaigns', data),
+  addAdCampaign: (c) => addRow('ad_campaigns', c),
+  updateAdCampaign: (id, fields) => updateRow('ad_campaigns', id, fields),
+  deleteAdCampaign: async (id) => {
+    await deleteRow('ad_campaigns', id);
+    return getTable('ad_campaigns');
+  },
 
   // ── Department: Social Media ──────────────────────────────────────────────
   getSmmCalendar: () => getTable('smm_calendar'),

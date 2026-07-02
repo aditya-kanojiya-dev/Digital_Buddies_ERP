@@ -53,6 +53,7 @@ const DB_SAVE_MAP = {
   auditLogs:       db.saveAuditLogs,
   employeeInvites: db.saveEmployeeInvites,
   loginActivity:   db.saveLoginActivity,
+  adCampaigns:     db.saveAdCampaigns,
 };
 
 export default function App() {
@@ -69,7 +70,7 @@ export default function App() {
   });
 
   const [state, setState] = useState({
-    employees: [], clients: [], adStats: [], smmCalendar: [], smmQuotes: [],
+    employees: [], clients: [], adStats: [], adCampaigns: [], smmCalendar: [], smmQuotes: [],
     devProjects: [], interviews: [], feedback: [], dailyOps: [], attendance: [],
     leaves: [], advances: [], moms: [], tasks: [], taskComments: [], timelogs: [],
     notifications: [], leads: [], proposals: [], invoices: [], projects: [],
@@ -105,7 +106,8 @@ const fetchAllData = async () => {
       db.getProjects(),
       db.getAuditLogs(),
       db.getEmployeeInvites(),
-      db.getLoginActivity()
+      db.getLoginActivity(),
+      db.getAdCampaigns()
     ]);
 
     // Log failed requests so you know which tables have RLS issues
@@ -144,7 +146,8 @@ const fetchAllData = async () => {
       projects: getResult(20),
       auditLogs: getResult(21),
       employeeInvites: getResult(22),
-      loginActivity: getResult(23)
+      loginActivity: getResult(23),
+      adCampaigns: getResult(24)
     };
 
     setState(newState);
@@ -219,6 +222,9 @@ useEffect(() => {
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'advances' }, () => {
       db.getAdvances().then(data => setState(prev => ({ ...prev, advances: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_campaigns' }, () => {
+      db.getAdCampaigns().then(data => setState(prev => ({ ...prev, adCampaigns: data })));
     })
     .subscribe();
 

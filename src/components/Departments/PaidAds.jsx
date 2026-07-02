@@ -1,104 +1,224 @@
-import React, { useState } from 'react';
-import { Download, Plus, Check, RefreshCw, BarChart2, DollarSign, Calendar, TrendingUp, TrendingDown, Lock } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import {
+  Download, Plus, Check, BarChart2, DollarSign, Calendar, TrendingUp, Lock,
+  Layers, PieChart, Target, Edit3, Trash2, X, Save, Filter
+} from 'lucide-react';
 import { useToast } from '../shared/Toast';
+import { db } from '../../data/db';
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const todayStr = () => new Date().toISOString().split('T')[0];
+const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
+
+function SimpleLineChart({ data, width = 400, height = 160, color = '#a78bfa' }) {
+  if (!data || data.length < 2) return <div className="text-slate-500 text-xs text-center py-8">Not enough data</div>;
+  const vals = data.map(d => d.value);
+  const max = Math.max(...vals, 1);
+  const min = Math.min(...vals, 0);
+  const range = max - min || 1;
+  const pad = 20;
+  const chartW = width - pad * 2;
+  const chartH = height - pad * 2;
+  const stepX = chartW / (data.length - 1);
+  const points = data.map((d, i) => {
+    const x = pad + i * stepX;
+    const y = pad + chartH - ((d.value - min) / range) * chartH;
+    return `${x},${y}`;
+  }).join(' ');
+  const labels = data.filter((_, i) => i % Math.max(1, Math.floor(data.length / 6)) === 0 || i === data.length - 1);
+  return (
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+      <polyline fill="none" stroke={color} strokeWidth="2" points={points} />
+      {data.map((d, i) => {
+        const x = pad + i * stepX;
+        const y = pad + chartH - ((d.value - min) / range) * chartH;
+        return <circle key={i} cx={x} cy={y} r="3" fill={color} />;
+      })}
+      {labels.map((d, i) => {
+        const idx = data.indexOf(d);
+        const x = pad + idx * stepX;
+        return <text key={i} x={x} y={height - 4} textAnchor="middle" className="fill-slate-500 text-3xs">{d.label}</text>;
+      })}
+    </svg>
+  );
+}
+
+function SimpleBarChart({ data, width = 300, height = 140, color = '#a78bfa' }) {
+  if (!data || data.length === 0) return <div className="text-slate-500 text-xs text-center py-6">No data</div>;
+  const max = Math.max(...data.map(d => d.value), 1);
+  const pad = 4;
+  const barW = Math.max(4, (width - pad * 2) / data.length - 2);
+  return (
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+      {data.map((d, i) => {
+        const barH = (d.value / max) * (height - 20);
+        const x = pad + i * ((width - pad * 2) / data.length);
+        const y = height - 16 - barH;
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={barW} height={barH} fill={color} rx="2" opacity="0.8" />
+            <text x={x + barW / 2} y={height - 2} textAnchor="middle" className="fill-slate-500 text-3xs">{d.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function SimpleDonutChart({ data, size = 120, thickness = 20 }) {
+  if (!data || data.length === 0) return <div className="text-slate-500 text-xs text-center py-6">No data</div>;
+  const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2 - thickness / 2;
+  const circum = 2 * Math.PI * r;
+  const COLORS = ['#a78bfa','#f472b6','#34d399','#fbbf24','#60a5fa','#f87171'];
+  let offset = 0;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {data.map((d, i) => {
+        const frac = d.value / total;
+        const len = frac * circum;
+        const seg = (
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth={thickness}
+            strokeDasharray={`${len} ${circum - len}`} strokeDashoffset={-offset} transform={`rotate(-90 ${cx} ${cy})`} />
+        );
+        offset += len;
+        return seg;
+      })}
+    </svg>
+  );
+}
 
 export default function PaidAds({ user, state, updateState }) {
   const toast = useToast();
-  const { clients, adStats } = state;
-
-  // ── Role gates ────────────────────────────────────────────────────────────
+  const { clients, adStats, adCampaigns } = state;
   const isManager = user.role === 'Super Admin' || user.role === 'Manager';
 
   const adsClients = clients.filter(c => c.department === 'Paid Ads');
-
   const [selectedClientId, setSelectedClientId] = useState(adsClients[0]?.id || '');
-  const [startDate, setStartDate] = useState('');
-  const [dailyBudget, setDailyBudget] = useState('');
-
-  // Daily stats log — all roles
-  const [statsDate, setStatsDate] = useState(new Date().toISOString().split('T')[0]);
-  const [activeAds, setActiveAds] = useState(0);
-  const [lostAds, setLostAds] = useState(0);
-  const [statsBudget, setStatsBudget] = useState(5000);
-
-  // New Client Form — manager only
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientEmail, setNewClientEmail] = useState('');
-  const [newClientPhone, setNewClientPhone] = useState('');
-  const [newClientDetails, setNewClientDetails] = useState('');
-  const [newClientBudget, setNewClientBudget] = useState('');
-  const [newClientStart, setNewClientStart] = useState('');
-
-  // Plan Proposal Form — manager only
-  const [planTitle, setPlanTitle] = useState('');
-  const [planTarget, setPlanTarget] = useState('');
-  const [planChannels, setPlanChannels] = useState('Facebook, Instagram');
-  const [planBudgetAlloc, setPlanBudgetAlloc] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
   const clientStats = adStats.filter(s => s.clientId === selectedClientId);
+  const clientCampaigns = adCampaigns.filter(c => c.clientId === selectedClientId);
 
-  // Manager only — update client parameters
-  const handleUpdateBudget = (e) => {
-    e.preventDefault();
-    if (!isManager) return;
-    if (!selectedClientId) return;
-    const updatedClients = clients.map(c =>
-      c.id === selectedClientId
-        ? { ...c, startDate: startDate || c.startDate, budget: parseFloat(dailyBudget) || c.budget }
-        : c
-    );
-    updateState({ clients: updatedClients });
-    toast.success(`Starting parameters updated for ${selectedClient?.name}`);
-  };
+  const TABS = [
+    { id: 'overview', label: 'Overview', icon: BarChart2 },
+    { id: 'campaigns', label: 'Campaigns', icon: Target },
+    { id: 'dailylog', label: 'Daily Log', icon: TrendingUp },
+    { id: 'clients', label: 'Clients & Plans', icon: Layers },
+  ];
 
-  // All roles — log daily stats
+  const today = todayStr();
+
+  // ── Computed metrics for Overview ───────────────────────────────────────
+  const thisMonthStats = useMemo(() => {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    const msStr = monthStart.toISOString().split('T')[0];
+    const all = selectedClientId
+      ? adStats.filter(s => s.clientId === selectedClientId)
+      : adStats;
+    return all.filter(s => s.logDate >= msStr);
+  }, [adStats, selectedClientId]);
+
+  const totalBudget = thisMonthStats.reduce((s, r) => s + (r.budget || 0), 0);
+  const totalSpend = thisMonthStats.reduce((s, r) => s + (r.spend || 0), 0);
+  const totalImpressions = thisMonthStats.reduce((s, r) => s + (r.impressions || 0), 0);
+  const totalClicks = thisMonthStats.reduce((s, r) => s + (r.clicks || 0), 0);
+  const totalConversions = thisMonthStats.reduce((s, r) => s + (r.conversions || 0), 0);
+  const totalRevenue = thisMonthStats.reduce((s, r) => s + (r.revenue || 0), 0);
+  const avgCTR = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(1) : '0.0';
+  const avgROAS = totalSpend > 0 ? (totalRevenue / totalSpend).toFixed(2) : '0.00';
+
+  // ── Spend trend (last 30 days) ──────────────────────────────────────────
+  const spendTrend = useMemo(() => {
+    const points = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = daysAgo(i);
+      const dayStats = (selectedClientId ? clientStats : adStats).filter(s => s.logDate === d);
+      const total = dayStats.reduce((s, r) => s + (r.spend || 0), 0);
+      points.push({ label: `${new Date(d).getDate()}`, value: total || 0 });
+    }
+    return points;
+  }, [adStats, selectedClientId, clientStats]);
+
+  // ── Weekly active vs lost ───────────────────────────────────────────────
+  const weeklyChart = useMemo(() => {
+    const weeks = {};
+    (selectedClientId ? clientStats : adStats).forEach(s => {
+      if (!s.logDate) return;
+      const d = new Date(s.logDate);
+      const wk = `${d.getFullYear()}-W${Math.ceil((d.getDate() + 6 - d.getDay()) / 7)}`;
+      if (!weeks[wk]) weeks[wk] = { active: 0, lost: 0 };
+      weeks[wk].active += s.activeAds || 0;
+      weeks[wk].lost += s.lostAds || 0;
+    });
+    const sorted = Object.entries(weeks).sort((a, b) => a[0].localeCompare(b[0])).slice(-8);
+    return sorted.map(([k, v]) => ({ label: k.slice(-5), active: v.active, lost: v.lost }));
+  }, [adStats, selectedClientId, clientStats]);
+
+  // ── Budget allocation by client (donut) ─────────────────────────────────
+  const budgetDonut = useMemo(() => {
+    return adsClients.map(c => ({ label: c.name, value: c.budget })).filter(c => c.value > 0);
+  }, [adsClients]);
+
+  // ── Budget alert data ───────────────────────────────────────────────────
+  const budgetAlerts = useMemo(() => {
+    return adsClients.map(c => {
+      const stats = adStats.filter(s => s.clientId === c.id);
+      const spent = stats.reduce((s, r) => s + (r.spend || 0), 0);
+      const budget = c.budget || 1;
+      const pct = Math.min(100, (spent / budget) * 100);
+      return { client: c, spent, budget, pct };
+    }).filter(b => b.pct > 0);
+  }, [adsClients, adStats]);
+
+  // ── Daily Log form ──────────────────────────────────────────────────────
+  const [statsDate, setStatsDate] = useState(today);
+  const [activeAds, setActiveAds] = useState(0);
+  const [lostAds, setLostAds] = useState(0);
+  const [statsBudget, setStatsBudget] = useState(5000);
+  const [spend, setSpend] = useState('');
+  const [impressions, setImpressions] = useState('');
+  const [clicks, setClicks] = useState('');
+  const [conversions, setConversions] = useState('');
+  const [revenue, setRevenue] = useState('');
+  const [campaignId, setCampaignId] = useState('');
+
   const handleLogStats = (e) => {
     e.preventDefault();
     if (!selectedClientId) return;
     const newStat = {
       id: `AS${Date.now()}`,
       clientId: selectedClientId,
-      date: statsDate,
+      logDate: statsDate,
       budget: parseFloat(statsBudget),
-      activeAds: parseInt(activeAds),
-      lostAds: parseInt(lostAds),
+      activeAds: parseInt(activeAds) || 0,
+      lostAds: parseInt(lostAds) || 0,
       loggedBy: user.name,
+      spend: parseFloat(spend) || 0,
+      impressions: parseInt(impressions) || 0,
+      clicks: parseInt(clicks) || 0,
+      conversions: parseInt(conversions) || 0,
+      revenue: parseFloat(revenue) || 0,
+      campaignId: campaignId || null,
     };
     updateState({ adStats: [...adStats, newStat] });
     toast.success(`Stats logged for ${statsDate}`);
-    setActiveAds(0);
-    setLostAds(0);
+    setActiveAds(0); setLostAds(0); setSpend(''); setImpressions('');
+    setClicks(''); setConversions(''); setRevenue(''); setCampaignId('');
   };
 
-  // Manager only — add client
-  const handleAddClient = (e) => {
-    e.preventDefault();
-    if (!isManager) return;
-    if (!newClientName) return;
-    const newClient = {
-      id: `CL${Date.now()}`,
-      name: newClientName,
-      email: newClientEmail,
-      phone: newClientPhone,
-      details: newClientDetails,
-      department: 'Paid Ads',
-      budget: parseFloat(newClientBudget) || 100000,
-      startDate: newClientStart || new Date().toISOString().split('T')[0],
-      status: 'Active',
-    };
-    updateState({ clients: [...clients, newClient] });
-    setSelectedClientId(newClient.id);
-    toast.success(`Client "${newClientName}" added`);
-    setNewClientName(''); setNewClientEmail(''); setNewClientPhone('');
-    setNewClientDetails(''); setNewClientBudget(''); setNewClientStart('');
-  };
-
+  // ── CSV export ──────────────────────────────────────────────────────────
   const downloadReport = () => {
     if (!selectedClient) return;
-    let csv = 'Date,Daily Budget,Active Ads,Lost Ads,Logged By\n';
+    let csv = 'Date,Daily Budget,Spend,Active Ads,Lost Ads,Impressions,Clicks,CTR,Conversions,CPA,Revenue,ROAS,Logged By\n';
     clientStats.forEach(s => {
-      csv += `${s.date},${s.budget},${s.activeAds},${s.lostAds},${s.loggedBy || ''}\n`;
+      const ctr = s.impressions > 0 ? ((s.clicks / s.impressions) * 100).toFixed(2) + '%' : '0%';
+      const cpa = s.conversions > 0 ? (s.spend / s.conversions).toFixed(2) : '-';
+      const roas = s.spend > 0 ? (s.revenue / s.spend).toFixed(2) : '-';
+      csv += `${s.logDate},${s.budget},${s.spend || 0},${s.activeAds},${s.lostAds},${s.impressions || 0},${s.clicks || 0},${ctr},${s.conversions || 0},${cpa},${s.revenue || 0},${roas},${s.loggedBy || ''}\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -108,7 +228,124 @@ export default function PaidAds({ user, state, updateState }) {
     a.click();
   };
 
-  // Manager only — download plan
+  // ── Client Setup ────────────────────────────────────────────────────────
+  const [startDate, setStartDate] = useState('');
+  const [dailyBudget, setDailyBudget] = useState('');
+
+  const handleUpdateBudget = (e) => {
+    e.preventDefault();
+    if (!isManager || !selectedClientId) return;
+    const updatedClients = clients.map(c =>
+      c.id === selectedClientId
+        ? { ...c, startDate: startDate || c.startDate, budget: parseFloat(dailyBudget) || c.budget }
+        : c
+    );
+    updateState({ clients: updatedClients });
+    toast.success(`Starting parameters updated for ${selectedClient?.name}`);
+  };
+
+  // ── Campaign CRUD ───────────────────────────────────────────────────────
+  const [showCampaignForm, setShowCampaignForm] = useState(false);
+  const [editCampaignId, setEditCampaignId] = useState(null);
+  const [campaignName, setCampaignName] = useState('');
+  const [campaignChannel, setCampaignChannel] = useState('Meta');
+  const [campaignObjective, setCampaignObjective] = useState('');
+  const [campaignBudget, setCampaignBudget] = useState('');
+  const [campaignStart, setCampaignStart] = useState('');
+  const [campaignEnd, setCampaignEnd] = useState('');
+
+  const resetCampaignForm = () => {
+    setCampaignName(''); setCampaignChannel('Meta'); setCampaignObjective('');
+    setCampaignBudget(''); setCampaignStart(''); setCampaignEnd('');
+    setEditCampaignId(null); setShowCampaignForm(false);
+  };
+
+  const handleSaveCampaign = (e) => {
+    e.preventDefault();
+    if (!isManager || !selectedClientId || !campaignName.trim()) return;
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    if (editCampaignId) {
+      updateState({
+        adCampaigns: adCampaigns.map(c =>
+          c.id === editCampaignId
+            ? { ...c, name: campaignName.trim(), channel: campaignChannel, objective: campaignObjective, budgetAllocated: parseFloat(campaignBudget) || 0, startDate: campaignStart || c.startDate, endDate: campaignEnd || null }
+            : c
+        )
+      });
+      toast.success('Campaign updated');
+    } else {
+      const newCampaign = {
+        id: `CMP${Date.now()}`,
+        clientId: selectedClientId,
+        name: campaignName.trim(),
+        channel: campaignChannel,
+        objective: campaignObjective,
+        budgetAllocated: parseFloat(campaignBudget) || 0,
+        startDate: campaignStart || today,
+        endDate: campaignEnd || null,
+        status: 'Active',
+        createdBy: user.name,
+        createdAt: now,
+      };
+      updateState({ adCampaigns: [...adCampaigns, newCampaign] });
+      toast.success(`Campaign "${campaignName}" created`);
+    }
+    resetCampaignForm();
+  };
+
+  const handleEditCampaign = (c) => {
+    setEditCampaignId(c.id);
+    setCampaignName(c.name);
+    setCampaignChannel(c.channel);
+    setCampaignObjective(c.objective || '');
+    setCampaignBudget(String(c.budgetAllocated || ''));
+    setCampaignStart(c.startDate || '');
+    setCampaignEnd(c.endDate || '');
+    setShowCampaignForm(true);
+  };
+
+  const handleDeleteCampaign = async (id) => {
+    if (!isManager) return;
+    const fresh = await db.deleteAdCampaign(id);
+    updateState({ adCampaigns: fresh });
+    toast.success('Campaign deleted');
+  };
+
+  // ── New Client Form ─────────────────────────────────────────────────────
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientDetails, setNewClientDetails] = useState('');
+  const [newClientBudget, setNewClientBudget] = useState('');
+  const [newClientStart, setNewClientStart] = useState('');
+
+  const handleAddClient = (e) => {
+    e.preventDefault();
+    if (!isManager || !newClientName) return;
+    const newClient = {
+      id: `CL${Date.now()}`,
+      name: newClientName,
+      email: newClientEmail,
+      phone: newClientPhone,
+      details: newClientDetails,
+      department: 'Paid Ads',
+      budget: parseFloat(newClientBudget) || 100000,
+      startDate: newClientStart || today,
+      status: 'Active',
+    };
+    updateState({ clients: [...clients, newClient] });
+    setSelectedClientId(newClient.id);
+    toast.success(`Client "${newClientName}" added`);
+    setNewClientName(''); setNewClientEmail(''); setNewClientPhone('');
+    setNewClientDetails(''); setNewClientBudget(''); setNewClientStart('');
+  };
+
+  // ── Plan Proposal ───────────────────────────────────────────────────────
+  const [planTitle, setPlanTitle] = useState('');
+  const [planTarget, setPlanTarget] = useState('');
+  const [planChannels, setPlanChannels] = useState('Facebook, Instagram');
+  const [planBudgetAlloc, setPlanBudgetAlloc] = useState('');
+
   const downloadPlan = () => {
     if (!isManager || !selectedClient) return;
     const planText = `
@@ -133,245 +370,529 @@ Prepared by: ${user.name} — Paid Ads Team (NeoMax CMS)
     toast.success('Plan generated and downloaded.');
   };
 
+  // ── Spend-to-date for a campaign ────────────────────────────────────────
+  const campaignSpend = (campId) =>
+    clientStats.filter(s => s.campaignId === campId).reduce((s, r) => s + (r.spend || 0), 0);
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">Total Ads Clients</p>
-            <h3 className="text-3xl font-bold mt-1 text-glow">{adsClients.length}</h3>
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Header: client selector + tab bar ── */}
+      <div className="glass-card p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-fuchsia-500/10 rounded-xl text-fuchsia-400">
+            <BarChart2 className="w-6 h-6" />
           </div>
-          <div className="p-3 bg-violet-500/10 rounded-xl text-violet-400"><BarChart2 className="w-6 h-6" /></div>
-        </div>
-        <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-400">Selected Client Budget</p>
-            <h3 className="text-3xl font-bold mt-1 text-glow">₹{selectedClient?.budget?.toLocaleString() || 0}</h3>
+            <h2 className="text-xl font-bold text-slate-100">Paid Ads</h2>
+            <p className="text-sm text-slate-400">{adsClients.length} active clients</p>
           </div>
-          <div className="p-3 bg-fuchsia-500/10 rounded-xl text-fuchsia-400"><DollarSign className="w-6 h-6" /></div>
         </div>
-        <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">Ad Stats Logs</p>
-            <h3 className="text-3xl font-bold mt-1 text-glow">{clientStats.length} Days</h3>
-          </div>
-          <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400"><Calendar className="w-6 h-6" /></div>
-        </div>
+        <select value={selectedClientId} onChange={(e) => setSelectedClientId(e.target.value)}
+          className="glass-input p-2.5 rounded-xl text-sm min-w-[200px]">
+          <option value="">-- All Clients --</option>
+          {adsClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Client Setup — manager only */}
-        <div className="glass-panel p-6 rounded-2xl space-y-6">
-          <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-violet-400" />
-            Active Client Setup
-            {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3.5 h-3.5" /> Manager only</span>}
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-slate-400 mb-2">Select Active Client</label>
-              <select value={selectedClientId} onChange={(e) => setSelectedClientId(e.target.value)} className="w-full glass-input p-3 rounded-xl">
-                <option value="">-- Choose Client --</option>
-                {adsClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+      {/* ── Tab bar ── */}
+      <div className="flex gap-1 bg-slate-950/60 p-1.5 rounded-xl border border-slate-800 overflow-x-auto">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
+              activeTab === t.id ? 'bg-fuchsia-600 text-white' : 'text-slate-400 hover:text-slate-200'
+            }`}>
+            <t.icon className="w-4 h-4" /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB 1 — OVERVIEW                                                  */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="glass-card p-4 rounded-xl">
+              <p className="text-xs text-slate-400">Total Budget</p>
+              <p className="text-xl font-bold text-glow mt-1">₹{totalBudget.toLocaleString()}</p>
             </div>
-            {isManager && selectedClient && (
-              <form onSubmit={handleUpdateBudget} className="space-y-4 pt-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="glass-card p-4 rounded-xl">
+              <p className="text-xs text-slate-400">Actual Spend</p>
+              <p className="text-xl font-bold text-glow mt-1">₹{totalSpend.toLocaleString()}</p>
+            </div>
+            <div className="glass-card p-4 rounded-xl">
+              <p className="text-xs text-slate-400">Avg CTR</p>
+              <p className="text-xl font-bold text-violet-400 mt-1">{avgCTR}%</p>
+            </div>
+            <div className="glass-card p-4 rounded-xl">
+              <p className="text-xs text-slate-400">Conversions</p>
+              <p className="text-xl font-bold text-emerald-400 mt-1">{totalConversions}</p>
+            </div>
+            <div className="glass-card p-4 rounded-xl">
+              <p className="text-xs text-slate-400">ROAS</p>
+              <p className="text-xl font-bold text-fuchsia-400 mt-1">{avgROAS}x</p>
+            </div>
+          </div>
+
+          {/* Charts row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-panel p-5 rounded-2xl">
+              <h3 className="text-sm font-semibold text-slate-200 mb-3">Spend Trend (30 days)</h3>
+              <SimpleLineChart data={spendTrend} color="#f472b6" />
+            </div>
+            <div className="glass-panel p-5 rounded-2xl">
+              <h3 className="text-sm font-semibold text-slate-200 mb-3">Active vs Lost (weekly)</h3>
+              <div className="flex gap-4 items-start">
+                <div className="flex-1">
+                  <SimpleBarChart data={weeklyChart.map(w => ({ label: w.label, value: w.active }))} color="#34d399" />
+                  <p className="text-3xs text-emerald-400 text-center mt-1">Active Ads</p>
+                </div>
+                <div className="flex-1">
+                  <SimpleBarChart data={weeklyChart.map(w => ({ label: w.label, value: w.lost }))} color="#f87171" />
+                  <p className="text-3xs text-rose-400 text-center mt-1">Lost Ads</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Donut + Budget Alerts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-panel p-5 rounded-2xl flex items-center gap-6">
+              <SimpleDonutChart data={budgetDonut} size={140} thickness={24} />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-slate-200 mb-3">Budget Allocation</h3>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {budgetDonut.map((d, i) => (
+                    <div key={i} className="flex justify-between text-xs">
+                      <span className="text-slate-400">{d.label}</span>
+                      <span className="text-slate-200 font-medium">₹{d.value.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="glass-panel p-5 rounded-2xl">
+              <h3 className="text-sm font-semibold text-slate-200 mb-3">Budget vs Spend</h3>
+              <div className="space-y-3 max-h-40 overflow-y-auto">
+                {budgetAlerts.length === 0 && <p className="text-xs text-slate-500 text-center py-4">No spend data yet</p>}
+                {budgetAlerts.map(b => {
+                  const color = b.pct >= 100 ? 'bg-rose-500' : b.pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
+                  return (
+                    <div key={b.client.id}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-300">{b.client.name}</span>
+                        <span className={`font-semibold ${b.pct >= 100 ? 'text-rose-400' : b.pct >= 80 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          ₹{b.spent.toLocaleString()} / ₹{b.budget.toLocaleString()} ({b.pct.toFixed(0)}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${Math.min(b.pct, 100)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB 2 — CAMPAIGNS                                                 */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'campaigns' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-200">
+              Campaigns {selectedClient && `- ${selectedClient.name}`}
+            </h3>
+            {isManager && (
+              <button onClick={() => { resetCampaignForm(); setShowCampaignForm(true); }}
+                className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition">
+                <Plus className="w-4 h-4" /> New Campaign
+              </button>
+            )}
+          </div>
+
+          {showCampaignForm && (
+            <div className="glass-panel p-5 rounded-2xl border border-fuchsia-500/20">
+              <form onSubmit={handleSaveCampaign} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-2">Start Date</label>
-                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full glass-input p-3 rounded-xl" />
+                    <label className="block text-xs text-slate-400 mb-1">Campaign Name</label>
+                    <input type="text" value={campaignName} onChange={e => setCampaignName(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" required />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-2">Daily Budget (₹)</label>
-                    <input type="number" value={dailyBudget} onChange={(e) => setDailyBudget(e.target.value)} placeholder={selectedClient.budget} className="w-full glass-input p-3 rounded-xl" />
+                    <label className="block text-xs text-slate-400 mb-1">Channel</label>
+                    <select value={campaignChannel} onChange={e => setCampaignChannel(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm">
+                      <option value="Meta">Meta</option>
+                      <option value="Google">Google</option>
+                      <option value="LinkedIn">LinkedIn</option>
+                      <option value="Twitter">Twitter</option>
+                      <option value="TikTok">TikTok</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Objective</label>
+                    <input type="text" value={campaignObjective} onChange={e => setCampaignObjective(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="e.g. Brand Awareness" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Allocated Budget</label>
+                    <input type="number" value={campaignBudget} onChange={e => setCampaignBudget(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Start Date</label>
+                    <input type="date" value={campaignStart} onChange={e => setCampaignStart(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">End Date</label>
+                    <input type="date" value={campaignEnd} onChange={e => setCampaignEnd(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" />
                   </div>
                 </div>
-                <button type="submit" className="w-full bg-neon-gradient hover:opacity-90 py-3 rounded-xl text-white font-medium shadow-lg transition flex items-center justify-center gap-2">
-                  <Check className="w-5 h-5" /> Update parameters
+                <div className="flex gap-2">
+                  <button type="submit" className="bg-neon-gradient px-5 py-2.5 rounded-xl text-white text-sm font-medium flex items-center gap-2">
+                    <Save className="w-4 h-4" /> {editCampaignId ? 'Update' : 'Create'} Campaign
+                  </button>
+                  <button type="button" onClick={resetCampaignForm}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {clientCampaigns.length === 0 && !selectedClientId && (
+            <p className="text-slate-400 text-center py-8 text-sm">Select a client to view campaigns</p>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {clientCampaigns.map(c => {
+              const sptd = campaignSpend(c.id);
+              const pct = c.budgetAllocated > 0 ? Math.min(100, (sptd / c.budgetAllocated) * 100) : 0;
+              return (
+                <div key={c.id} className="glass-card p-5 rounded-2xl">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold text-slate-100">{c.name}</h4>
+                      <span className={`text-3xs px-2 py-0.5 rounded font-mono font-semibold ${
+                        c.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' :
+                        c.status === 'Paused' ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-500/10 text-slate-400'
+                      }`}>{c.status}</span>
+                    </div>
+                    {isManager && (
+                      <div className="flex gap-1">
+                        <button onClick={() => handleEditCampaign(c)} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteCampaign(c.id)} className="p-1.5 rounded-lg hover:bg-slate-800 text-rose-400 hover:text-rose-300 transition">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div><span className="text-slate-500">Channel:</span> <span className="text-slate-300">{c.channel}</span></div>
+                    <div><span className="text-slate-500">Objective:</span> <span className="text-slate-300">{c.objective || '-'}</span></div>
+                    <div><span className="text-slate-500">Budget:</span> <span className="text-slate-300">₹{c.budgetAllocated.toLocaleString()}</span></div>
+                    <div><span className="text-slate-500">Spent:</span> <span className="text-slate-300">₹{sptd.toLocaleString()}</span></div>
+                  </div>
+                  {c.budgetAllocated > 0 && (
+                    <div className="mt-3">
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${pct >= 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {!isManager && selectedClientId && clientCampaigns.length === 0 && (
+            <p className="text-slate-400 text-center py-4 text-sm border border-dashed border-slate-800 rounded-xl">
+              No campaigns yet for this client.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB 3 — DAILY LOG (FIXED)                                         */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'dailylog' && (
+        <div className="space-y-6">
+          {/* Log form */}
+          <div className="glass-panel p-6 rounded-2xl">
+            <h3 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-fuchsia-400" />
+              Log Daily Performance Stats
+            </h3>
+            <form onSubmit={handleLogStats} className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Date</label>
+                  <input type="date" value={statsDate} onChange={e => setStatsDate(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" required />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Planned Budget (₹)</label>
+                  <input type="number" value={statsBudget} onChange={e => setStatsBudget(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" required />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Actual Spend (₹)</label>
+                  <input type="number" value={spend} onChange={e => setSpend(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" min="0" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Campaign</label>
+                  <select value={campaignId} onChange={e => setCampaignId(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm">
+                    <option value="">— None —</option>
+                    {clientCampaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Active Ads</label>
+                  <input type="number" value={activeAds} onChange={e => setActiveAds(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" min="0" required />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Lost Ads</label>
+                  <input type="number" value={lostAds} onChange={e => setLostAds(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" min="0" required />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Impressions</label>
+                  <input type="number" value={impressions} onChange={e => setImpressions(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" min="0" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Clicks</label>
+                  <input type="number" value={clicks} onChange={e => setClicks(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" min="0" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Conversions</label>
+                  <input type="number" value={conversions} onChange={e => setConversions(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" min="0" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Attributed Revenue (₹)</label>
+                  <input type="number" value={revenue} onChange={e => setRevenue(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" min="0" />
+                </div>
+              </div>
+              <button type="submit" disabled={!selectedClientId}
+                className="bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed py-3 px-6 rounded-xl text-white font-medium transition flex items-center gap-2 shadow-lg">
+                <Plus className="w-5 h-5" /> Log Daily Stat Entry
+              </button>
+            </form>
+          </div>
+
+          {/* History table */}
+          <div className="glass-panel p-6 rounded-2xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <h3 className="text-lg font-semibold text-slate-100">
+                Ad Performance History {selectedClient && `- ${selectedClient.name}`}
+              </h3>
+              {selectedClient && clientStats.length > 0 && (
+                <button onClick={downloadReport}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition">
+                  <Download className="w-4 h-4" /> CSV
                 </button>
+              )}
+            </div>
+            {clientStats.length === 0 ? (
+              <p className="text-slate-400 text-center py-6 text-sm">No performance statistics logged yet for this client.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 text-xs">
+                      <th className="py-3 px-3">Date</th>
+                      <th className="py-3 px-3">Budget</th>
+                      <th className="py-3 px-3">Spend</th>
+                      <th className="py-3 px-3">Active</th>
+                      <th className="py-3 px-3">Lost</th>
+                      <th className="py-3 px-3">Impr.</th>
+                      <th className="py-3 px-3">Clicks</th>
+                      <th className="py-3 px-3">CTR</th>
+                      <th className="py-3 px-3">Conv.</th>
+                      <th className="py-3 px-3">CPA</th>
+                      <th className="py-3 px-3">Rev.</th>
+                      <th className="py-3 px-3">ROAS</th>
+                      <th className="py-3 px-3">Budget</th>
+                      <th className="py-3 px-3">Logged By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {[...clientStats].reverse().map(s => {
+                      const ctr = s.impressions > 0 ? ((s.clicks / s.impressions) * 100).toFixed(1) : '0.0';
+                      const cpa = s.conversions > 0 ? (s.spend / s.conversions).toFixed(0) : '-';
+                      const roas = s.spend > 0 ? (s.revenue / s.spend).toFixed(2) : '-';
+                      const budgetDiff = (s.spend || 0) - (s.budget || 0);
+                      return (
+                        <tr key={s.id} className="text-slate-200 hover:bg-slate-900/30 text-xs">
+                          <td className="py-2.5 px-3">{s.logDate}</td>
+                          <td className="py-2.5 px-3">₹{s.budget?.toLocaleString()}</td>
+                          <td className="py-2.5 px-3">₹{(s.spend || 0).toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-emerald-400">{s.activeAds}</td>
+                          <td className="py-2.5 px-3 text-rose-400">{s.lostAds}</td>
+                          <td className="py-2.5 px-3">{(s.impressions || 0).toLocaleString()}</td>
+                          <td className="py-2.5 px-3">{s.clicks || 0}</td>
+                          <td className="py-2.5 px-3">{ctr}%</td>
+                          <td className="py-2.5 px-3">{s.conversions || 0}</td>
+                          <td className="py-2.5 px-3">{cpa}</td>
+                          <td className="py-2.5 px-3">₹{(s.revenue || 0).toLocaleString()}</td>
+                          <td className="py-2.5 px-3">{roas}x</td>
+                          <td className="py-2.5 px-3">
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium ${
+                              budgetDiff > 0 ? 'bg-rose-500/10 text-rose-400' :
+                              budgetDiff < 0 ? 'bg-emerald-500/10 text-emerald-400' :
+                              'bg-slate-500/10 text-slate-400'
+                            }`}>
+                              {budgetDiff > 0 ? `+₹${budgetDiff}` : budgetDiff < 0 ? `-₹${Math.abs(budgetDiff)}` : 'On track'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-500">{s.loggedBy || '-'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB 4 — CLIENTS & PLANS                                            */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'clients' && (
+        <div className="space-y-6">
+          {/* Active Client Setup */}
+          <div className="glass-panel p-6 rounded-2xl space-y-4">
+            <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+              <Filter className="w-5 h-5 text-violet-400" />
+              Active Client Setup
+              {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3.5 h-3.5" /> Manager only</span>}
+            </h3>
+            {isManager && selectedClient && (
+              <form onSubmit={handleUpdateBudget} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Start Date</label>
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Daily Budget (₹)</label>
+                  <input type="number" value={dailyBudget} onChange={e => setDailyBudget(e.target.value)}
+                    placeholder={String(selectedClient.budget)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                </div>
+                <div className="flex items-end">
+                  <button type="submit" className="bg-neon-gradient hover:opacity-90 px-5 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg flex items-center gap-2">
+                    <Check className="w-4 h-4" /> Update
+                  </button>
+                </div>
               </form>
             )}
             {!isManager && (
-              <div className="flex flex-col items-center justify-center py-6 text-center gap-2 border border-dashed border-slate-800 rounded-xl">
-                <Lock className="w-6 h-6 text-slate-600" />
+              <div className="flex items-center justify-center py-4 gap-2 border border-dashed border-slate-800 rounded-xl">
+                <Lock className="w-5 h-5 text-slate-600" />
                 <p className="text-sm text-slate-500">Client parameters are managed by your manager.</p>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Log Daily Stats — all roles */}
-        <div className="glass-panel p-6 rounded-2xl space-y-6">
-          <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-fuchsia-400" />
-            Log Daily Performance Stats
-          </h2>
-          <form onSubmit={handleLogStats} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">Logging Date</label>
-                <input type="date" value={statsDate} onChange={(e) => setStatsDate(e.target.value)} className="w-full glass-input p-3 rounded-xl" required />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">Day Budget Used (₹)</label>
-                <input type="number" value={statsBudget} onChange={(e) => setStatsBudget(e.target.value)} className="w-full glass-input p-3 rounded-xl" required />
-              </div>
+          {/* Register New Client */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-panel p-6 rounded-2xl space-y-4">
+              <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-violet-400" />
+                Register New Client
+                {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3.5 h-3.5" /> Manager only</span>}
+              </h3>
+              {isManager ? (
+                <form onSubmit={handleAddClient} className="space-y-4">
+                  <input type="text" value={newClientName} onChange={e => setNewClientName(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Company/Client Name" required />
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="email" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Email" />
+                    <input type="text" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Phone" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="number" value={newClientBudget} onChange={e => setNewClientBudget(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Allocated Budget" />
+                    <input type="date" value={newClientStart} onChange={e => setNewClientStart(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                  </div>
+                  <textarea value={newClientDetails} onChange={e => setNewClientDetails(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm h-20" placeholder="Requirement details..." />
+                  <button type="submit" className="w-full bg-violet-600 hover:bg-violet-700 py-2.5 rounded-xl text-white text-sm font-medium transition">
+                    Add Client Profile
+                  </button>
+                </form>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 gap-2 border border-dashed border-slate-800 rounded-xl">
+                  <Lock className="w-6 h-6 text-slate-600" />
+                  <p className="text-sm text-slate-500">Only managers can register new clients.</p>
+                </div>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">Active Ads Count</label>
-                <input type="number" value={activeAds} onChange={(e) => setActiveAds(e.target.value)} className="w-full glass-input p-3 rounded-xl" min="0" required />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">Lost/Inactive Ads</label>
-                <input type="number" value={lostAds} onChange={(e) => setLostAds(e.target.value)} className="w-full glass-input p-3 rounded-xl" min="0" required />
-              </div>
-            </div>
-            <button type="submit" className="w-full bg-violet-600 hover:bg-violet-700 py-3 rounded-xl text-white font-medium transition flex items-center justify-center gap-2 shadow-lg" disabled={!selectedClientId}>
-              <Plus className="w-5 h-5" /> Log Daily Stat Entry
-            </button>
-          </form>
-        </div>
-      </div>
 
-      {/* Stats History */}
-      <div className="glass-panel p-6 rounded-2xl space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold text-slate-100">
-            Ad Performance History {selectedClient && `- ${selectedClient.name}`}
-          </h2>
-          {selectedClient && clientStats.length > 0 && (
-            <button onClick={downloadReport} className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition">
-              <Download className="w-4 h-4" /> Download Report (.csv)
-            </button>
-          )}
-        </div>
-        {clientStats.length === 0 ? (
-          <p className="text-slate-400 text-center py-6">No performance statistics logged yet for this client.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400 text-sm">
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Daily Budget</th>
-                  <th className="py-3 px-4">Active Ads</th>
-                  <th className="py-3 px-4">Lost Ads</th>
-                  <th className="py-3 px-4">Performance Rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/50">
-                {clientStats.map(s => {
-                  const total = s.activeAds + s.lostAds;
-                  const rate = total > 0 ? ((s.activeAds / total) * 100).toFixed(0) : '0';
-                  return (
-                    <tr key={s.id} className="text-slate-200 hover:bg-slate-900/30">
-                      <td className="py-3 px-4">{s.date}</td>
-                      <td className="py-3 px-4">₹{s.budget.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-emerald-400 font-semibold">{s.activeAds}</td>
-                      <td className="py-3 px-4 text-rose-400">{s.lostAds}</td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${parseInt(rate) > 75 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                          {rate}% Active
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {/* Prepare Marketing Plan */}
+            <div className="glass-panel p-6 rounded-2xl space-y-4">
+              <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <PieChart className="w-5 h-5 text-violet-400" />
+                Prepare Marketing Plan
+                {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3.5 h-3.5" /> Manager only</span>}
+              </h3>
+              {isManager ? (
+                <form onSubmit={e => { e.preventDefault(); downloadPlan(); }} className="space-y-4">
+                  <input type="text" value={planTitle} onChange={e => setPlanTitle(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Campaign Title" required />
+                  <input type="text" value={planTarget} onChange={e => setPlanTarget(e.target.value)}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Target Audience" required />
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="text" value={planChannels} onChange={e => setPlanChannels(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Channels" />
+                    <input type="number" value={planBudgetAlloc} onChange={e => setPlanBudgetAlloc(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder={String(selectedClient?.budget || '50000')} />
+                  </div>
+                  <button type="submit" disabled={!selectedClientId}
+                    className="w-full bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed py-2.5 rounded-xl text-white text-sm font-medium transition flex items-center justify-center gap-2">
+                    <Download className="w-4 h-4" /> Download Prepared Plan
+                  </button>
+                </form>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 gap-2 border border-dashed border-slate-800 rounded-xl">
+                  <Lock className="w-6 h-6 text-slate-600" />
+                  <p className="text-sm text-slate-500">Only managers can prepare plans.</p>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Add Client + Plan Proposal — manager only */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glass-panel p-6 rounded-2xl space-y-6">
-          <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-violet-400" />
-            Register New Client
-            {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3.5 h-3.5" /> Manager only</span>}
-          </h2>
-          {isManager ? (
-            <form onSubmit={handleAddClient} className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">Company/Client Name</label>
-                <input type="text" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="e.g. Aura Cosmetics" required />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">Email Address</label>
-                  <input type="email" value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="contact@client.com" />
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">Phone</label>
-                  <input type="text" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="+91 99999..." />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">Allocated Budget (₹)</label>
-                  <input type="number" value={newClientBudget} onChange={(e) => setNewClientBudget(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="100000" />
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">Proposed Start Date</label>
-                  <input type="date" value={newClientStart} onChange={(e) => setNewClientStart(e.target.value)} className="w-full glass-input p-3 rounded-xl" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">Requirement Details</label>
-                <textarea value={newClientDetails} onChange={(e) => setNewClientDetails(e.target.value)} className="w-full glass-input p-3 rounded-xl h-24" placeholder="Details about target audiences, niches..." />
-              </div>
-              <button type="submit" className="w-full bg-violet-600 hover:bg-violet-700 py-3 rounded-xl text-white font-medium transition">Add Client Profile</button>
-            </form>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center gap-3 border border-dashed border-slate-800 rounded-xl">
-              <Lock className="w-8 h-8 text-slate-600" />
-              <p className="text-sm text-slate-500">Only managers can register new clients.</p>
-            </div>
-          )}
         </div>
-
-        <div className="glass-panel p-6 rounded-2xl space-y-6">
-          <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
-            <TrendingDown className="w-5 h-5 text-violet-400" />
-            Prepare Marketing Plan
-            {!isManager && <span className="ml-auto flex items-center gap-1 text-xs text-slate-500 font-normal"><Lock className="w-3.5 h-3.5" /> Manager only</span>}
-          </h2>
-          {isManager ? (
-            <form onSubmit={(e) => { e.preventDefault(); downloadPlan(); }} className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">Active Campaign Title</label>
-                <input type="text" value={planTitle} onChange={(e) => setPlanTitle(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="e.g. Festival Season Expansion" required />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">Target Demographics / Interests</label>
-                <input type="text" value={planTarget} onChange={(e) => setPlanTarget(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="e.g. Female age 18-30, interested in eco-beauty" required />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">Target Channels</label>
-                  <input type="text" value={planChannels} onChange={(e) => setPlanChannels(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder="Instagram, Youtube" required />
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">Allocated Budget (₹)</label>
-                  <input type="number" value={planBudgetAlloc} onChange={(e) => setPlanBudgetAlloc(e.target.value)} className="w-full glass-input p-3 rounded-xl" placeholder={selectedClient?.budget || '50000'} />
-                </div>
-              </div>
-              <button type="submit" className="w-full bg-fuchsia-600 hover:bg-fuchsia-700 py-3 rounded-xl text-white font-medium transition flex items-center justify-center gap-2" disabled={!selectedClientId}>
-                <Download className="w-5 h-5" /> Download Prepared Plan
-              </button>
-            </form>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center gap-3 border border-dashed border-slate-800 rounded-xl">
-              <Lock className="w-8 h-8 text-slate-600" />
-              <p className="text-sm text-slate-500">Only managers can prepare marketing plans.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
