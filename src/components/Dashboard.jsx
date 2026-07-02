@@ -15,7 +15,16 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
 
   // Today's Date
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayAttendance = myAttendance.find(a => a.date === todayStr);
+  const todayAttendance = myAttendance.find(a => (a.logDate || a.date) === todayStr);
+
+  // breaks is stored as a JSON TEXT string in the DB; parse on read, stringify on write
+  const parseBreaks = (att) => {
+    if (!att?.breaks) return [];
+    if (Array.isArray(att.breaks)) return att.breaks;
+    try { return JSON.parse(att.breaks); } catch { return []; }
+  };
+
+  const resolvedBreaks = parseBreaks(todayAttendance);
 
   // -------------------------
   // ATTENDANCE ACTIONS
@@ -29,10 +38,10 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     const newAtt = {
       id: `ATT${Date.now()}`,
       employeeId: user.id,
-      date: todayStr,
+      logDate: todayStr,
       clockIn: timeStr,
       clockOut: null,
-      breaks: [],
+      breaks: '[]',
       status: "Present",
       type: attType
     };
@@ -79,7 +88,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   };
 
   // Derived: is there an open (un-ended) break right now?
-  const onBreak = (todayAttendance?.breaks || []).some(
+  const onBreak = resolvedBreaks.some(
     (b) => typeof b === 'object' && b.end === null
   );
 
@@ -87,7 +96,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     if (!todayAttendance) return;
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // "HH:MM"
-    const breaks = todayAttendance.breaks || [];
+    const breaks = resolvedBreaks;
 
     let updatedBreaks;
     if (!onBreak) {
@@ -110,7 +119,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     }
 
     const updated = attendance.map((a) =>
-      a.id === todayAttendance.id ? { ...a, breaks: updatedBreaks } : a
+      a.id === todayAttendance.id ? { ...a, breaks: JSON.stringify(updatedBreaks) } : a
     );
     updateState({ attendance: updated });
 
@@ -338,7 +347,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                     )}
                   </span>
                   <span>
-                    {(todayAttendance.breaks || []).reduce((sum, b) => {
+                    {resolvedBreaks.reduce((sum, b) => {
                       // legacy format: plain integer minutes
                       if (typeof b === 'number') return sum + b;
                       // new format: only count completed breaks

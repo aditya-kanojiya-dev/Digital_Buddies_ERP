@@ -520,12 +520,12 @@ const normalizedEmail =
     const newAtt = {
       id: `ATT${Date.now()}`,
       employeeId: clockEmpId,
-      date: new Date().toISOString().split('T')[0],
+      logDate: new Date().toISOString().split('T')[0],
       clockIn: clockInTime,
       clockOut: clockOutTime,
       status: 'Present',
       type: 'Office',
-      breaks: []
+      breaks: '[]'
     };
 
     updateState({ attendance: [...attendance, newAtt] });
@@ -1147,7 +1147,7 @@ const normalizedEmail =
                         {emp ? emp.name : 'Unknown Staff'}
                       </div>
                       <div className="text-xs text-slate-400">
-                        Date Log: {a.date} | Mode: {a.type || 'Office'}
+                        Date Log: {a.logDate || a.date} | Mode: {a.type || 'Office'}
                       </div>
                     </div>
                     <div className="text-right text-xs text-slate-350">
