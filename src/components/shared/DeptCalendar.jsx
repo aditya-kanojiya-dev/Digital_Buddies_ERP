@@ -96,7 +96,7 @@ export default function DeptCalendar({
     const { smmCalendar, tasks, employees, notifications, taskComments } = state;
 
     const isManager    = user.role === 'Super Admin' || user.role === 'Manager';
-    const isDeptMember = user.department === deptName;
+    const isDeptMember = user.department?.includes(deptName);
     const canAddPost   = showPosts && (isManager || isDeptMember);
     const canAssign    = allowCrossDeptAssign && isManager;
 
@@ -230,7 +230,7 @@ export default function DeptCalendar({
             updateState({ smmCalendar: [...smmCalendar, newPost] });
             // Notify target dept if it's not the source
             if (postForm.assignedDept && postForm.assignedDept !== 'Social Media') {
-                const deptMembers = employees.filter(e => e.department === postForm.assignedDept);
+                const deptMembers = employees.filter(e => e.department?.includes(postForm.assignedDept));
                 const now = new Date().toISOString();
                 const newNotifs = deptMembers.map(emp => ({
                     id: `NTF${Date.now()}_${emp.id}`,
@@ -264,7 +264,7 @@ export default function DeptCalendar({
     };
 
     // ── Cross-dept task assign ────────────────────────────────────────────
-    const targetDeptEmployees = employees.filter(e => e.department === taskForm.targetDept);
+    const targetDeptEmployees = employees.filter(e => e.department?.includes(taskForm.targetDept));
 
     const handleAssignTask = () => {
         if (!taskForm.title || !taskForm.targetDept) {
@@ -291,7 +291,7 @@ export default function DeptCalendar({
         // Notify assignee or whole target dept
         const toNotify = taskForm.assignedTo
             ? [employees.find(e => e.id === taskForm.assignedTo)].filter(Boolean)
-            : employees.filter(e => e.department === taskForm.targetDept);
+            : employees.filter(e => e.department?.includes(taskForm.targetDept));
         const now = new Date().toISOString();
         const newNotifs = toNotify.map(emp => ({
             id: `NTF${Date.now()}_${emp.id}`,

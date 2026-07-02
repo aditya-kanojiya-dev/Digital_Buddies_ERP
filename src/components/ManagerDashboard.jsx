@@ -35,7 +35,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const isSuperAdmin = user.role === 'Super Admin';
   const managerDept  = user.department;
 
-  const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department === 'Social Media';
+  const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department?.includes('Social Media');
 
   // ── Task creation form ────────────────────────────────────────────────────
   const [targetDept,   setTargetDept]   = useState('');
@@ -49,7 +49,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const [taskScheduledDate, setTaskScheduledDate] = useState('');
 
   const rule = DEPT_TIMELINE_RULES[targetDept] || {};
-  const deptStaff = targetDept ? employees.filter(emp => emp.department === targetDept) : [];
+  const deptStaff = targetDept ? employees.filter(emp => emp.department?.includes(targetDept)) : [];
   const deptTasks = tasks.filter(task => isSuperAdmin ? true : ALLOWED_TARGET_DEPTS.includes(task.department));
   const isCreativeDept = CREATIVE_DEPTS.includes(targetDept);
 
@@ -127,7 +127,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     const now       = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
     updateState({ tasks: tasks.map(t =>
-      t.id === taskId ? { ...t, assignedTo: reassignEmpId, department: staffMember?.department || t.department } : t
+      t.id === taskId ? { ...t, assignedTo: reassignEmpId } : t
     )});
 
     const reassignNotifs = [{

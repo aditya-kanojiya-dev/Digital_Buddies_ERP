@@ -5,7 +5,7 @@ import { useToast } from '../shared/Toast';
 export default function Developers({ user, state, updateState }) {
   const toast = useToast();
   const { devProjects, employees } = state;
-  const devStaff = employees.filter(e => e.department === 'Developers');
+  const devStaff = employees.filter(e => e.department?.includes('Developers'));
 
   // ── Role gates ────────────────────────────────────────────────────────────
   const isManager = user.role === 'Super Admin' || user.role === 'Manager';

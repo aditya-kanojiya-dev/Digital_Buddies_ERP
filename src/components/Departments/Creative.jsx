@@ -18,9 +18,9 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const { tasks, employees, taskComments } = state;
   const toast = useToast();
 
-  const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department === 'Social Media';
+  const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department?.includes('Social Media');
 
-  const creativeStaff = employees.filter(emp => emp.department === activeDepartment);
+  const creativeStaff = employees.filter(emp => emp.department?.includes(activeDepartment));
 
   // ── Form state ──────────────────────────────────────────────────────────
   const [taskTitle, setTaskTitle] = useState('');

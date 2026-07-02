@@ -16,6 +16,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
 
 /**
+ * Normalize department to always be an array.
+ * Handles: TEXT[] from post-migration DB, single string from old sessions.
+ */
+const normalizeDept = (d) => {
+  if (Array.isArray(d)) return d;
+  if (typeof d === 'string' && d) return [d];
+  return [];
+};
+
+/**
  * Convert snake_case employee row from Supabase → camelCase session user.
  */
 const toSessionUser = (row) => ({
@@ -23,7 +33,7 @@ const toSessionUser = (row) => ({
   email: row.email,
   name: row.name,
   role: row.role || 'Employee',
-  department: row.department,
+  department: normalizeDept(row.department),
   designation: row.designation || '',
   avatar: row.avatar || '',
   mustChangePassword: row.must_change_password === true,
@@ -202,6 +212,8 @@ export const auth = {
           return null;
         }
 
+        // Normalize department for backward compat with old sessions
+        user.department = normalizeDept(user.department);
         return user;
       } catch (e) {
         console.error('Session parse error:', e);

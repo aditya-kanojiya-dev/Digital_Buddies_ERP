@@ -124,7 +124,7 @@ export default function Layout({
     if (user.role === 'HR') return tab.id === 'HR' ? true : !tab.dept;
     if (user.role === 'Employee') {
       if (['manager', 'dashboard', 'profile'].includes(tab.id)) return true;
-      return tab.dept === user.department;
+      return user.department?.includes(tab.dept);
     }
     return false;
   });

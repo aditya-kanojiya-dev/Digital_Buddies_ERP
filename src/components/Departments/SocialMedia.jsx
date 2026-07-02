@@ -92,7 +92,7 @@ export default function SocialMedia({ user, state, updateState }) {
   const toast = useToast();
   const { smmCalendar, smmQuotes, employees, tasks, notifications } = state;
 
-  const isSocialMedia = user.department === 'Social Media';
+  const isSocialMedia = user.department?.includes('Social Media');
   const isManager     = user.role === 'Super Admin' || user.role === 'Manager';
   const canEdit       = isManager || isSocialMedia; // SM members + admins/managers can create
 
@@ -126,7 +126,7 @@ export default function SocialMedia({ user, state, updateState }) {
   const [taskForm, setTaskForm] = useState(blankTask());
 
   // Employees filter for the assignee dropdown in the cross-dept modal
-  const deptEmployees = employees.filter(e => e.department === taskForm.targetDept);
+  const deptEmployees = employees.filter(e => e.department?.includes(taskForm.targetDept));
 
   // ── Quote / MOM form ──────────────────────────────────────────────────────
   const [quoteClient, setQuoteClient] = useState('');
@@ -189,7 +189,7 @@ export default function SocialMedia({ user, state, updateState }) {
       updateState({ smmCalendar: [...smmCalendar, newPost] });
       // Notify relevant department
       if (postForm.assignedDept && postForm.assignedDept !== 'Social Media') {
-        const deptMembers = employees.filter(e => e.department === postForm.assignedDept);
+        const deptMembers = employees.filter(e => e.department?.includes(postForm.assignedDept));
         const now = new Date().toISOString();
         const newNotifs = deptMembers.map(emp => ({
           id: `NTF${Date.now()}_${emp.id}`,
@@ -255,7 +255,7 @@ export default function SocialMedia({ user, state, updateState }) {
     // Notify assignee or whole dept
     const toNotify = taskForm.assignedTo
       ? [employees.find(e => e.id === taskForm.assignedTo)].filter(Boolean)
-      : employees.filter(e => e.department === taskForm.targetDept);
+      : employees.filter(e => e.department?.includes(taskForm.targetDept));
     const now = new Date().toISOString();
     const newNotifs = toNotify.map(emp => ({
       id: `NTF${Date.now()}_${emp.id}`,

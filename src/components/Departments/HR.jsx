@@ -18,7 +18,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   // Form states for Employees
   const [empName, setEmpName] = useState('');
   const [empEmail, setEmpEmail] = useState('');
-  const [empDept, setEmpDept] = useState('Developers');
+  const [empDept, setEmpDept] = useState(['Developers']);
   const [empSalary, setEmpSalary] = useState('');
   const [empHire, setEmpHire] = useState(new Date().toISOString().split('T')[0]);
   const [editingEmpId, setEditingEmpId] = useState(null);
@@ -85,6 +85,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     setEmpDesignation('');
     setEmpRole('Employee');
     setEmpManagerId('');
+    setEmpDept(['Developers']);
   };
 
   const handleSaveEmployee = async (e) => {
@@ -100,7 +101,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
             email: empEmail.toLowerCase().trim(),
             phone: empPhone,
             department: empDept,
-            designation: empDesignation || `${empDept} Specialist`,
+            designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
             role: empRole,
             managerId: empManagerId || 'EMP01',
             salary: parseFloat(empSalary)
@@ -131,7 +132,7 @@ const normalizedEmail =
         phone: empPhone || "+91 99999 99999",
         role: empRole,
         department: empDept,
-        designation: empDesignation || `${empDept} Specialist`,
+        designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
         salary: parseFloat(empSalary),
         joinDate: empHire,
         bio: "Company team member.",
@@ -207,7 +208,7 @@ const normalizedEmail =
     setEditingEmpId(emp.id);
     setEmpName(emp.name);
     setEmpEmail(emp.email);
-    setEmpDept(emp.department);
+    setEmpDept(Array.isArray(emp.department) ? emp.department : [emp.department || 'Developers']);
     setEmpSalary(emp.salary);
     setEmpHire(emp.joinDate || new Date().toISOString().split('T')[0]);
     setEmpPhone(emp.phone || '');
@@ -791,8 +792,8 @@ const normalizedEmail =
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="text-xs font-semibold text-slate-205">{emp.designation || `${emp.department} Staff`}</div>
-                          <div className="text-3xs text-slate-450 uppercase tracking-wider">{emp.role} • {emp.department}</div>
+                          <div className="text-xs font-semibold text-slate-205">{emp.designation || `${Array.isArray(emp.department) ? emp.department[0] : emp.department} Staff`}</div>
+                          <div className="text-3xs text-slate-450 uppercase tracking-wider">{emp.role} • {Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department}</div>
                         </td>
                         <td className="py-3.5 px-4">
                           <span className={`inline-block px-2.5 py-0.5 rounded-full text-3xs font-medium ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
@@ -930,23 +931,25 @@ const normalizedEmail =
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Department</label>
-                  <select
-                    value={empDept}
-                    onChange={(e) => setEmpDept(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs"
-                  >
-                    <option value="Paid Ads">Paid Ads</option>
-                    <option value="Social Media">Social Media</option>
-                    <option value="Video Editors">Video Editors</option>
-                    <option value="Graphic Designers">Graphic Designers</option>
-                    <option value="Videography/Photography">Videography</option>
-                    <option value="Developers">Developers</option>
-                    <option value="HR">HR & Admin</option>
-                    <option value="Management">Management</option>
-                  </select>
+                  <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-2 font-semibold">Department(s)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Paid Ads', 'Social Media', 'Video Editors', 'Graphic Designers', 'Videography/Photography', 'Developers', 'HR', 'Management'].map(dept => (
+                      <label key={dept} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition text-xs ${
+                        empDept.includes(dept)
+                          ? 'bg-violet-500/15 border-violet-500/30 text-violet-300'
+                          : 'bg-slate-900/40 border-slate-800/50 text-slate-400 hover:border-slate-700'
+                      }`}>
+                        <input type="checkbox" checked={empDept.includes(dept)}
+                          onChange={() => setEmpDept(prev =>
+                            prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]
+                          )}
+                          className="sr-only" />
+                        {dept === 'Videography/Photography' ? 'Videography' : dept === 'HR' ? 'HR & Admin' : dept}
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Base Salary (₹)</label>
@@ -1444,7 +1447,7 @@ const normalizedEmail =
                   required
                 >
                   <option value="">-- Choose Dev --</option>
-                  {employees.filter(e => e.department === 'Developers').map(d => (
+                  {employees.filter(e => e.department?.includes('Developers')).map(d => (
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>

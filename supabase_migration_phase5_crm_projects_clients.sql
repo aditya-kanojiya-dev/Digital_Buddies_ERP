@@ -28,3 +28,14 @@ CREATE INDEX IF NOT EXISTS idx_proposals_client   ON proposals (client_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_client    ON invoices (client_id);
 CREATE INDEX IF NOT EXISTS idx_clients_assigned   ON clients (assigned_to);
 CREATE INDEX IF NOT EXISTS idx_clients_source     ON clients (source);
+
+-- ============================================================================
+-- Phase 6 — Multi-department employees
+-- ============================================================================
+-- Converts the single TEXT department to TEXT[] so employees can belong to
+-- multiple departments (e.g. "Video Editors" + "Videography/Photography").
+-- Existing single values become single-element arrays.
+-- ============================================================================
+ALTER TABLE employees
+  ALTER COLUMN department TYPE TEXT[]
+  USING ARRAY[department];
