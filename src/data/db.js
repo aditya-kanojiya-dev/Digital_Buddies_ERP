@@ -221,11 +221,17 @@ export const db = {
   getClients: () => getTable('clients'),
   saveClients: (data) => saveTable('clients', data),
   addClient: (client) => addRow('clients', client),
+  updateClient: (clientId, fields) => updateRow('clients', clientId, fields),
+  deleteClient: async (clientId) => {
+    await deleteRow('clients', clientId);
+    return getTable('clients');
+  },
 
   // ── Proposals ─────────────────────────────────────────────────────────────
   getProposals: () => getTable('proposals'),
   saveProposals: (data) => saveTable('proposals', data),
   addProposal: (prop) => addRow('proposals', prop),
+  updateProposal: (id, fields) => updateRow('proposals', id, fields),
 
   // ── Invoices ──────────────────────────────────────────────────────────────
   getInvoices: () => getTable('invoices'),
