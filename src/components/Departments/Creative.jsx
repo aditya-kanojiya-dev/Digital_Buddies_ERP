@@ -3,6 +3,7 @@ import { Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon, GitBran
 import { useToast } from '../shared/Toast';
 import TaskCard from '../shared/TaskCard';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
+import { DatePicker } from '../ui';
 
 const COLUMNS = ['New', 'In Progress', 'Review', 'Completed'];
 
@@ -377,9 +378,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Prior Date</label>
-                  <input type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                  <DatePicker label="Prior Date" value={scheduledDate} onChange={setScheduledDate} />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Attachment Link</label>

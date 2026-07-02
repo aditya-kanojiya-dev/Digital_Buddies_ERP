@@ -5,6 +5,7 @@ import {
 import { useToast } from './Toast';
 import TaskDetailPanel from './TaskDetailPanel';
 import { db } from '../../data/db';
+import { DatePicker } from '../ui';
 
 // ─── Date / calendar helpers ────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
@@ -602,9 +603,7 @@ export default function DeptCalendar({
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs text-slate-400 mb-1">Date</label>
-                                <input type="date" value={postForm.date} onChange={e => setPostForm(f => ({ ...f, date: e.target.value }))}
-                                    className="w-full glass-input p-3 rounded-xl text-sm" />
+                                <DatePicker label="Date" value={postForm.date} onChange={v => setPostForm(f => ({ ...f, date: v }))} />
                             </div>
                             <div>
                                 <label className="block text-xs text-slate-400 mb-1">Time</label>
@@ -688,9 +687,7 @@ export default function DeptCalendar({
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs text-slate-400 mb-1">Due Date</label>
-                                <input type="date" value={taskForm.dueDate} onChange={e => setTaskForm(f => ({ ...f, dueDate: e.target.value }))}
-                                    className="w-full glass-input p-3 rounded-xl text-sm" />
+                                <DatePicker label="Due Date" value={taskForm.dueDate} onChange={v => setTaskForm(f => ({ ...f, dueDate: v }))} />
                             </div>
                         </div>
                         <div className="flex gap-3 pt-2">

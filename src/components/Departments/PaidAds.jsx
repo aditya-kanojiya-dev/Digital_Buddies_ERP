@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
+import { DatePicker } from '../ui';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -547,14 +548,10 @@ Prepared by: ${user.name} — Paid Ads Team (NeoMax CMS)
                       className="w-full glass-input p-2.5 rounded-xl text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Start Date</label>
-                    <input type="date" value={campaignStart} onChange={e => setCampaignStart(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                    <DatePicker label="Start Date" value={campaignStart} onChange={setCampaignStart} />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">End Date</label>
-                    <input type="date" value={campaignEnd} onChange={e => setCampaignEnd(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                    <DatePicker label="End Date" value={campaignEnd} onChange={setCampaignEnd} />
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -640,9 +637,7 @@ Prepared by: ${user.name} — Paid Ads Team (NeoMax CMS)
             <form onSubmit={handleLogStats} className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Date</label>
-                  <input type="date" value={statsDate} onChange={e => setStatsDate(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm" required />
+                  <DatePicker label="Date" value={statsDate} onChange={setStatsDate} required />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Planned Budget (₹)</label>
@@ -796,9 +791,7 @@ Prepared by: ${user.name} — Paid Ads Team (NeoMax CMS)
             {isManager && selectedClient && (
               <form onSubmit={handleUpdateBudget} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Start Date</label>
-                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                  <DatePicker label="Start Date" value={startDate} onChange={setStartDate} />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Daily Budget (₹)</label>
@@ -842,8 +835,7 @@ Prepared by: ${user.name} — Paid Ads Team (NeoMax CMS)
                   <div className="grid grid-cols-2 gap-4">
                     <input type="number" value={newClientBudget} onChange={e => setNewClientBudget(e.target.value)}
                       className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Allocated Budget" />
-                    <input type="date" value={newClientStart} onChange={e => setNewClientStart(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" />
+                    <DatePicker value={newClientStart} onChange={setNewClientStart} placeholderText="Start date" />
                   </div>
                   <textarea value={newClientDetails} onChange={e => setNewClientDetails(e.target.value)}
                     className="w-full glass-input p-2.5 rounded-xl text-sm h-20" placeholder="Requirement details..." />

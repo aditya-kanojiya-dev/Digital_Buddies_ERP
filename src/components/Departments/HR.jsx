@@ -6,6 +6,7 @@ import {
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
+import { DatePicker } from '../ui';
 
 export default function HR({ state, updateState, user = { role: 'Super Admin', id: 'EMP01' } }) {
   const toast = useToast();
@@ -1104,25 +1105,8 @@ const normalizedEmail =
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-455 mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={leaveStart}
-                    onChange={(e) => setLeaveStart(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-455 mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={leaveEnd}
-                    onChange={(e) => setLeaveEnd(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                  />
-                </div>
+                <DatePicker label="Start Date" value={leaveStart} onChange={setLeaveStart} required />
+                <DatePicker label="End Date" value={leaveEnd} onChange={setLeaveEnd} />
               </div>
 
               <div>

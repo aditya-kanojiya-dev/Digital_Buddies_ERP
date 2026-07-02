@@ -6,7 +6,7 @@ import {
 import { useToast } from './shared/Toast';
 import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
-import { Modal, ConfirmDialog, Button } from './ui';
+import { Modal, ConfirmDialog, Button, DatePicker } from './ui';
 
 const COLUMNS = ['Backlog', 'Active', 'Review', 'Blocked', 'Completed'];
 
@@ -372,9 +372,7 @@ export default function Projects({ state, updateState }) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Target Deadline</label>
-              <input type="date" value={projDeadline} onChange={e => setProjDeadline(e.target.value)}
-                className="w-full glass-input p-2.5 rounded-xl text-sm" />
+              <DatePicker label="Target Deadline" value={projDeadline} onChange={setProjDeadline} />
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Budget (₹)</label>
@@ -539,9 +537,7 @@ export default function Projects({ state, updateState }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Due Date</label>
-            <input type="date" value={msDue} onChange={e => setMsDue(e.target.value)}
-              className="w-full glass-input p-2.5 rounded-xl text-sm" />
+            <DatePicker label="Due Date" value={msDue} onChange={setMsDue} />
           </div>
         </div>
       </Modal>

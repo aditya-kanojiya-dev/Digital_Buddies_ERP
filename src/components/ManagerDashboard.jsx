@@ -5,6 +5,7 @@ import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
 import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
 import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
+import { DatePicker } from './ui';
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -367,9 +368,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                 </div>
                 {rule.mode === 'manual' ? (
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Due Date</label>
-                    <input type="date" value={taskDue} onChange={e => setTaskDue(e.target.value)}
-                      className="w-full glass-input p-3 rounded-xl text-xs" required />
+                    <DatePicker label="Due Date" value={taskDue} onChange={setTaskDue} required />
                   </div>
                 ) : rule.mode === 'select' ? (
                   <div>
@@ -390,9 +389,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               </div>
               {isCreativeDept && (
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Prior Date</label>
-                  <input type="date" value={taskScheduledDate} onChange={e => setTaskScheduledDate(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs" />
+                  <DatePicker label="Prior Date" value={taskScheduledDate} onChange={setTaskScheduledDate} />
                 </div>
               )}
               <button type="submit"

@@ -10,6 +10,7 @@ export { default as StatCard } from './StatCard';
 export { default as PageHeader } from './PageHeader';
 export { default as EmptyState } from './EmptyState';
 export { default as ConfirmDialog } from './ConfirmDialog';
+export { default as DatePicker } from './DatePicker';
 export { default as Skeleton, SkeletonCards } from './Skeleton';
 
 // Charts

@@ -5,7 +5,7 @@ import {
   Filter, ArrowLeft, TrendingUp
 } from 'lucide-react';
 import { useToast } from './shared/Toast';
-import { Modal, ConfirmDialog, Button } from './ui';
+import { Modal, ConfirmDialog, Button, DatePicker } from './ui';
 import { DonutChart, BarChart } from './ui';
 import { db } from '../data/db';
 import * as XLSX from 'xlsx';
@@ -534,9 +534,8 @@ Status: UNPAID
           </select>
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Start Date</label>
-          <input type="date" value={clientForm.startDate} onChange={e => setClientForm(p => ({ ...p, startDate: e.target.value }))}
-            className="w-full glass-input p-2.5 rounded-xl text-sm" />
+          <DatePicker label="Start Date" value={clientForm.startDate}
+            onChange={v => setClientForm(p => ({ ...p, startDate: v }))} />
         </div>
       </div>
       <div>
@@ -893,9 +892,7 @@ Status: UNPAID
                   className="w-full glass-input p-2.5 rounded-xl text-sm" required />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Due Date</label>
-                <input type="date" value={invDue} onChange={e => setInvDue(e.target.value)}
-                  className="w-full glass-input p-2.5 rounded-xl text-sm" required />
+                <DatePicker label="Due Date" value={invDue} onChange={setInvDue} required />
               </div>
               <button type="submit"
                 className="w-full bg-violet-600 hover:bg-violet-700 py-2.5 rounded-xl text-sm text-white font-bold transition flex items-center justify-center gap-2">
