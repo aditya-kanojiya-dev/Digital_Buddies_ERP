@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { Modal, ConfirmDialog, Button } from './ui';
-import { DonutChart, BarChart } from './ui/charts';
+import { DonutChart, BarChart } from './ui';
 import { db } from '../data/db';
 import * as XLSX from 'xlsx';
 
