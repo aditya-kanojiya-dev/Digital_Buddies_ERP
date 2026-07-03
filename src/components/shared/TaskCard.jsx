@@ -61,6 +61,7 @@ export default function TaskCard({
                         </span>
                         {task.priority && (
                             <span className={`text-3xs px-2 py-0.5 rounded font-mono font-semibold ${
+                                task.priority === 'Emergency' ? 'bg-red-600/20 text-red-400' :
                                 task.priority === 'High'   ? 'bg-rose-500/10 text-rose-400' :
                                 task.priority === 'Medium' ? 'bg-amber-500/10 text-amber-400' :
                                                               'bg-slate-700/40 text-slate-400'

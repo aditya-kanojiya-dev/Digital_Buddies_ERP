@@ -6,6 +6,9 @@
  *   deadline-overdue  →  dueDate < today, task not completed
  *   deadline-today    →  dueDate === today, task not completed
  *   deadline-24h      →  dueDate === tomorrow, task not completed
+ *   deadline-headsUp  →  today === dueDate - 2 (for calendar-linked tasks only)
+ *                        — gives a pre-deadline heads-up matching the
+ *                        "5–7 days" / "3–5 days" lead-time windows.
  *
  * Dedup strategy: one notification per (taskId × type × calendar-day).
  * A stable deterministic ID (`NTF_DL_{taskId}_{type}_{todayStr}`) means
@@ -47,6 +50,13 @@ const tomorrowStr = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** Return the date N days before a given date string. */
+const daysBefore = (dateStr, n) => {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - n);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 };
 
 // ─── Main engine ──────────────────────────────────────────────────────────────
@@ -94,6 +104,12 @@ export function runDeadlineEngine({ tasks, notifications }) {
         } else if (task.dueDate === tomorrow) {
             type = 'deadline-24h';
             message = `🟡 Due tomorrow (${tomorrow}): "${task.title}" — make sure you're on track.`;
+
+        } else if (task.calendar_id && today === daysBefore(task.dueDate, 2)) {
+            // Heads-up for calendar-linked tasks: 2 days before due date
+            // (post date - upper bound of lead-time window)
+            type = 'deadline-headsUp';
+            message = `🔔 Heads-up: "${task.title}" is due in 2 days (${task.dueDate}). Start planning your work.`;
         }
 
         if (!type) continue;

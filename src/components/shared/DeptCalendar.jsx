@@ -6,6 +6,7 @@ import { useToast } from './Toast';
 import TaskDetailPanel from './TaskDetailPanel';
 import { db } from '../../data/db';
 import { DatePicker } from '../ui';
+import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
 
 // ─── Date / calendar helpers ────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
@@ -113,10 +114,19 @@ export default function DeptCalendar({
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState(null);
 
+    // ── Lead-time windows ─────────────────────────────────────────────────
+    const DEPT_LEAD_WINDOWS = {
+        'Videography/Photography': { lower: 5, upper: 7 },
+        'Video Editors':           { lower: 3, upper: 5 },
+        'Graphic Designers':       { lower: 3, upper: 5 },
+    };
+
     // ── Post form state ────────────────────────────────────────────────────
     const blankPost = () => ({
         title: '', date: todayStr(), time: '12:00', platform: 'Instagram',
-        caption: '', status: 'Scheduled', assignedDept: 'Social Media', notes: '',
+        caption: '', status: 'Draft',
+        client_id: '', needs_videography: false, needs_video_editing: false, needs_graphic_design: false,
+        assignedVideo: '', assignedGraphic: '', assignedPhoto: '',
     });
     const [postForm, setPostForm] = useState(blankPost());
 
@@ -213,11 +223,218 @@ export default function DeptCalendar({
         setShowPostModal(true);
     };
 
+    const getSelectedDepts = (form) => {
+        const depts = [];
+        if (form.needs_videography) depts.push('Videography/Photography');
+        if (form.needs_video_editing) depts.push('Video Editors');
+        if (form.needs_graphic_design) depts.push('Graphic Designers');
+        return depts;
+    };
+
+    const getAssigneeForForm = (form, dept) => {
+        const map = {
+            'Video Editors': 'assignedVideo',
+            'Graphic Designers': 'assignedGraphic',
+            'Videography/Photography': 'assignedPhoto',
+        };
+        return form[map[dept]] || '';
+    };
+
+    const createLinkedTask = (postId, form, dept, assigneeId, userName) => {
+        const window = DEPT_LEAD_WINDOWS[dept];
+        const dueDate = addDays(form.date, -window.lower);
+        return {
+            id: `TASK${Date.now()}_${dept.replace(/[^a-z]/gi,'')}`,
+            title: `[${dept}] ${form.title}`,
+            description: `${form.caption || ''}\n\nClient: ${form.client_id || 'N/A'}\nPlatform: ${form.platform}\nPost date: ${form.date}`,
+            assignedTo: assigneeId || null,
+            department: dept,
+            sourceDept: deptName,
+            assignedBy: userName,
+            priority: 'Medium',
+            projectId: 'General',
+            dueDate,
+            status: 'New',
+            calendar_id: postId,
+            createdAt: new Date().toISOString().split('T')[0],
+        };
+    };
+
+    /**
+     * Reconcile linked tasks when a calendar entry is edited.
+     */
+    const reconcileCalendarEntry = (postId, oldForm, newForm) => {
+        if (newForm.status !== 'Scheduled') {
+            const toCancel = tasks.filter(t => t.calendar_id === postId && t.status !== 'Completed' && t.status !== 'Blocked');
+            if (toCancel.length === 0) return { tasks: tasks, notifications: [] };
+            const now = new Date().toISOString();
+            const notifs = [];
+            toCancel.forEach(t => {
+                if (t.assignedTo) {
+                    notifs.push({
+                        id: `NTF${Date.now()}_cancel_${t.id}`,
+                        userId: t.assignedTo,
+                        message: `❌ Content requirement cancelled: "${t.title}" (post no longer scheduled)`,
+                        type: 'info',
+                        timestamp: now,
+                        read: false,
+                    });
+                }
+            });
+            return {
+                tasks: tasks.map(t => t.calendar_id === postId && t.status !== 'Completed' && t.status !== 'Blocked' ? { ...t, status: 'Blocked' } : t),
+                notifications: notifs,
+            };
+        }
+
+        const oldSelected = oldForm ? getSelectedDepts(oldForm) : [];
+        const newSelected = getSelectedDepts(newForm);
+        const now = new Date().toISOString();
+        const resultTasks = [...tasks];
+        const resultNotifs = [];
+
+        for (const dept of newSelected) {
+            const assigneeId = getAssigneeForForm(newForm, dept);
+            const window = DEPT_LEAD_WINDOWS[dept];
+            const newDueDate = addDays(newForm.date, -window.lower);
+            const existing = tasks.find(t => t.calendar_id === postId && t.department === dept);
+
+            if (!existing) {
+                if (assigneeId) {
+                    const info = getWorkloadInfo(tasks, assigneeId, newDueDate, dept, 'Medium');
+                    if (!info.canAssign) {
+                        toast.error(`${dept}: ${info.reason}. Task not created.`);
+                        continue;
+                    }
+                }
+                const task = createLinkedTask(postId, newForm, dept, assigneeId, user.name);
+                resultTasks.push(task);
+                const toNotify = assigneeId
+                    ? [employees.find(e => e.id === assigneeId)].filter(Boolean)
+                    : employees.filter(e => e.department?.includes(dept));
+                toNotify.forEach(emp => {
+                    resultNotifs.push({
+                        id: `NTF${Date.now()}_new_${dept}_${emp.id}`,
+                        userId: emp.id,
+                        message: `📅 New content task: "${newForm.title}" — due ${task.dueDate} (${dept})`,
+                        type: 'assignment',
+                        timestamp: now,
+                        read: false,
+                    });
+                });
+            } else {
+                let changed = false;
+                const updates = {};
+
+                if (assigneeId && assigneeId !== existing.assignedTo) {
+                    updates.assignedTo = assigneeId;
+                    const newEmp = employees.find(e => e.id === assigneeId);
+                    if (newEmp) {
+                        resultNotifs.push({
+                            id: `NTF${Date.now()}_reassign_${dept}_to`,
+                            userId: assigneeId,
+                            message: `📌 Task reassigned to you: "${existing.title}" — due ${newDueDate} (${dept})`,
+                            type: 'assignment',
+                            timestamp: now,
+                            read: false,
+                        });
+                    }
+                    if (existing.assignedTo) {
+                        resultNotifs.push({
+                            id: `NTF${Date.now()}_reassign_${dept}_from`,
+                            userId: existing.assignedTo,
+                            message: `Task "${existing.title}" reassigned from you to ${newEmp?.name || 'another team member'}`,
+                            type: 'info',
+                            timestamp: now,
+                            read: false,
+                        });
+                    }
+                    changed = true;
+                }
+
+                if (newDueDate !== existing.dueDate) {
+                    updates.dueDate = newDueDate;
+                    if (existing.assignedTo) {
+                        resultNotifs.push({
+                            id: `NTF${Date.now()}_dated_${dept}`,
+                            userId: existing.assignedTo,
+                            message: `📅 Deadline changed for "${existing.title}": now due ${newDueDate} (was ${existing.dueDate})`,
+                            type: 'info',
+                            timestamp: now,
+                            read: false,
+                        });
+                    }
+                    changed = true;
+                }
+
+                if (changed) {
+                    const idx = resultTasks.findIndex(t => t.id === existing.id);
+                    if (idx !== -1) resultTasks[idx] = { ...resultTasks[idx], ...updates };
+                }
+            }
+        }
+
+        for (const dept of oldSelected) {
+            if (!newSelected.includes(dept)) {
+                const existing = tasks.find(t => t.calendar_id === postId && t.department === dept);
+                if (existing && existing.status !== 'Completed' && existing.status !== 'Blocked') {
+                    const idx = resultTasks.findIndex(t => t.id === existing.id);
+                    if (idx !== -1) resultTasks[idx] = { ...resultTasks[idx], status: 'Blocked' };
+                    if (existing.assignedTo) {
+                        resultNotifs.push({
+                            id: `NTF${Date.now()}_removed_${dept}`,
+                            userId: existing.assignedTo,
+                            message: `❌ Content requirement cancelled: "${existing.title}" (${dept} no longer needed)`,
+                            type: 'info',
+                            timestamp: now,
+                            read: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        return { tasks: resultTasks, notifications: resultNotifs };
+    };
+
     const handleSavePost = () => {
         if (!postForm.title) { toast.error('Post title is required.'); return; }
-        if (editingPost) {
+        const selectedDepts = getSelectedDepts(postForm);
+        const isFinalizing = postForm.status === 'Scheduled';
+        const isEdit = !!editingPost;
+        const isManager = user.role === 'Super Admin' || user.role === 'Manager';
+
+        // ── Permission check: only managers can finalize ──
+        if (isFinalizing && !isManager) {
+            toast.error('Only managers can finalize calendar entries.');
+            return;
+        }
+
+        // ── Workload cap check before save ──
+        if (isFinalizing) {
+            for (const dept of selectedDepts) {
+                const assigneeId = getAssigneeForForm(postForm, dept);
+                if (!assigneeId) continue;
+                const window = DEPT_LEAD_WINDOWS[dept];
+                const dueDate = addDays(postForm.date, -window.lower);
+                const info = getWorkloadInfo(tasks, assigneeId, dueDate, dept, 'Medium');
+                if (!info.canAssign) {
+                    toast.error(`${dept}: ${info.reason}`);
+                    return;
+                }
+            }
+        }
+
+        if (isEdit) {
+            // ── Reconciliation: auto-sync linked tasks ──
+            const oldPost = editingPost;
+            const reconcileResult = reconcileCalendarEntry(editingPost.id, oldPost, postForm);
             const updated = smmCalendar.map(p => p.id === editingPost.id ? { ...p, ...postForm } : p);
-            updateState({ smmCalendar: updated });
+            updateState({
+                smmCalendar: updated,
+                tasks: reconcileResult.tasks,
+                notifications: [...notifications, ...reconcileResult.notifications],
+            });
             toast.success('Post updated on calendar.');
         } else {
             const newPost = {
@@ -228,20 +445,55 @@ export default function DeptCalendar({
                 createdAt: new Date().toISOString(),
             };
             updateState({ smmCalendar: [...smmCalendar, newPost] });
-            // Notify target dept if it's not the source
-            if (postForm.assignedDept && postForm.assignedDept !== 'Social Media') {
-                const deptMembers = employees.filter(e => e.department?.includes(postForm.assignedDept));
+
+            if (isFinalizing) {
                 const now = new Date().toISOString();
-                const newNotifs = deptMembers.map(emp => ({
-                    id: `NTF${Date.now()}_${emp.id}`,
-                    userId: emp.id,
-                    message: `📅 New content task from ${deptName}: "${postForm.title}" on ${postForm.date}`,
-                    type: 'assignment',
-                    timestamp: now,
-                    read: false,
-                }));
+                const newTasks = [];
+                const newNotifs = [];
+
+                selectedDepts.forEach(dept => {
+                    const assigneeId = getAssigneeForForm(postForm, dept);
+                    const task = createLinkedTask(newPost.id, postForm, dept, assigneeId, user.name);
+                    newTasks.push(task);
+
+                    const toNotify = assigneeId
+                        ? [employees.find(e => e.id === assigneeId)].filter(Boolean)
+                        : employees.filter(e => e.department?.includes(dept));
+
+                    toNotify.forEach(emp => {
+                        newNotifs.push({
+                            id: `NTF${Date.now()}_${emp.id}_${dept}`,
+                            userId: emp.id,
+                            message: `📅 New content task from ${deptName}: "${postForm.title}" — due ${task.dueDate} (${dept})`,
+                            type: 'assignment',
+                            timestamp: now,
+                            read: false,
+                        });
+                    });
+                });
+
+                updateState({ tasks: [...tasks, ...newTasks] });
+                if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });
+            } else if (selectedDepts.length > 0) {
+                // Simple notification for non-finalized posts
+                const now = new Date().toISOString();
+                const newNotifs = [];
+                selectedDepts.forEach(dept => {
+                    const deptMembers = employees.filter(e => e.department?.includes(dept));
+                    deptMembers.forEach(emp => {
+                        newNotifs.push({
+                            id: `NTF${Date.now()}_${emp.id}_${dept}`,
+                            userId: emp.id,
+                            message: `📅 New draft content from ${deptName}: "${postForm.title}" on ${postForm.date} (${dept})`,
+                            type: 'info',
+                            timestamp: now,
+                            read: false,
+                        });
+                    });
+                });
                 if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });
             }
+
             toast.success(`"${postForm.title}" added to calendar.`);
         }
         setShowPostModal(false);
@@ -271,6 +523,19 @@ export default function DeptCalendar({
             toast.error('Task title and target department are required.');
             return;
         }
+
+        const dueDate = taskForm.dueDate || '';
+        const isCreativeDept = ['Video Editors', 'Graphic Designers', 'Videography/Photography'].includes(taskForm.targetDept);
+
+        // ── Workload cap check ──
+        if (taskForm.assignedTo && dueDate && isCreativeDept) {
+            const info = getWorkloadInfo(tasks, taskForm.assignedTo, dueDate, taskForm.targetDept, taskForm.priority);
+            if (!info.canAssign) {
+                toast.error(info.reason);
+                return;
+            }
+        }
+
         const newTask = {
             id: `TASK${Date.now()}`,
             title: taskForm.title,
@@ -281,7 +546,7 @@ export default function DeptCalendar({
             assignedBy: user.id,
             priority: taskForm.priority,
             projectId: 'General',
-            dueDate: taskForm.dueDate || '',
+            dueDate,
             scheduledDate: null,
             status: 'New',
             createdAt: new Date().toISOString().split('T')[0],
@@ -418,12 +683,18 @@ export default function DeptCalendar({
                                     {/* Post chips (SM only) */}
                                     {dayPosts.slice(0, 3).map(post => {
                                         const c = PLATFORM_COLORS[post.platform] || PLATFORM_COLORS.Instagram;
+                                        const isDraft = post.status === 'Draft';
                                         return (
                                             <div key={post.id}
-                                                className={`text-3xs px-1.5 py-0.5 rounded ${c.bg} ${c.text} truncate flex items-center gap-1`}
-                                                title={post.title}
+                                                className={`text-3xs px-1.5 py-0.5 rounded truncate flex items-center gap-1 ${
+                                                    isDraft
+                                                        ? 'bg-slate-700/30 text-slate-500 italic border border-dashed border-slate-600/50'
+                                                        : `${c.bg} ${c.text}`
+                                                }`}
+                                                title={`${isDraft ? '[DRAFT] ' : ''}${post.title}`}
                                             >
-                                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'currentColor' }} />
+                                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDraft ? 'bg-slate-600' : ''}`} style={isDraft ? {} : { background: 'currentColor' }} />
+                                                {isDraft ? <span className="text-4xs uppercase tracking-wider mr-0.5">Tentative</span> : null}
                                                 {post.title}
                                             </div>
                                         );
@@ -490,12 +761,16 @@ export default function DeptCalendar({
 
                         {selectedDay.posts.map(post => {
                             const c = PLATFORM_COLORS[post.platform] || PLATFORM_COLORS.Instagram;
+                            const isDraft = post.status === 'Draft';
                             return (
-                                <div key={post.id} className={`glass-card rounded-xl border border-slate-800/80 p-4 space-y-2`}>
+                                <div key={post.id} className={`glass-card rounded-xl border p-4 space-y-2 ${isDraft ? 'border-slate-700/60 opacity-70' : 'border-slate-800/80'}`}>
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="space-y-1">
-                                            <span className={`text-3xs px-2 py-0.5 rounded-full font-bold ${c.bg} ${c.text}`}>{post.platform}</span>
-                                            <h4 className="font-bold text-sm text-slate-200">{post.title}</h4>
+                                            <span className={`text-3xs px-2 py-0.5 rounded-full font-bold ${isDraft ? 'bg-slate-700/30 text-slate-500 italic' : `${c.bg} ${c.text}`}`}>
+                                                {isDraft ? 'Tentative Draft' : post.platform}
+                                            </span>
+                                            <h4 className={`font-bold text-sm ${isDraft ? 'text-slate-500' : 'text-slate-200'}`}>{post.title}</h4>
+                                            {isDraft && <p className="text-3xs text-slate-600 italic">Not confirmed — no tasks assigned yet</p>}
                                             {post.caption && <p className="text-xs text-slate-400 italic">{post.caption}</p>}
                                             <p className="text-3xs text-slate-500">@ {post.time} · by {post.addedBy}</p>
                                         </div>
@@ -601,6 +876,11 @@ export default function DeptCalendar({
                             <input type="text" value={postForm.title} onChange={e => setPostForm(f => ({ ...f, title: e.target.value }))}
                                 className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Skincare Serum Reel" />
                         </div>
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1">Client</label>
+                            <input type="text" value={postForm.client_id} onChange={e=>setPostForm(f=>({...f,client_id:e.target.value}))}
+                                className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Luna Fashion" />
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <DatePicker label="Date" value={postForm.date} onChange={v => setPostForm(f => ({ ...f, date: v }))} />
@@ -626,10 +906,47 @@ export default function DeptCalendar({
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs text-slate-400 mb-1">Assign to Department (for content needs)</label>
-                            <select value={postForm.assignedDept} onChange={e => setPostForm(f => ({ ...f, assignedDept: e.target.value }))} className="w-full glass-input p-3 rounded-xl text-sm">
-                                {['Social Media','Video Editors','Graphic Designers','Videography/Photography','Developers','Paid Ads'].map(d => <option key={d}>{d}</option>)}
-                            </select>
+                            <label className="block text-xs text-slate-400 mb-2">Creative Departments Needed</label>
+                            <div className="space-y-3">
+                                {[
+                                    { key: 'needs_video_editing', deptName: 'Video Editors', assignKey: 'assignedVideo' },
+                                    { key: 'needs_graphic_design', deptName: 'Graphic Designers', assignKey: 'assignedGraphic' },
+                                    { key: 'needs_videography', deptName: 'Videography/Photography', assignKey: 'assignedPhoto' },
+                                ].map(({ key, deptName, assignKey }) => {
+                                    const isChecked = postForm[key];
+                                    const deptEmployees = employees.filter(e => e.department?.includes(deptName));
+                                    const window = DEPT_LEAD_WINDOWS[deptName];
+                                    const dueDate = postForm.date ? addDays(postForm.date, -window.lower) : '';
+                                    return (
+                                        <div key={key} className="flex items-center gap-3">
+                                            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer min-w-0 shrink-0">
+                                                <input type="checkbox" checked={isChecked} onChange={e=>setPostForm(f=>({...f,[key]:e.target.checked}))}
+                                                    className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-violet-500 focus:ring-violet-500" />
+                                                {deptName}
+                                            </label>
+                                            {isChecked && (
+                                                <>
+                                                    <select value={postForm[assignKey]} onChange={e=>setPostForm(f=>({...f,[assignKey]:e.target.value}))}
+                                                        className="glass-input p-2 rounded-lg text-xs flex-1">
+                                                        <option value="">— Auto-assign —</option>
+                                                        {deptEmployees.map(e => {
+                                                            const info = dueDate ? getWorkloadInfo(tasks, e.id, dueDate, deptName, 'Medium') : null;
+                                                            const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
+                                                            return <option key={e.id} value={e.id} className={
+                                                                info?.color === 'red' ? 'text-red-400' :
+                                                                info?.color === 'amber' ? 'text-amber-400' : ''
+                                                            }>{label}</option>;
+                                                        })}
+                                                    </select>
+                                                    {dueDate && (
+                                                        <span className="text-3xs text-slate-500 shrink-0">due {dueDate}</span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                         <div>
                             <label className="block text-xs text-slate-400 mb-1">Caption / Notes</label>
@@ -675,7 +992,17 @@ export default function DeptCalendar({
                                 <label className="block text-xs text-slate-400 mb-1">Assign to (optional)</label>
                                 <select value={taskForm.assignedTo} onChange={e => setTaskForm(f => ({ ...f, assignedTo: e.target.value }))} className="w-full glass-input p-3 rounded-xl text-sm">
                                     <option value="">Whole department</option>
-                                    {targetDeptEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                    {targetDeptEmployees.map(e => {
+                                        const dueDate = taskForm.dueDate || '';
+                                        const isCreativeDept = ['Video Editors', 'Graphic Designers', 'Videography/Photography'].includes(taskForm.targetDept);
+                                        const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, e.id, dueDate, taskForm.targetDept, taskForm.priority) : null;
+                                        const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
+                                        return <option key={e.id} value={e.id} className={
+                                            info?.color === 'red' ? 'text-red-400' :
+                                            info?.color === 'amber' ? 'text-amber-400' :
+                                            ''
+                                        }>{label}</option>;
+                                    })}
                                 </select>
                             </div>
                         </div>
@@ -683,7 +1010,7 @@ export default function DeptCalendar({
                             <div>
                                 <label className="block text-xs text-slate-400 mb-1">Priority</label>
                                 <select value={taskForm.priority} onChange={e => setTaskForm(f => ({ ...f, priority: e.target.value }))} className="w-full glass-input p-3 rounded-xl text-sm">
-                                    {['Low','Medium','High'].map(p => <option key={p}>{p}</option>)}
+                                    {['Low','Medium','High','Emergency'].map(p => <option key={p}>{p}</option>)}
                                 </select>
                             </div>
                             <div>

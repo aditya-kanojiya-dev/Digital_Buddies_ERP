@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon, GitBranch } from 'lucide-react';
+import { Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon, GitBranch, Calendar as CalendarIcon } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import TaskCard from '../shared/TaskCard';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
+import DeptCalendar from '../shared/DeptCalendar';
 import { DatePicker } from '../ui';
+import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
 
 const COLUMNS = ['New', 'In Progress', 'Review', 'Completed'];
 
@@ -36,6 +38,9 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
   // ── Detail panel ────────────────────────────────────────────────────────
   const [selectedTask, setSelectedTask] = useState(null);
+
+  // ── View toggle: kanban vs calendar ─────────────────────────────────────
+  const [viewMode, setViewMode] = useState('kanban');
 
   // ── Revision prompt ─────────────────────────────────────────────────────
   const [revisionTaskId, setRevisionTaskId] = useState(null);
@@ -80,10 +85,31 @@ export default function Creative({ user, state, updateState, activeDepartment })
     return counts;
   }, [taskComments]);
 
+  // ── Date helpers ────────────────────────────────────────────────────────
+  const addDays = (dateStr, n) => {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().split('T')[0];
+  };
+
   // ── Add task ────────────────────────────────────────────────────────────
   const handleAddTask = (e) => {
     e.preventDefault();
     if (!taskTitle.trim() || !assigneeId) return;
+
+    // Compute approximate due date from deadlineDaysPrior
+    const effectiveDueDate = scheduledDate
+      ? addDays(scheduledDate, -parseInt(daysPrior))
+      : addDays(todayStr(), parseInt(daysPrior));
+
+    // ── Workload cap check ──
+    if (assigneeId && effectiveDueDate) {
+      const info = getWorkloadInfo(tasks, assigneeId, effectiveDueDate, activeDepartment, priority);
+      if (!info.canAssign) {
+        toast.error(info.reason);
+        return;
+      }
+    }
 
     const assignee = employees.find(e => e.id === assigneeId);
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
@@ -98,7 +124,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
       assignedBy:        user.id,
       priority:          priority,
       status:            'New',
-      dueDate:           null,
+      dueDate:           effectiveDueDate,
       scheduledDate:     scheduledDate || null,
       attachmentUrl:     attachmentUrl.trim() || null,
       revisionCount:     0,
@@ -239,22 +265,49 @@ export default function Creative({ user, state, updateState, activeDepartment })
             <p className="text-sm text-slate-400">{deptTasks.length} task{deptTasks.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-slate-950/60 p-1.5 rounded-xl border border-slate-800">
-          {[
-            { label: 'All',          val: 'all' },
-            { label: '3 Days Prior', val: '3'   },
-            { label: '4 Days Prior', val: '4'   },
-            { label: '12 Days Prior',val: '12'  },
-          ].map(f => (
-            <button key={f.val} onClick={() => setTimelineFilter(f.val)}
+          <div className="flex items-center gap-2 bg-slate-950/60 p-1.5 rounded-xl border border-slate-800">
+            <button onClick={() => setViewMode('kanban')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                timelineFilter === f.val ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                viewMode === 'kanban' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
               }`}>
-              {f.label}
+              Kanban
             </button>
-          ))}
+            <button onClick={() => setViewMode('calendar')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 ${
+                viewMode === 'calendar' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}>
+              <CalendarIcon className="w-3.5 h-3.5" /> Calendar
+            </button>
+            {viewMode === 'kanban' && (
+              <>
+                <span className="w-px h-5 bg-slate-700 mx-1" />
+                {[
+                  { label: 'All',          val: 'all' },
+                  { label: '3 Days Prior', val: '3'   },
+                  { label: '4 Days Prior', val: '4'   },
+                  { label: '12 Days Prior',val: '12'  },
+                ].map(f => (
+                  <button key={f.val} onClick={() => setTimelineFilter(f.val)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      timelineFilter === f.val ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}>
+                    {f.label}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+
+      {viewMode === 'calendar' ? (
+        <DeptCalendar
+          user={user}
+          state={state}
+          updateState={updateState}
+          deptName={activeDepartment}
+          showPosts={true}
+        />
+      ) : (
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* ── Kanban columns ── */}
@@ -365,6 +418,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
                   <option value="High">High</option>
+                  <option value="Emergency">Emergency</option>
                 </select>
               </div>
               <div>
@@ -373,7 +427,18 @@ export default function Creative({ user, state, updateState, activeDepartment })
                   className="w-full glass-input p-2.5 rounded-xl text-sm" required>
                   <option value="">— Choose member —</option>
                   {creativeStaff.length === 0 && <option disabled>No {activeDepartment} staff found</option>}
-                  {creativeStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {creativeStaff.map(s => {
+                    const dueDate = scheduledDate
+                      ? addDays(scheduledDate, -parseInt(daysPrior))
+                      : addDays(todayStr(), parseInt(daysPrior));
+                    const info = getWorkloadInfo(tasks, s.id, dueDate, activeDepartment, priority);
+                    const label = info ? formatWorkloadLabel(s.name, info.load, info.softMax, dueDate) : s.name;
+                    return <option key={s.id} value={s.id} className={
+                      info?.color === 'red' ? 'text-red-400' :
+                      info?.color === 'amber' ? 'text-amber-400' :
+                      ''
+                    }>{label}</option>;
+                  })}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -399,6 +464,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
           )}
         </div>
       </div>
+      )}
 
       {/* ── Revision modal ── */}
       {revisionTaskId && (

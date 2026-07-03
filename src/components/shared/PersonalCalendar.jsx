@@ -33,12 +33,14 @@ const getWeekStart = (dateStr) => {
 
 // ─── Colors ──────────────────────────────────────────────────────────────────
 const PRIORITY_DOT = {
+    Emergency: 'bg-red-600',
     High: 'bg-rose-500',
     Medium: 'bg-amber-500',
     Low: 'bg-slate-500',
 };
 
 const PRIORITY_BG = {
+    Emergency: 'bg-red-600/15 text-red-400 border-red-600/20',
     High: 'bg-rose-500/15 text-rose-400 border-rose-500/20',
     Medium: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
     Low: 'bg-slate-500/15 text-slate-400 border-slate-500/20',
@@ -98,7 +100,7 @@ const formatDateDisplay = (dateStr) => {
 };
 
 const ALL_STATUSES = ['New', 'In Progress', 'Review', 'Completed', 'Blocked'];
-const ALL_PRIORITIES = ['High', 'Medium', 'Low'];
+const ALL_PRIORITIES = ['Emergency', 'High', 'Medium', 'Low'];
 const ALL_DEPARTMENTS = ['Paid Ads', 'Social Media', 'Video Editors', 'Graphic Designers', 'Videography/Photography', 'Developers', 'HR'];
 
 /**

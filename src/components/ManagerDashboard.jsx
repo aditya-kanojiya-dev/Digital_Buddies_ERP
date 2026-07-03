@@ -6,6 +6,7 @@ import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
 import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
 import { DatePicker } from './ui';
+import { getWorkloadInfo, formatWorkloadLabel } from '../lib/workloadCaps';
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -77,6 +78,20 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     e.preventDefault();
     if (!taskTitle || !assigneeId || !targetDept) return;
 
+    const dueDate = computeDueDate();
+
+    // ── Workload cap check ──
+    if (assigneeId && dueDate && CREATIVE_DEPTS.includes(targetDept)) {
+      const info = getWorkloadInfo(tasks, assigneeId, dueDate, targetDept, taskPriority);
+      if (!info.canAssign) {
+        toast.error(info.reason);
+        return;
+      }
+      if (info.reason && !info.reason.startsWith('⚠️')) {
+        toast.warning(info.reason);
+      }
+    }
+
     const staffMember = employees.find(emp => emp.id === assigneeId);
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
@@ -90,7 +105,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       projectId:     taskProject || 'General',
       priority:      taskPriority,
       status:        'New',
-      dueDate:       computeDueDate(),
+      dueDate,
       createdAt:     new Date().toISOString().split('T')[0],
       pinged:        0,
       lastPingedAt:  null,
@@ -344,7 +359,16 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
                     className="w-full glass-input p-3 rounded-xl text-xs" required disabled={!targetDept}>
                     <option value="">-- Select --</option>
-                    {deptStaff.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                    {deptStaff.map(emp => {
+                      const dueDate = computeDueDate();
+                      const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, emp.id, dueDate, targetDept, taskPriority) : null;
+                      const label = info ? formatWorkloadLabel(emp.name, info.load, info.softMax, dueDate) : emp.name;
+                      return <option key={emp.id} value={emp.id} className={
+                        info?.color === 'red' ? 'text-red-400' :
+                        info?.color === 'amber' ? 'text-amber-400' :
+                        ''
+                      }>{label}</option>;
+                    })}
                   </select>
                 </div>
                 <div>
@@ -361,6 +385,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   <label className="block text-xs text-slate-400 mb-1">Priority</label>
                   <select value={taskPriority} onChange={e => setTaskPriority(e.target.value)}
                     className="w-full glass-input p-3 rounded-xl text-xs">
+                    <option value="Emergency">Emergency</option>
                     <option value="High">High Priority</option>
                     <option value="Medium">Medium Priority</option>
                     <option value="Low">Low Priority</option>
