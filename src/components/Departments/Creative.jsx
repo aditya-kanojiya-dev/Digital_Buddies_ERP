@@ -272,12 +272,14 @@ export default function Creative({ user, state, updateState, activeDepartment })
               }`}>
               Kanban
             </button>
-            <button onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 ${
-                viewMode === 'calendar' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}>
-              <CalendarIcon className="w-3.5 h-3.5" /> Calendar
-            </button>
+            {(user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin') && (
+              <button onClick={() => setViewMode('calendar')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 ${
+                  viewMode === 'calendar' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                }`}>
+                <CalendarIcon className="w-3.5 h-3.5" /> Calendar
+              </button>
+            )}
             {viewMode === 'kanban' && (
               <>
                 <span className="w-px h-5 bg-slate-700 mx-1" />

@@ -17,3 +17,7 @@ ALTER TABLE tasks
 
 -- Index for efficient lookups from calendar entry to its linked tasks
 CREATE INDEX IF NOT EXISTS idx_tasks_calendar_id ON tasks (calendar_id);
+
+-- ── tasks: acknowledgment field for to-do dashboard (§8a) ────────────────────
+ALTER TABLE tasks
+  ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMPTZ DEFAULT NULL;

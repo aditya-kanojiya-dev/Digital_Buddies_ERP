@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle, MessageSquare, Eye, User, Send } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import PersonalCalendar from './shared/PersonalCalendar';
 
@@ -223,6 +223,39 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     setManualDesc('');
   };
 
+  // ── To-do: quick comment ─────────────────────────────────────────────────
+  const [commentingTaskId, setCommentingTaskId] = useState(null);
+  const [quickComment, setQuickComment] = useState('');
+
+  // ── To-do: sort active tasks by urgency ─────────────────────────────────
+  const todayStr2 = todayStr;
+  const todoTasks = useMemo(() => {
+    const active = myTasks.filter(t => t.status !== 'Completed' && t.status !== 'Blocked');
+    return [...active].sort((a, b) => {
+      const aOverdue = a.dueDate && a.dueDate < todayStr2 ? 1 : 0;
+      const bOverdue = b.dueDate && b.dueDate < todayStr2 ? 1 : 0;
+      if (aOverdue !== bOverdue) return bOverdue - aOverdue;
+      const aToday = a.dueDate === todayStr2 ? 1 : 0;
+      const bToday = b.dueDate === todayStr2 ? 1 : 0;
+      if (aToday !== bToday) return bToday - aToday;
+      if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      return 0;
+    });
+  }, [myTasks, todayStr2]);
+
+  const commentCounts = useMemo(() => {
+    const counts = {};
+    (state.taskComments || []).forEach(c => {
+      counts[c.taskId] = (counts[c.taskId] || 0) + 1;
+    });
+    return counts;
+  }, [state.taskComments]);
+
+  // ── To-do: employee name lookup ─────────────────────────────────────────
+  const empName = (id) => state.employees?.find(e => e.id === id)?.name || 'Unknown';
+
   // -------------------------
   // TASK UPDATE
   // -------------------------
@@ -258,6 +291,88 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       ...notifUpdates,
     });
   };
+
+  // ── To-do: acknowledge (Seen / Working on it) ────────────────────────────
+  const handleAcknowledge = (taskId, mode) => {
+    const found = tasks.find(x => x.id === taskId);
+    if (!found) return;
+    const now = new Date().toISOString();
+    const displayTime = now.replace('T', ' ').substring(0, 16);
+    const updated = tasks.map(task => {
+      if (task.id === taskId) {
+        return { ...task, acknowledgedAt: now, status: mode === 'working' ? 'In Progress' : task.status };
+      }
+      return task;
+    });
+    const msg = mode === 'working'
+      ? `${user.name} is working on "${found.title}"`
+      : `${user.name} has seen "${found.title}"`;
+    const notifUpdates = {};
+    if (found.assignedBy && found.assignedBy !== user.id) {
+      notifUpdates.notifications = [{
+        id: `NTF${Date.now()}`,
+        userId: found.assignedBy,
+        message: msg,
+        type: 'info',
+        timestamp: displayTime,
+        read: false,
+      }, ...state.notifications];
+    }
+    updateState({ tasks: updated, ...notifUpdates });
+    toast.success(mode === 'working' ? 'Marked as In Progress' : 'Acknowledged');
+  };
+
+  // ── To-do: quick post comment ────────────────────────────────────────────
+  const handleQuickComment = (taskId) => {
+    if (!quickComment.trim()) return;
+    const now = new Date().toISOString();
+    const displayTime = now.replace('T', ' ').substring(0, 16);
+    const comment = {
+      id: `CMT${Date.now()}`,
+      taskId,
+      userId: user.id,
+      comment: quickComment.trim(),
+      createdAt: now,
+    };
+    const found = tasks.find(x => x.id === taskId);
+    const notifUpdates = {};
+    if (found) {
+      const targets = [];
+      if (found.assignedTo && found.assignedTo !== user.id) targets.push(found.assignedTo);
+      if (found.assignedBy && found.assignedBy !== user.id && !targets.includes(found.assignedBy)) targets.push(found.assignedBy);
+      notifUpdates.notifications = targets.map(uid => ({
+        id: `NTF${Date.now()}_${uid}`,
+        userId: uid,
+        message: `${user.name} commented on "${found.title}": "${quickComment.trim()}"`,
+        type: 'comment',
+        timestamp: displayTime,
+        read: false,
+      }));
+      if (notifUpdates.notifications.length > 0) {
+        notifUpdates.notifications = [...notifUpdates.notifications, ...state.notifications];
+      }
+    }
+    updateState({
+      taskComments: [...(state.taskComments || []), comment],
+      ...notifUpdates,
+    });
+    setQuickComment('');
+    setCommentingTaskId(null);
+    toast.success('Comment posted');
+  };
+
+  // ── Reverse cascade: compute "Ready to publish" for calendar entries ────
+  const calendarReady = useMemo(() => {
+    const map = {};
+    (state.smmCalendar || []).forEach(entry => {
+      if (entry.status !== 'Scheduled') return;
+      const linked = (state.tasks || []).filter(t => t.calendar_id === entry.id);
+      if (linked.length === 0) return;
+      const allDone = linked.every(t => t.status === 'Completed');
+      if (allDone) map[entry.id] = true;
+    });
+    return map;
+  }, [state.smmCalendar, state.tasks]);
 
   // -------------------------
   // NOTIFICATION ACTIONS
@@ -531,108 +646,158 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
         </div>
       </div>
 
-      {/* Task Board columns */}
+      {/* ── Interactive To-Do Dashboard (§8a-8b) ── */}
       <div className="glass-panel p-6 rounded-2xl space-y-6">
-        <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-          <CheckSquare className="w-5 h-5 text-violet-400" /> My Assigned Task Board
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            <CheckSquare className="w-5 h-5 text-violet-400" /> My To-Do List
+          </h3>
+          <span className="text-xs text-slate-400">{todoTasks.length} active task{todoTasks.length !== 1 ? 's' : ''}</span>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* New / Assigned */}
-          <div className="space-y-4">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-900 pb-2">
-              New / Assigned ({myTasks.filter(t => t.status === 'New' || t.status === 'Assigned').length})
-            </h4>
-            <div className="space-y-3">
-              {myTasks.filter(t => t.status === 'New' || t.status === 'Assigned').map(t => (
-                <div key={t.id} className="glass-card p-4 rounded-xl space-y-3 border-l-2 border-l-violet-500">
-                  <div>
-                    <span className="bg-slate-950 text-violet-400 text-3xs px-2 py-0.5 rounded font-mono font-bold">
-                      {t.priority}
-                    </span>
-                    <h5 className="font-bold text-sm text-slate-200 mt-1">{t.title}</h5>
-                    <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{t.description}</p>
-                  </div>
-                  <div className="flex justify-between items-center text-3xs text-slate-500 border-t border-slate-900 pt-2">
-                    <span>Due: {t.dueDate}</span>
-                    <button
-                      onClick={() => handleUpdateStatus(t.id, 'In Progress')}
-                      className="bg-violet-600/20 hover:bg-violet-650/40 text-violet-400 px-2.5 py-1 rounded-lg border border-violet-500/25 transition cursor-pointer font-bold"
-                    >
-                      Start Work
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {todoTasks.length === 0 ? (
+          <p className="text-slate-500 text-sm py-8 text-center">No active tasks. You're all caught up.</p>
+        ) : (
+          <div className="space-y-2">
+            {todoTasks.map(t => {
+              const isOverdue = t.dueDate && t.dueDate < todayStr;
+              const isDueToday = t.dueDate === todayStr;
+              const commentsCount = commentCounts[t.id] || 0;
+              const isCommenting = commentingTaskId === t.id;
+              return (
+                <div key={t.id}
+                  className={`glass-card p-4 rounded-xl border-l-4 transition ${
+                    isOverdue ? 'border-l-rose-500 bg-rose-500/5' :
+                    isDueToday ? 'border-l-amber-500 bg-amber-500/5' :
+                    t.status === 'In Progress' ? 'border-l-blue-500' :
+                    t.status === 'Review' ? 'border-l-fuchsia-500' :
+                    'border-l-violet-500'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-3xs px-1.5 py-0.5 rounded font-bold font-mono ${
+                          t.priority === 'Emergency' ? 'bg-red-600/20 text-red-400' :
+                          t.priority === 'High' ? 'bg-rose-500/15 text-rose-400' :
+                          t.priority === 'Medium' ? 'bg-amber-500/15 text-amber-400' :
+                          'bg-slate-500/15 text-slate-400'
+                        }`}>{t.priority}</span>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded font-bold ${
+                          t.status === 'New' ? 'bg-slate-500/15 text-slate-400' :
+                          t.status === 'In Progress' ? 'bg-blue-500/15 text-blue-400' :
+                          t.status === 'Review' ? 'bg-fuchsia-500/15 text-fuchsia-400' :
+                          'bg-emerald-500/15 text-emerald-400'
+                        }`}>{t.status}</span>
+                        {t.department && (
+                          <span className="text-3xs text-slate-500">{t.department}</span>
+                        )}
+                        {isOverdue && <span className="text-3xs text-rose-400 font-bold">🔴 OVERDUE</span>}
+                        {isDueToday && <span className="text-3xs text-amber-400 font-bold">🟡 DUE TODAY</span>}
+                      </div>
+                      <h5 className="font-bold text-sm text-slate-200 mt-1">{t.title}</h5>
+                      {t.description && (
+                        <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{t.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 text-3xs text-slate-500 mt-1.5">
+                        <span>Due: {t.dueDate || '—'}</span>
+                        {t.assignedBy && <span>From: {empName(t.assignedBy)}</span>}
+                        {t.acknowledgedAt && <span className="text-emerald-400">✓ Seen</span>}
+                      </div>
+                    </div>
 
-          {/* In Progress / Review */}
-          <div className="space-y-4">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-900 pb-2">
-              In Progress / Review ({myTasks.filter(t => t.status === 'In Progress' || t.status === 'Review').length})
-            </h4>
-            <div className="space-y-3">
-              {myTasks.filter(t => t.status === 'In Progress' || t.status === 'Review').map(t => (
-                <div key={t.id} className="glass-card p-4 rounded-xl space-y-3 border-l-2 border-l-fuchsia-500">
-                  <div>
-                    <span className="bg-slate-950 text-fuchsia-400 text-3xs px-2 py-0.5 rounded font-mono font-bold">
-                      {t.status}
-                    </span>
-                    <h5 className="font-bold text-sm text-slate-200 mt-1">{t.title}</h5>
-                    <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{t.description}</p>
-                  </div>
-                  <div className="flex justify-between items-center text-3xs text-slate-500 border-t border-slate-900 pt-2">
-                    <span>Due: {t.dueDate}</span>
-                    <div className="flex gap-1.5">
-                      {t.status === 'In Progress' ? (
-                        <button
-                          onClick={() => handleUpdateStatus(t.id, 'Review')}
-                          className="bg-fuchsia-600/20 hover:bg-fuchsia-650/40 text-fuchsia-400 px-2.5 py-1 rounded-lg border border-fuchsia-500/25 transition cursor-pointer font-bold"
-                        >
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {/* Quick comment button */}
+                      <button onClick={() => setCommentingTaskId(isCommenting ? null : t.id)}
+                        className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-violet-300 transition relative"
+                        title="Quick comment">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        {commentsCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-2xs rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold">{commentsCount}</span>
+                        )}
+                      </button>
+
+                      {/* Acknowledge / Seen */}
+                      {t.status === 'New' && !t.acknowledgedAt && (
+                        <button onClick={() => handleAcknowledge(t.id, 'seen')}
+                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-emerald-300 transition" title="Mark as seen">
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {/* Status quick actions */}
+                      {t.status === 'New' && (
+                        <button onClick={() => handleAcknowledge(t.id, 'working')}
+                          className="bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-violet-500/25 transition cursor-pointer whitespace-nowrap">
+                          Start Work
+                        </button>
+                      )}
+                      {t.status === 'In Progress' && (
+                        <button onClick={() => handleUpdateStatus(t.id, 'Review')}
+                          className="bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-fuchsia-500/25 transition cursor-pointer whitespace-nowrap">
                           Request Review
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => handleUpdateStatus(t.id, 'Completed')}
-                          className="bg-emerald-600/20 hover:bg-emerald-650/40 text-emerald-400 px-2.5 py-1 rounded-lg border border-emerald-500/25 transition cursor-pointer font-bold"
-                        >
-                          Completed
+                      )}
+                      {t.status === 'Review' && (
+                        <button onClick={() => handleUpdateStatus(t.id, 'Completed')}
+                          className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-emerald-500/25 transition cursor-pointer whitespace-nowrap">
+                          Mark Complete
+                        </button>
+                      )}
+                      {t.status === 'New' && (
+                        <button onClick={() => handleUpdateStatus(t.id, 'Blocked')}
+                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition" title="Blocked">
+                          <AlertCircle className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Completed / Closed */}
-          <div className="space-y-4">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-900 pb-2">
-              Completed / Blocked ({myTasks.filter(t => t.status === 'Completed' || t.status === 'Blocked').length})
-            </h4>
-            <div className="space-y-3">
-              {myTasks.filter(t => t.status === 'Completed' || t.status === 'Blocked').map(t => (
-                <div key={t.id} className="glass-card p-4 rounded-xl space-y-3 border-l-2 border-l-emerald-500">
-                  <div>
-                    <span className="bg-slate-950 text-emerald-400 text-3xs px-2 py-0.5 rounded font-mono font-bold">
-                      {t.status}
-                    </span>
-                    <h5 className="font-bold text-sm text-slate-200 mt-1">{t.title}</h5>
-                    <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{t.description}</p>
-                  </div>
-                  <div className="flex justify-between items-center text-3xs text-slate-500 border-t border-slate-900 pt-2">
-                    <span>Closed on: {t.dueDate}</span>
-                    <span className="text-emerald-400 font-bold text-3xs flex items-center gap-1">✔ Completed</span>
-                  </div>
+                  {/* ── Inline quick comment ── */}
+                  {isCommenting && (
+                    <div className="mt-3 pt-3 border-t border-slate-800/60 flex gap-2">
+                      <input
+                        type="text"
+                        value={quickComment}
+                        onChange={e => setQuickComment(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleQuickComment(t.id); }}
+                        placeholder="Type a quick note or question..."
+                        className="flex-1 glass-input p-2 rounded-xl text-xs"
+                        autoFocus
+                      />
+                      <button onClick={() => handleQuickComment(t.id)}
+                        className="bg-violet-600 hover:bg-violet-700 text-white p-2 rounded-xl transition" title="Send">
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
 
+      {/* ── Reverse cascade: posts ready to publish (§8c) ── */}
+      {Object.keys(calendarReady).length > 0 && (
+        <div className="glass-panel p-5 rounded-2xl space-y-3 border border-emerald-500/20">
+          <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+            <CheckSquare className="w-4 h-4" /> Ready to Publish
+          </h3>
+          <p className="text-xs text-slate-400">All linked tasks completed — these calendar entries are ready to go live.</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.keys(calendarReady).map(entryId => {
+              const entry = (state.smmCalendar || []).find(e => e.id === entryId);
+              if (!entry) return null;
+              return (
+                <span key={entryId} className="bg-emerald-500/10 text-emerald-300 text-xs px-3 py-1.5 rounded-xl font-medium">
+                  {entry.title} — {entry.post_date || entry.date}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Manual Time Log entry */}
         <div className="glass-panel p-6 rounded-2xl space-y-5">

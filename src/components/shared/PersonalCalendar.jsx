@@ -142,10 +142,8 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
     const myTasks = useMemo(
         () => (state.tasks || []).filter(t =>
             t.assignedTo === user.id
-            || (!t.assignedTo && t.department === user.department)
-            || t.assignedById === user.id
         ),
-        [state.tasks, user.id, user.department]
+        [state.tasks, user.id]
     );
 
     const myLeaves = useMemo(
