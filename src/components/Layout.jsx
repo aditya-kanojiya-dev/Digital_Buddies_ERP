@@ -19,8 +19,6 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight,
-  ChevronDown,
   PieChart,
   Settings as SettingsIcon,
   CalendarDays,
@@ -71,9 +69,6 @@ export default function Layout({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [calExpanded, setCalExpanded] = useState(true);
-  const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
-  const [calYear, setCalYear] = useState(() => new Date().getFullYear());
 
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -139,14 +134,6 @@ export default function Layout({
     tabs: allowedTabs.filter((t) => t.group === g),
   })).filter((g) => g.tabs.length > 0);
 
-  // ── Mini-calendar helpers ──────────────────────────────────────────────────
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const DAYS = ['S','M','T','W','T','F','S'];
-  const calToday = () => new Date().toISOString().split('T')[0];
-  const getDaysInMonth = (y,m) => new Date(y, m + 1, 0).getDate();
-  const getFirstDay = (y,m) => new Date(y, m, 1).getDay();
-  const toDateStr = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-
   // ── Sidebar (shared between desktop rail and mobile drawer) ────────────────
   const SidebarContent = ({ showLabels }) => (
     <nav className="space-y-5">
@@ -183,81 +170,6 @@ export default function Layout({
               );
             })}
           </div>
-
-          {/* ── Mini calendar widget (Overview group only, expanded sidebar) ── */}
-          {group === 'Overview' && showLabels && user && state?.tasks && (
-            <div className="mt-3 pt-3 border-t border-slate-800/40">
-              <button onClick={() => setCalExpanded(s => !s)}
-                className="flex items-center justify-between w-full px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 transition">
-                <span className="flex items-center gap-1.5">
-                  <CalendarDays className="w-3.5 h-3.5" /> My Calendar
-                </span>
-                <ChevronDown className={`w-3 h-3 transition-transform ${calExpanded ? '' : '-rotate-90'}`} />
-              </button>
-
-              {calExpanded && (
-                <div className="pt-2 px-0.5 animate-fade-in">
-                  {/* Month navigation */}
-                  <div className="flex items-center justify-between mb-2">
-                    <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
-                      className="p-1 rounded hover:bg-slate-800 text-slate-400 transition">
-                      <ChevronLeft className="w-3 h-3" />
-                    </button>
-                    <span className="text-xs text-slate-300 font-semibold">{MONTHS[calMonth]} {calYear}</span>
-                    <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); }}
-                      className="p-1 rounded hover:bg-slate-800 text-slate-400 transition">
-                      <ChevronRight className="w-3 h-3" />
-                    </button>
-                  </div>
-
-                  {/* Day headers */}
-                  <div className="grid grid-cols-7 gap-0 mb-1">
-                    {DAYS.map(d => (
-                      <div key={d} className="text-[9px] font-bold uppercase text-slate-600 text-center py-0.5">{d}</div>
-                    ))}
-                  </div>
-
-                  {/* Day cells */}
-                  <div className="grid grid-cols-7 gap-[1px]">
-                    {(() => {
-                      const daysIn = getDaysInMonth(calYear, calMonth);
-                      const first = getFirstDay(calYear, calMonth);
-                      const cells = [];
-                      for (let i = 0; i < first; i++) cells.push(null);
-                      for (let d = 1; d <= daysIn; d++) cells.push(d);
-                      const today = calToday();
-                      // Build a quick date→count map from user's tasks
-                      const countMap = {};
-                      (state.tasks || []).filter(t => t.assignedTo === user.id).forEach(t => {
-                        if (t.dueDate) countMap[t.dueDate] = (countMap[t.dueDate] || 0) + 1;
-                      });
-                      return cells.map((day, i) => {
-                        if (day === null) return <div key={`e-${i}`} className="h-7" />;
-                        const dateStr = toDateStr(calYear, calMonth, day);
-                        const isToday = dateStr === today;
-                        const cnt = countMap[dateStr] || 0;
-                        return (
-                          <div key={dateStr}
-                            className={`h-7 rounded-md flex flex-col items-center justify-center transition cursor-default ${
-                              isToday ? 'bg-violet-600/20 border border-violet-500/30' : 'hover:bg-slate-800/40'
-                            }`}
-                            title={cnt ? `${cnt} task${cnt > 1 ? 's' : ''}` : ''}>
-                            <span className={`text-[10px] font-bold leading-tight ${isToday ? 'text-violet-300' : 'text-slate-400'}`}>{day}</span>
-                            {cnt > 0 && <div className="flex items-center gap-[2px] mt-[1px]">
-                              {Array.from({ length: Math.min(cnt, 3) }).map((_, j) => (
-                                <span key={j} className="w-[4px] h-[4px] rounded-full bg-violet-400" />
-                              ))}
-                              {cnt > 3 && <span className="text-[6px] text-slate-500 font-bold">+</span>}
-                            </div>}
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       ))}
     </nav>
