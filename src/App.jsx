@@ -226,11 +226,55 @@ useEffect(() => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_campaigns' }, () => {
       db.getAdCampaigns().then(data => setState(prev => ({ ...prev, adCampaigns: data })));
     })
+    // ── Missing subscriptions that users interact with ──
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, () => {
+      db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
+      db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
+      db.getClients().then(data => setState(prev => ({ ...prev, clients: data })));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'timelogs' }, () => {
+      db.getTimelogs().then(data => setState(prev => ({ ...prev, timelogs: data })));
+    })
     .subscribe();
 
   return () => {
     supabase.removeChannel(channel);
   };
+}, [user]);
+
+// ── Fallback: periodic auto-refresh (every 15s) for changes real-time misses ─
+useEffect(() => {
+  if (!user) return;
+  const REFRESH_KEYS = ['tasks', 'smmCalendar', 'taskComments', 'notifications', 'employees'];
+  const interval = setInterval(() => {
+    Promise.allSettled([
+      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
+      db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data }))),
+      db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data }))),
+      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
+      db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data }))),
+    ]);
+  }, 15000);
+  return () => clearInterval(interval);
+}, [user]);
+
+// ── Tab-visibility refresh: re-fetch when user returns to the tab ──────────
+useEffect(() => {
+  if (!user) return;
+  const onVisible = () => {
+    if (document.visibilityState !== 'visible') return;
+    Promise.allSettled([
+      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
+      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
+      db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data }))),
+    ]);
+  };
+  document.addEventListener('visibilitychange', onVisible);
+  return () => document.removeEventListener('visibilitychange', onVisible);
 }, [user]);
 
 // ── Global Ctrl/Cmd+K to open the command palette ─────────────────────────
