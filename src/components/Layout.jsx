@@ -123,7 +123,7 @@ export default function Layout({
     if (user.role === 'Manager') return true;
     if (user.role === 'HR') return tab.id === 'HR' ? true : !tab.dept;
     if (user.role === 'Employee') {
-      if (['manager', 'dashboard', 'profile'].includes(tab.id)) return true;
+      if (['manager', 'dashboard', 'profile', 'my-calendar'].includes(tab.id)) return true;
       return user.department?.includes(tab.dept);
     }
     return false;
