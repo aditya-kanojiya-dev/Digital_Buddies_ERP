@@ -209,20 +209,25 @@ export default function SocialMedia({ user, state, updateState }) {
   const createLinkedTask = (postId, form, dept, assigneeId) => {
     const window = DEPT_LEAD_WINDOWS[dept];
     const dueDate = addDays(form.date, -window.lower);
+    const assignee = assigneeId ? employees.find(e => e.id === assigneeId) : null;
     return {
       id: `TASK${Date.now()}_${dept.replace(/[^a-z]/gi,'')}`,
       title: `[${dept}] ${form.title}`,
       description: `${form.caption || ''}\n\nClient: ${form.client_id || 'N/A'}\nPlatform: ${form.platform}\nPost date: ${form.date}`,
       assignedTo: assigneeId || null,
+      assigneeName: assignee?.name || '',
       department: dept,
       sourceDept: 'Social Media',
       assignedBy: user.id,
       priority: 'Medium',
       projectId: 'General',
       dueDate,
+      scheduledDate: CREATIVE_DEPTS.includes(dept) ? form.date : null,
       status: 'New',
       calendar_id: postId,
       createdAt: new Date().toISOString().split('T')[0],
+      pinged: 0,
+      lastPingedAt: null,
     };
   };
 
@@ -546,11 +551,13 @@ export default function SocialMedia({ user, state, updateState }) {
     }
 
     const isCreative = CREATIVE_DEPTS.includes(taskForm.targetDept);
+    const assignee = taskForm.assignedTo ? employees.find(e => e.id === taskForm.assignedTo) : null;
     const newTask = {
       id: `TASK${Date.now()}`,
       title: taskForm.title,
       description: taskForm.description,
       assignedTo: taskForm.assignedTo || null,
+      assigneeName: assignee?.name || '',
       department: taskForm.targetDept,
       sourceDept: 'Social Media',
       assignedBy: user.id,
@@ -560,6 +567,8 @@ export default function SocialMedia({ user, state, updateState }) {
       scheduledDate: isCreative ? taskForm.scheduledDate || null : null,
       status: 'New',
       createdAt: new Date().toISOString().split('T')[0],
+      pinged: 0,
+      lastPingedAt: null,
     };
     updateState({ tasks: [...tasks, newTask] });
 

@@ -100,8 +100,10 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       title:         taskTitle,
       description:   taskDesc,
       assignedTo:    assigneeId,
+      assigneeName:  staffMember?.name || '',
       assignedBy:    user.id,
       department:    targetDept,
+      sourceDept:    'Work Assignment',
       projectId:     taskProject || 'General',
       priority:      taskPriority,
       status:        'New',
@@ -142,7 +144,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     const now       = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
     updateState({ tasks: tasks.map(t =>
-      t.id === taskId ? { ...t, assignedTo: reassignEmpId } : t
+      t.id === taskId ? { ...t, assignedTo: reassignEmpId, assigneeName: staffMember?.name || '' } : t
     )});
 
     const reassignNotifs = [{
