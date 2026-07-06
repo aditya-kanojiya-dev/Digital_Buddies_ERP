@@ -93,22 +93,28 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     if (!empName || !empSalary || !empEmail) return;
 
     if (editingEmpId) {
-      const updated = employees.map(emp => {
-        if (emp.id === editingEmpId) {
-          return {
-            ...emp,
-            name: empName,
-            email: empEmail.toLowerCase().trim(),
-            phone: empPhone,
-            department: empDept,
-            designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
-            role: empRole,
-            managerId: empManagerId || 'EMP01',
-            salary: parseFloat(empSalary)
-          };
-        }
-        return emp;
-      });
+      const updatedFields = {
+        name: empName,
+        email: empEmail.toLowerCase().trim(),
+        phone: empPhone,
+        department: empDept,
+        designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
+        role: empRole,
+        managerId: empManagerId || 'EMP01',
+        salary: parseFloat(empSalary),
+        joinDate: empHire
+      };
+
+      try {
+        await db.updateEmployee(editingEmpId, updatedFields);
+      } catch (err) {
+        toast.error(`Could not save changes: ${err.message}`);
+        return;
+      }
+
+      const updated = employees.map(emp =>
+        emp.id === editingEmpId ? { ...emp, ...updatedFields } : emp
+      );
       updateState({ employees: updated });
       toast.success('Employee details updated.');
       resetForm();
