@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
-  GitBranch, X, Filter,
+  GitBranch, X, Filter, UserPlus,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
@@ -59,6 +59,10 @@ export default function Creative({ user, state, updateState, activeDepartment })
   // ── Revision ────────────────────────────────────────────────────────────
   const [revisionTaskId, setRevisionTaskId] = useState(null);
   const [revisionNote, setRevisionNote] = useState('');
+
+  // ── Delegation (Social Media → Manager → Staff) ────────────────────────
+  const [delegateTaskId, setDelegateTaskId] = useState(null);
+  const [delegateEmpId, setDelegateEmpId] = useState('');
 
   // ── Drag ────────────────────────────────────────────────────────────────
   const [dragOverCol, setDragOverCol] = useState(null);
@@ -226,6 +230,41 @@ export default function Creative({ user, state, updateState, activeDepartment })
   };
 
   const handleOpenDetail = (task) => setSelectedTask(task);
+
+  const canDelegate = (task) =>
+    canAssignTasks &&
+    task.sourceDept === 'Social Media' &&
+    (!task.assignedTo || task.assignedTo === user.id);
+
+  const handleDelegate = (e) => {
+    e.preventDefault();
+    if (!delegateTaskId || !delegateEmpId) return;
+    const delegateTo = employees.find(emp => emp.id === delegateEmpId);
+    if (!delegateTo) return;
+
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const task = tasks.find(t => t.id === delegateTaskId);
+
+    updateState({
+      tasks: tasks.map(t =>
+        t.id === delegateTaskId
+          ? { ...t, assignedTo: delegateEmpId, assigneeName: delegateTo.name }
+          : t
+      ),
+      notifications: [{
+        id: `NTF${Date.now()}`,
+        userId: delegateEmpId,
+        message: `📌 Manager ${user.name} delegated a Social Media task to you: "${task?.title}"`,
+        type: 'assignment',
+        timestamp: now,
+        read: false,
+      }, ...(state.notifications || [])],
+    });
+
+    toast.success(`Task delegated to ${delegateTo.name}`);
+    setDelegateTaskId(null);
+    setDelegateEmpId('');
+  };
 
   const DeptIcon = activeDepartment === 'Video Editors' ? Film
     : activeDepartment === 'Graphic Designers' ? Image
@@ -399,6 +438,14 @@ export default function Creative({ user, state, updateState, activeDepartment })
                             {task.revisionCount > 0 && <span className="text-amber-400">R{task.revisionCount}</span>}
                             {task.attachmentUrl && <LinkIcon className="w-3 h-3 text-violet-400" />}
                           </div>
+                          {canDelegate(task) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDelegateTaskId(task.id); setDelegateEmpId(task.assignedTo || ''); }}
+                              className="mt-2 w-full bg-violet-600/10 hover:bg-violet-600/20 text-violet-400 text-3xs font-semibold py-1.5 rounded-lg border border-violet-500/15 transition flex items-center justify-center gap-1"
+                            >
+                              <UserPlus className="w-3 h-3" /> Delegate
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -527,6 +574,53 @@ export default function Creative({ user, state, updateState, activeDepartment })
           </div>
         </>
       )}
+
+      {/* ── Delegation modal ── */}
+      {delegateTaskId && (() => {
+        const task = tasks.find(t => t.id === delegateTaskId);
+        return (
+          <>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => { setDelegateTaskId(null); setDelegateEmpId(''); }} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="glass-panel border border-violet-500/20 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4"
+                onClick={e => e.stopPropagation()}>
+                <h3 className="font-bold text-slate-100 flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-violet-400" />
+                  Delegate Task
+                </h3>
+                <p className="text-sm text-slate-400">
+                  Delegate <span className="text-slate-200 font-semibold">"{task?.title}"</span> to a {activeDepartment} team member.
+                </p>
+                <form onSubmit={handleDelegate} className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5">Assign to</label>
+                    <select value={delegateEmpId} onChange={e => setDelegateEmpId(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" required>
+                      <option value="">— Choose member —</option>
+                      {creativeStaff
+                        .filter(s => s.id !== user.id)
+                        .map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="submit"
+                      className="flex-1 bg-violet-600 hover:bg-violet-700 py-2.5 rounded-xl text-white text-sm font-medium transition">
+                      <UserPlus className="w-4 h-4 inline mr-1.5" /> Delegate
+                    </button>
+                    <button type="button"
+                      onClick={() => { setDelegateTaskId(null); setDelegateEmpId(''); }}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* ── Task Detail Panel ── */}
       {selectedTask && (
