@@ -68,6 +68,9 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const computeDueDate = () => {
+    if (taskPriority === 'Emergency') {
+      return timelineDays === '1' ? addDays(todayStr(), 1) : todayStr();
+    }
     if (rule.mode === 'manual') return taskDue || addDays(todayStr(), 7);
     if (rule.mode === 'fixed') return addDays(todayStr(), rule.days);
     if (rule.mode === 'select') return addDays(todayStr(), parseInt(timelineDays));
@@ -385,7 +388,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Priority</label>
-                  <select value={taskPriority} onChange={e => setTaskPriority(e.target.value)}
+                  <select value={taskPriority} onChange={e => { setTaskPriority(e.target.value); if (e.target.value === 'Emergency') setTimelineDays('0'); }}
                     className="w-full glass-input p-3 rounded-xl text-xs">
                     <option value="Emergency">Emergency</option>
                     <option value="High">High Priority</option>
@@ -393,7 +396,17 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                     <option value="Low">Low Priority</option>
                   </select>
                 </div>
-                {rule.mode === 'manual' ? (
+                {taskPriority === 'Emergency' ? (
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Completion Timeline</label>
+                    <select value={timelineDays} onChange={e => setTimelineDays(e.target.value)}
+                      className="w-full glass-input p-3 rounded-xl text-xs">
+                      <option value="0">Today (ASAP)</option>
+                      <option value="1">Tomorrow (End of day)</option>
+                    </select>
+                    <p className="text-3xs text-rose-400 mt-1 font-semibold">Due: {computeDueDate()}</p>
+                  </div>
+                ) : rule.mode === 'manual' ? (
                   <div>
                     <DatePicker label="Due Date" value={taskDue} onChange={setTaskDue} required />
                   </div>
