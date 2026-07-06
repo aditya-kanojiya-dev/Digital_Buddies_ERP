@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
-  GitBranch, X, Filter, UserPlus,
+  GitBranch, X, Filter, UserPlus, Send,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
@@ -446,6 +446,30 @@ export default function Creative({ user, state, updateState, activeDepartment })
                               <UserPlus className="w-3 h-3" /> Delegate
                             </button>
                           )}
+                          <div className="flex gap-1.5 mt-2">
+                            <a
+                              href={`https://wa.me/?text=${encodeURIComponent(
+                                `📎 *Asset Request - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease share the required assets/content for this task.`
+                              )}`}
+                              target="_blank" rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex-1 bg-green-600/10 hover:bg-green-600/20 text-green-400 text-3xs font-semibold py-1.5 rounded-lg border border-green-500/15 transition flex items-center justify-center gap-1"
+                            >
+                              <Send className="w-3 h-3" /> Share Assets
+                            </a>
+                            {(task.status === 'Review' || task.status === 'Completed') && (
+                              <a
+                                href={`https://wa.me/?text=${encodeURIComponent(
+                                  `✅ *Submission - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nWork has been completed. Please find the deliverables attached.`
+                                )}`}
+                                target="_blank" rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-3xs font-semibold py-1.5 rounded-lg border border-emerald-500/15 transition flex items-center justify-center gap-1"
+                              >
+                                Submit on WhatsApp
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

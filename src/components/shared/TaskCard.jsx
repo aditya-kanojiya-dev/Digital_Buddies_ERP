@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Clock, User } from 'lucide-react';
+import { MessageSquare, Clock, User, Send } from 'lucide-react';
 import DeadlineBadge from './DeadlineBadge';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -166,6 +166,30 @@ export default function TaskCard({
 
             {/* ── Manager or department render slot ── */}
             {renderActions && renderActions(task)}
+
+            {/* ── WhatsApp asset sharing & submission ── */}
+            <div className="flex gap-2 pt-1">
+                <a
+                    href={`https://wa.me/?text=${encodeURIComponent(
+                        `📎 *Asset Request - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease share the required assets/content for this task.`
+                    )}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex-1 bg-green-600/10 hover:bg-green-600/20 text-green-400 text-3xs font-semibold py-2 rounded-lg border border-green-500/15 transition flex items-center justify-center gap-1.5"
+                >
+                    <Send className="w-3.5 h-3.5" /> Share Assets
+                </a>
+                {(task.status === 'Review' || task.status === 'Completed') && (
+                    <a
+                        href={`https://wa.me/?text=${encodeURIComponent(
+                            `✅ *Submission - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nWork has been completed. Please find the deliverables attached.`
+                        )}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-3xs font-semibold py-2 rounded-lg border border-emerald-500/15 transition flex items-center justify-center gap-1.5"
+                    >
+                        Submit on WhatsApp
+                    </a>
+                )}
+            </div>
         </div>
     );
 }
