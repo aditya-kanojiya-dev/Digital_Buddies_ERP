@@ -22,12 +22,9 @@ import {
   PieChart,
   Settings as SettingsIcon,
   CalendarDays,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { auth } from '../data/auth';
 import { timeAgo, initials } from '../lib/format';
-import { useTheme } from '../context/ThemeContext';
 
 const ALL_TABS = [
   { id: 'founder', label: 'Founder Center', icon: Shield, roles: ['Super Admin'], group: 'Overview' },
@@ -71,8 +68,6 @@ export default function Layout({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
-
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
 
@@ -370,23 +365,13 @@ export default function Layout({
               <SidebarContent showLabels={false} />
             </div>
           </div>
-          <div className="space-y-1">
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-1)] text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              {!collapsed && (theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
-            </button>
-            <button
-              onClick={() => setCollapsed((c) => !c)}
-              className="w-full flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-1)] text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer"
-            >
-              <ChevronLeft className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
-              {!collapsed && 'Collapse'}
-            </button>
-          </div>
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="mt-3 flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-1)] text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer"
+          >
+            <ChevronLeft className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
+            {!collapsed && 'Collapse'}
+          </button>
         </aside>
 
         {mobileOpen && (
