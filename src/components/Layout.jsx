@@ -157,8 +157,8 @@ export default function Layout({
                     showLabels ? 'px-3.5' : 'px-0 justify-center'
                   } py-2.5 rounded-xl text-xs font-bold transition-all duration-150 active:scale-[0.98] group relative ${
                     active
-                      ? 'bg-[var(--nav-brand-bg)] text-white shadow-lg shadow-[var(--nav-brand-shadow)]'
-                      : 'text-[var(--nav-text-inactive)] hover:bg-[var(--nav-hover-bg)] hover:text-white'
+                      ? 'bg-[var(--nav-brand-bg)] text-[var(--nav-text-active)] shadow-lg shadow-[var(--nav-brand-shadow)]'
+                      : 'text-[var(--nav-text-inactive)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--nav-text-active)]'
                   }`}
                 >
                   {active && (
@@ -357,7 +357,7 @@ export default function Layout({
 
       <div className="flex-1 flex">
         <aside
-          className={`hidden md:flex flex-col justify-between glass-panel border-r border-white/5 p-3 transition-all duration-300 ease-in-out ${
+          className={`hidden md:flex flex-col justify-between glass-panel border-r border-[var(--border)] p-3 transition-all duration-300 ease-in-out ${
             collapsed ? 'w-[72px]' : 'w-60'
           }`}
         >
@@ -395,7 +395,7 @@ export default function Layout({
               className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
               onClick={() => setMobileOpen(false)}
             />
-            <aside className="relative w-72 max-w-[80%] glass-panel border-r border-white/10 p-4 overflow-y-auto animate-slide-in-left">
+            <aside className="relative w-72 max-w-[80%] glass-panel border-r border-[var(--border)] p-4 overflow-y-auto animate-slide-in-left">
               <div className="flex items-center justify-between mb-5">
                 <span className="text-sm font-bold text-[var(--text-1)]">Modules</span>
                 <button
