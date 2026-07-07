@@ -22,9 +22,12 @@ import {
   PieChart,
   Settings as SettingsIcon,
   CalendarDays,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { auth } from '../data/auth';
 import { timeAgo, initials } from '../lib/format';
+import { useTheme } from '../context/ThemeContext';
 
 const ALL_TABS = [
   { id: 'founder', label: 'Founder Center', icon: Shield, roles: ['Super Admin'], group: 'Overview' },
@@ -68,6 +71,7 @@ export default function Layout({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -173,11 +177,11 @@ export default function Layout({
 
   return (
     <div className="min-h-screen bg-dark-gradient flex flex-col font-sans">
-      <header className="glass-panel sticky top-0 z-[var(--z-sticky)] px-4 sm:px-6 py-3 flex items-center justify-between border-b border-violet-500/10">
+      <header className="glass-panel sticky top-0 z-[var(--z-sticky)] px-4 sm:px-6 py-3 flex items-center justify-between border-b border-[var(--border)]">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden p-2.5 text-slate-300 hover:bg-slate-900/50 rounded-lg transition-colors"
+            className="md:hidden p-2.5 text-[var(--text-2)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
@@ -190,7 +194,7 @@ export default function Layout({
             <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
               Digital Buddies ERP
             </h1>
-            <p className="text-[0.6rem] text-slate-400 uppercase tracking-[0.2em]">
+            <p className="text-[0.6rem] text-[var(--text-3)] uppercase tracking-[0.2em]">
               Company Operating System
             </p>
           </div>
@@ -199,17 +203,17 @@ export default function Layout({
         <div className="flex items-center gap-1.5 sm:gap-3 relative">
           <button
             onClick={() => onOpenSearch?.()}
-            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-400 bg-slate-900/40 border border-slate-800/50 hover:border-violet-500/30 hover:text-slate-200 transition-all duration-200"
+            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[var(--text-3)] bg-[var(--surface-hover)] border border-[var(--border)] hover:border-[var(--border-strong)] hover:text-[var(--text-1)] transition-all duration-200"
           >
             <Search className="w-4 h-4" />
             <span>Search…</span>
-            <kbd className="text-[0.6rem] bg-slate-800/70 px-1.5 py-0.5 rounded border border-slate-700/50">
+            <kbd className="text-[0.6rem] text-[var(--text-kbd)] bg-[var(--surface-kbd)] px-1.5 py-0.5 rounded border border-[var(--border-kbd)]">
               Ctrl K
             </kbd>
           </button>
           <button
             onClick={() => onOpenSearch?.()}
-            className="sm:hidden p-2.5 text-slate-300 hover:bg-slate-900/50 rounded-lg transition-colors"
+            className="sm:hidden p-2.5 text-[var(--text-2)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
             aria-label="Search"
           >
             <Search className="w-5 h-5" />
@@ -218,7 +222,7 @@ export default function Layout({
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifDropdown((s) => !s)}
-              className="p-2.5 hover:bg-slate-900/60 rounded-xl text-slate-400 hover:text-slate-200 border border-slate-800/40 relative transition-colors cursor-pointer"
+              className="p-2.5 hover:bg-[var(--surface-hover)] rounded-xl text-[var(--text-3)] hover:text-[var(--text-1)] border border-[var(--border)] relative transition-colors cursor-pointer"
               aria-label="Notifications"
             >
               <Bell className="w-5 h-5" />
@@ -230,13 +234,13 @@ export default function Layout({
             </button>
 
             {showNotifDropdown && (
-              <div className="absolute right-0 mt-3 w-80 glass-panel border border-violet-500/20 rounded-2xl p-4 shadow-2xl z-[var(--z-dropdown)] space-y-3 animate-dropdown-pop">
-                <div className="flex justify-between items-center border-b border-slate-800/60 pb-2">
-                  <h4 className="font-bold text-xs text-slate-200">Notifications</h4>
+              <div className="absolute right-0 mt-3 w-80 glass-panel border border-[var(--border)] rounded-2xl p-4 shadow-2xl z-[var(--z-dropdown)] space-y-3 animate-dropdown-pop">
+                <div className="flex justify-between items-center border-b border-[var(--border-divider)] pb-2">
+                  <h4 className="font-bold text-xs text-[var(--text-1)]">Notifications</h4>
                   {unreadNotifs.length > 0 && (
                     <button
                       onClick={handleMarkAllRead}
-                      className="text-[0.65rem] text-violet-400 hover:text-violet-300 transition-colors cursor-pointer"
+                      className="text-[0.65rem] text-[var(--accent)] hover:text-[var(--accent-strong)] transition-colors cursor-pointer"
                     >
                       Mark all read
                     </button>
@@ -246,21 +250,21 @@ export default function Layout({
                 <div className="space-y-2 max-h-[260px] overflow-y-auto">
                   {unreadNotifs.length === 0 ? (
                     <div className="flex flex-col items-center text-center py-8">
-                      <Bell className="w-6 h-6 text-slate-600 mb-2" />
-                      <p className="text-[0.7rem] text-slate-500">You're all caught up</p>
+                      <Bell className="w-6 h-6 text-[var(--text-muted)] mb-2" />
+                      <p className="text-[0.7rem] text-[var(--text-muted)]">You're all caught up</p>
                     </div>
                   ) : (
                     unreadNotifs.map((n) => (
                       <div
                         key={n.id}
-                        className="p-2.5 bg-slate-950/50 rounded-xl border border-slate-800/60 flex items-start gap-2 hover:border-violet-500/30 transition-all duration-200"
+                        className="p-2.5 bg-[var(--surface-notif-item)] rounded-xl border border-[var(--border-divider)] flex items-start gap-2 hover:border-[var(--border-strong)] transition-all duration-200"
                       >
                         <button
                           onClick={() => handleNotifClick(n)}
                           className="flex-1 text-left min-w-0"
                         >
-                          <p className="text-[0.7rem] text-slate-300 leading-snug">{n.message}</p>
-                          <span className="text-[0.6rem] text-slate-500">
+                          <p className="text-[0.7rem] text-[var(--text-2)] leading-snug">{n.message}</p>
+                          <span className="text-[0.6rem] text-[var(--text-muted)]">
                             {timeAgo(n.timestamp)}
                           </span>
                         </button>
@@ -269,7 +273,7 @@ export default function Layout({
                             e.stopPropagation();
                             handleMarkOneRead(n.id);
                           }}
-                          className="text-slate-500 hover:text-emerald-400 transition-colors p-1 flex-shrink-0 cursor-pointer"
+                          className="text-[var(--text-muted)] hover:text-emerald-400 transition-colors p-1 flex-shrink-0 cursor-pointer"
                           title="Mark as read"
                         >
                           <CheckCircle className="w-3.5 h-3.5" />
@@ -284,7 +288,7 @@ export default function Layout({
                     setShowNotifDropdown(false);
                     goTo('notifications');
                   }}
-                  className="w-full text-[0.7rem] font-bold text-violet-400 hover:text-violet-300 py-1.5 border-t border-slate-800/60 transition-colors cursor-pointer"
+                  className="w-full text-[0.7rem] font-bold text-[var(--accent)] hover:text-[var(--accent-strong)] py-1.5 border-t border-[var(--border-divider)] transition-colors cursor-pointer"
                 >
                   View all notifications →
                 </button>
@@ -295,9 +299,9 @@ export default function Layout({
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu((s) => !s)}
-              className="flex items-center gap-2.5 bg-slate-900/40 pl-1.5 pr-2 sm:pr-3.5 py-1.5 rounded-xl border border-slate-800/50 hover:border-violet-500/30 transition-all duration-200 cursor-pointer"
+              className="flex items-center gap-2.5 bg-[var(--surface-hover)] pl-1.5 pr-2 sm:pr-3.5 py-1.5 rounded-xl border border-[var(--border)] hover:border-[var(--border-strong)] transition-all duration-200 cursor-pointer"
             >
-              <div className="w-7 h-7 rounded-lg bg-violet-650 flex items-center justify-center font-bold text-xs text-white overflow-hidden">
+              <div className="w-7 h-7 rounded-lg bg-[var(--accent-strong)] flex items-center justify-center font-bold text-xs text-white overflow-hidden">
                 {user.avatar ? (
                   <img src={user.avatar} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -305,17 +309,17 @@ export default function Layout({
                 )}
               </div>
               <div className="hidden md:block text-left">
-                <div className="text-xs font-bold text-slate-200 leading-tight">{user.name}</div>
-                <div className="text-[0.65rem] text-slate-400">{user.designation}</div>
+                <div className="text-xs font-bold text-[var(--text-1)] leading-tight">{user.name}</div>
+                <div className="text-[0.65rem] text-[var(--text-3)]">{user.designation}</div>
               </div>
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-3 w-56 glass-panel border border-violet-500/20 rounded-2xl p-2 shadow-2xl z-[var(--z-dropdown)] animate-dropdown-pop">
-                <div className="px-3 py-2 border-b border-slate-800/60 mb-1">
-                  <p className="text-xs font-bold text-slate-200 truncate">{user.name}</p>
-                  <p className="text-[0.65rem] text-slate-500 truncate">{user.email}</p>
-                  <span className="inline-block mt-1.5 text-[0.6rem] font-bold text-violet-300 bg-violet-500/15 px-2 py-0.5 rounded-full">
+              <div className="absolute right-0 mt-3 w-56 glass-panel border border-[var(--border)] rounded-2xl p-2 shadow-2xl z-[var(--z-dropdown)] animate-dropdown-pop">
+                <div className="px-3 py-2 border-b border-[var(--border-divider)] mb-1">
+                  <p className="text-xs font-bold text-[var(--text-1)] truncate">{user.name}</p>
+                  <p className="text-[0.65rem] text-[var(--text-3)] truncate">{user.email}</p>
+                  <span className="inline-block mt-1.5 text-[0.6rem] font-bold text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2 py-0.5 rounded-full">
                     {user.role}
                   </span>
                 </div>
@@ -324,7 +328,7 @@ export default function Layout({
                     setShowUserMenu(false);
                     goTo('profile');
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-900/50 transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                 >
                   <User className="w-4 h-4" /> My Profile
                 </button>
@@ -334,14 +338,14 @@ export default function Layout({
                       setShowUserMenu(false);
                       goTo('settings');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-900/50 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                   >
                     <SettingsIcon className="w-4 h-4" /> Settings
                   </button>
                 )}
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors mt-1 border-t border-slate-800/60 pt-2 cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors mt-1 border-t border-[var(--border-divider)] pt-2 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" /> Sign Out
                 </button>
@@ -358,7 +362,7 @@ export default function Layout({
           }`}
         >
           <div className="overflow-y-auto overflow-x-hidden relative">
-            <div className="sticky bottom-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-t from-[#0c0a1a] to-transparent z-10" />
+            <div className="sticky bottom-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-t from-[var(--bg-base)] to-transparent z-10" />
             <div className={`transition-all duration-200 ease-in-out ${collapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
               <SidebarContent showLabels />
             </div>
@@ -366,13 +370,23 @@ export default function Layout({
               <SidebarContent showLabels={false} />
             </div>
           </div>
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            className="mt-3 flex items-center gap-2 text-slate-500 hover:text-slate-200 text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-slate-900/40 transition-all duration-200 cursor-pointer"
-          >
-            <ChevronLeft className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
-            {!collapsed && 'Collapse'}
-          </button>
+          <div className="space-y-1">
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-1)] text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer"
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {!collapsed && (theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
+            </button>
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              className="w-full flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-1)] text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer"
+            >
+              <ChevronLeft className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
+              {!collapsed && 'Collapse'}
+            </button>
+          </div>
         </aside>
 
         {mobileOpen && (
@@ -383,10 +397,10 @@ export default function Layout({
             />
             <aside className="relative w-72 max-w-[80%] glass-panel border-r border-white/10 p-4 overflow-y-auto animate-slide-in-left">
               <div className="flex items-center justify-between mb-5">
-                <span className="text-sm font-bold text-slate-200">Modules</span>
+                <span className="text-sm font-bold text-[var(--text-1)]">Modules</span>
                 <button
                   onClick={() => setMobileOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 text-[var(--text-3)] hover:text-[var(--text-1)] rounded-lg transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -394,7 +408,7 @@ export default function Layout({
               <SidebarContent showLabels />
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 mt-5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 border-t border-slate-800/60 pt-4 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 mt-5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 border-t border-[var(--border-divider)] pt-4 transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4" /> Sign Out
               </button>
