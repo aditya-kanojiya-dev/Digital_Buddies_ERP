@@ -43,6 +43,15 @@
     --z-drawer: 60;
     --z-modal: 100;
     --z-toast: 9999;
+
+    --nav-brand: #FFD60A;
+    --nav-brand-hover: #E8A800;
+    --nav-brand-bg: rgba(255, 214, 10, 0.12);
+    --nav-brand-shadow: rgba(255, 214, 10, 0.25);
+    --nav-hover-bg: rgba(255, 255, 255, 0.06);
+    --nav-text-active: #FFFFFF;
+    --nav-text-inactive: rgba(255, 255, 255, 0.75);
+    --nav-text-section: rgba(255, 255, 255, 0.60);
   }
 
   body {

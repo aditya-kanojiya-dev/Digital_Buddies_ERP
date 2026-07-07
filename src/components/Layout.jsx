@@ -136,7 +136,7 @@ export default function Layout({
       {grouped.map(({ group, tabs }) => (
         <div key={group}>
           {showLabels && (
-            <p className="text-[0.6rem] uppercase text-slate-500 tracking-[0.15em] px-3 mb-1.5 font-semibold">
+            <p className="text-[0.6rem] uppercase text-[var(--nav-text-section)] tracking-[0.15em] px-3 mb-1.5 font-semibold">
               {group}
             </p>
           )}
@@ -151,14 +151,14 @@ export default function Layout({
                   title={tab.label}
                   className={`w-full flex items-center gap-3 ${
                     showLabels ? 'px-3.5' : 'px-0 justify-center'
-                  } py-2.5 rounded-xl text-xs font-bold transition-all duration-150 group relative ${
+                  } py-2.5 rounded-xl text-xs font-bold transition-all duration-150 active:scale-[0.98] group relative ${
                     active
-                      ? 'bg-violet-650 text-white shadow-lg shadow-violet-900/30'
-                      : 'text-slate-400 hover:bg-slate-900/40 hover:text-slate-100'
+                      ? 'bg-[var(--nav-brand-bg)] text-white shadow-lg shadow-[var(--nav-brand-shadow)]'
+                      : 'text-[var(--nav-text-inactive)] hover:bg-[var(--nav-hover-bg)] hover:text-white'
                   }`}
                 >
                   {active && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-fuchsia-400" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-[var(--nav-brand)]" />
                   )}
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   {showLabels && <span className="truncate">{tab.label}</span>}
@@ -353,11 +353,12 @@ export default function Layout({
 
       <div className="flex-1 flex">
         <aside
-          className={`hidden md:flex flex-col justify-between glass-panel border-r border-violet-500/5 p-3 transition-all duration-300 ease-in-out ${
+          className={`hidden md:flex flex-col justify-between glass-panel border-r border-white/5 p-3 transition-all duration-300 ease-in-out ${
             collapsed ? 'w-[72px]' : 'w-60'
           }`}
         >
-          <div className="overflow-y-auto overflow-x-hidden">
+          <div className="overflow-y-auto overflow-x-hidden relative">
+            <div className="sticky bottom-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-t from-[#0c0a1a] to-transparent z-10" />
             <div className={`transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
               <SidebarContent showLabels={!collapsed} />
             </div>
@@ -367,7 +368,7 @@ export default function Layout({
           </div>
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="mt-3 flex items-center gap-2 text-slate-500 hover:text-slate-300 text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-slate-900/40 transition-all duration-200 cursor-pointer"
+            className="mt-3 flex items-center gap-2 text-slate-500 hover:text-slate-200 text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-slate-900/40 transition-all duration-200 cursor-pointer"
           >
             <ChevronLeft className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
             {!collapsed && 'Collapse'}
@@ -380,7 +381,7 @@ export default function Layout({
               className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
               onClick={() => setMobileOpen(false)}
             />
-            <aside className="relative w-72 max-w-[80%] glass-panel border-r border-violet-500/10 p-4 overflow-y-auto animate-slide-in-left">
+            <aside className="relative w-72 max-w-[80%] glass-panel border-r border-white/10 p-4 overflow-y-auto animate-slide-in-left">
               <div className="flex items-center justify-between mb-5">
                 <span className="text-sm font-bold text-slate-200">Modules</span>
                 <button
