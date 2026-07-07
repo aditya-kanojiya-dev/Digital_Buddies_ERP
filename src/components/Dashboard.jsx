@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle, MessageSquare, Eye, Send } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import PersonalCalendar from './shared/PersonalCalendar';
+import { linkifyText } from '../lib/format';
 
 export default function Dashboard({ user, state, updateState, onNavigate }) {
   const toast = useToast();
@@ -626,7 +627,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                         {isDueToday && <span className="text-3xs text-amber-400 font-bold">DUE TODAY</span>}
                       </div>
                       <h5 className="font-bold text-xs sm:text-sm text-slate-200">{t.title}</h5>
-                      {t.description && <p className="text-xs text-slate-400 line-clamp-1">{t.description}</p>}
+                      {t.description && <p className="text-xs text-slate-400 line-clamp-1">{linkifyText(t.description)}</p>}
                       <div className="flex items-center gap-3 text-3xs text-slate-500 flex-wrap">
                         <span>Due: {t.dueDate || '—'}</span>
                         {t.assignedBy && <span>From: {empName(t.assignedBy)}</span>}

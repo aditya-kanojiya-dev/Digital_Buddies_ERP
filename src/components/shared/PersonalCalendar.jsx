@@ -5,6 +5,7 @@ import {
     Search, Filter,
 } from 'lucide-react';
 import TaskDetailPanel from './TaskDetailPanel';
+import { linkifyText } from '../../lib/format';
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -373,7 +374,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                     <span className={`text-3xs font-bold uppercase shrink-0 ${STATUS_TEXT[t.status] || 'text-slate-400'}`}>{t.status}</span>
                 </div>
                 {!compact && t.description && (
-                    <p className="text-3xs text-slate-500 mt-1 line-clamp-1">{t.description}</p>
+                    <p className="text-3xs text-slate-500 mt-1 line-clamp-1">{linkifyText(t.description)}</p>
                 )}
                 <div className="flex items-center gap-2 mt-1.5 text-3xs text-slate-500">
                     <span className={`text-3xs px-1.5 py-0.5 rounded-full ${PRIORITY_BG[t.priority] || 'bg-slate-700 text-slate-400'}`}>

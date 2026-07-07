@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, MessageSquare, Send, Clock, User, CheckCircle2 } from 'lucide-react';
 import { useToast } from './Toast';
 import DeadlineBadge from './DeadlineBadge';
+import { linkifyText } from '../../lib/format';
 
 /**
  * TaskDetailPanel — slide-in side panel for a single task.
@@ -145,7 +146,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                         </div>
                         <h3 className="font-bold text-lg text-slate-100">{task.title}</h3>
                         {task.description && (
-                            <p className="text-xs text-slate-400">{task.description}</p>
+                            <p className="text-xs text-slate-400">{linkifyText(task.description)}</p>
                         )}
                         <div className="text-3xs text-slate-500 flex flex-wrap items-center gap-2 pt-1">
                             <span className="flex items-center gap-1"><User className="w-3 h-3" /> {assignee ? assignee.name : 'Unassigned'}</span>

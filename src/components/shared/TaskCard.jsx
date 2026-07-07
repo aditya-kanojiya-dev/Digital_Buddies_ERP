@@ -1,6 +1,7 @@
 import React from 'react';
 import { MessageSquare, Clock, User, Send } from 'lucide-react';
 import DeadlineBadge from './DeadlineBadge';
+import { linkifyText } from '../../lib/format';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -69,7 +70,7 @@ export default function TaskCard({
                     </button>
 
                     {task.description && (
-                        <p className="text-xs text-slate-400 line-clamp-2">{task.description}</p>
+                        <p className="text-xs text-slate-400 line-clamp-2">{linkifyText(task.description)}</p>
                     )}
 
                     <div className="text-3xs text-slate-500 flex flex-wrap items-center gap-2">

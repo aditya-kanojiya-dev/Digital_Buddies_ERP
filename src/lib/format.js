@@ -1,5 +1,5 @@
 // ============================================================================
-// format.js — shared formatting + id/timestamp helpers
+// format.js — shared formatting + id/timestamp helpers + linkify
 //
 // Centralizes patterns that were duplicated across components:
 //   - `${PREFIX}${Date.now()}` id generation  → genId('PRP')
@@ -7,7 +7,49 @@
 //   - ad-hoc currency / date rendering          → fmtCurrency / fmtDate
 // ============================================================================
 
+import { createElement } from 'react';
+
 let __seq = 0;
+
+const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<.]+(?:\.[^\s<.]+)+)/gi;
+
+/**
+ * Detect URLs in plain text and render them as clickable <a> tags.
+ * Safe — only matches http/https/www patterns, no HTML passthrough.
+ * Links open in a new tab with `rel="noopener noreferrer"`.
+ * Returns a React node or the original string if no URLs found.
+ */
+export function linkifyText(text) {
+  if (!text) return text;
+
+  const parts = text.split(URL_RE);
+  if (parts.length === 1) return text;
+
+  const result = [];
+  let key = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part) continue;
+
+    if (/^https?:\/\//i.test(part) || /^www\./i.test(part)) {
+      const href = /^www\./i.test(part) ? `https://${part}` : part;
+      result.push(
+        createElement('a', {
+          key: key++,
+          href,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          className: 'text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors',
+          onClick: (e) => e.stopPropagation(),
+        }, part)
+      );
+    } else {
+      result.push(part);
+    }
+  }
+
+  return result.length === 1 ? result[0] : result;
+}
 
 /**
  * Generate a collision-resistant id with a domain prefix, matching the

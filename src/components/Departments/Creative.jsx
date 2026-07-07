@@ -4,6 +4,7 @@ import {
   GitBranch, X, Filter, UserPlus, Send,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
+import { linkifyText } from '../../lib/format';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
 import { DatePicker } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
@@ -421,7 +422,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
                             )}
                           </div>
                           {task.description && (
-                            <p className="text-xs text-slate-500 line-clamp-1 mb-2">{task.description}</p>
+                            <p className="text-xs text-slate-500 line-clamp-1 mb-2">{linkifyText(task.description)}</p>
                           )}
                           <div className="flex items-center gap-3 text-xs text-slate-500">
                             {assignee && (
