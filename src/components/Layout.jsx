@@ -359,10 +359,10 @@ export default function Layout({
         >
           <div className="overflow-y-auto overflow-x-hidden relative">
             <div className="sticky bottom-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-t from-[#0c0a1a] to-transparent z-10" />
-            <div className={`transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
-              <SidebarContent showLabels={!collapsed} />
+            <div className={`transition-all duration-200 ease-in-out ${collapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+              <SidebarContent showLabels />
             </div>
-            <div className={`transition-opacity duration-200 ${!collapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+            <div className={`transition-all duration-200 ease-in-out ${!collapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
               <SidebarContent showLabels={false} />
             </div>
           </div>
