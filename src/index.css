@@ -63,9 +63,9 @@
   }
 
   .light {
-    --bg-base: #e6eaf0;
-    --surface-1: rgba(255, 255, 255, 0.96);
-    --surface-2: #f8fafc;
+    --bg-base: #e8ecf2;
+    --surface-1: #ffffff;
+    --surface-2: #ffffff;
     --surface-input: #ffffff;
     --surface-hover: rgba(0, 0, 0, 0.06);
     --surface-soft: #f1f5f9;
@@ -77,17 +77,17 @@
     --accent-2: #a21caf;
     --accent-ring: rgba(109, 40, 217, 0.35);
 
-    --border-soft: rgba(0, 0, 0, 0.07);
-    --border: rgba(0, 0, 0, 0.12);
-    --border-strong: rgba(109, 40, 217, 0.2);
-    --border-subtle: rgba(0, 0, 0, 0.04);
+    --border-soft: #e5e7eb;
+    --border: #e2e5ea;
+    --border-strong: rgba(109, 40, 217, 0.25);
+    --border-subtle: #eef1f5;
     --border-kbd: #cbd5e1;
-    --border-divider: rgba(0, 0, 0, 0.09);
+    --border-divider: #e2e5ea;
 
-    --text-1: #0f172a;
-    --text-2: #1e293b;
-    --text-3: #475569;
-    --text-muted: #64748b;
+    --text-1: #1A1A2E;
+    --text-2: #374151;
+    --text-3: #4B5563;
+    --text-muted: #6B7280;
     --text-kbd: #475569;
 
     --glow: 0 0 20px rgba(109, 40, 217, 0.08);
@@ -98,9 +98,9 @@
     --nav-brand-bg: rgba(184, 146, 0, 0.08);
     --nav-brand-shadow: rgba(184, 146, 0, 0.15);
     --nav-hover-bg: rgba(0, 0, 0, 0.05);
-    --nav-text-active: #0f172a;
-    --nav-text-inactive: rgba(15, 23, 42, 0.7);
-    --nav-text-section: rgba(15, 23, 42, 0.5);
+    --nav-text-active: #1A1A2E;
+    --nav-text-inactive: #4B5563;
+    --nav-text-section: #6B7280;
   }
 
   body {
@@ -140,15 +140,15 @@
 }
 
 .light .glass-panel {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .light .glass-card {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .light .glass-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .glass-card {
@@ -443,6 +443,75 @@
 .animate-spin-theme {
   animation: spin-theme 0.5s var(--ease-spring);
 }
+
+/* ── Light-mode text colour overrides ──────────────────────────────
+ * Components use Tailwind text-slate-* / text-gray-* / text-neutral-*
+ * utilities designed for dark backgrounds. In light mode these render
+ * as light-grey-on-white — illegible. We remap them to dark values
+ * that pass WCAG AA (4.5:1 normal text, 3:1 large text).
+ *
+ *  100-200  → #1A1A2E  (page titles, stat values)
+ *  300      → #374151  (section headings, card titles)
+ *  400      → #4B5563  (body, labels, descriptions)
+ *  500-600  → #6B7280  (timestamps, muted, empty-state)
+ *
+ * Hover variants also covered. Semantic colours (emerald, rose,
+ * violet, amber, sky) are left untouched.
+ * ──────────────────────────────────────────────────────────────────── */
+.light .text-slate-50,
+.light .text-slate-100,
+.light .text-slate-200 { color: #1A1A2E; }
+
+.light .text-slate-300 { color: #374151; }
+
+.light .text-slate-400 { color: #4B5563; }
+
+.light .text-slate-500,
+.light .text-slate-600 { color: #6B7280; }
+
+.light .text-gray-50,
+.light .text-gray-100,
+.light .text-gray-200 { color: #1A1A2E; }
+
+.light .text-gray-300 { color: #374151; }
+
+.light .text-gray-400 { color: #4B5563; }
+
+.light .text-gray-500,
+.light .text-gray-600 { color: #6B7280; }
+
+.light .text-neutral-50,
+.light .text-neutral-100,
+.light .text-neutral-200 { color: #1A1A2E; }
+
+.light .text-neutral-300 { color: #374151; }
+
+.light .text-neutral-400 { color: #4B5563; }
+
+.light .text-neutral-500,
+.light .text-neutral-600 { color: #6B7280; }
+
+/* Hover states */
+.light .hover\:text-slate-100:hover,
+.light .hover\:text-slate-200:hover { color: #1A1A2E; }
+
+.light .hover\:text-slate-300:hover { color: #374151; }
+
+.light .hover\:text-slate-400:hover { color: #4B5563; }
+
+.light .hover\:text-gray-100:hover,
+.light .hover\:text-gray-200:hover { color: #1A1A2E; }
+
+.light .hover\:text-gray-300:hover { color: #374151; }
+
+.light .hover\:text-gray-400:hover { color: #4B5563; }
+
+.light .hover\:text-neutral-100:hover,
+.light .hover\:text-neutral-200:hover { color: #1A1A2E; }
+
+.light .hover\:text-neutral-300:hover { color: #374151; }
+
+.light .hover\:text-neutral-400:hover { color: #4B5563; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
