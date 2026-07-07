@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle, MessageSquare, Eye, User, Send } from 'lucide-react';
+import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle, MessageSquare, Eye, Send } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import PersonalCalendar from './shared/PersonalCalendar';
 
@@ -7,17 +7,14 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   const toast = useToast();
   const { tasks, timelogs, attendance, notifications } = state;
 
-  // Filter only personal assets
   const myTasks = tasks.filter(t => t.assignedTo === user.id);
   const myLogs = timelogs.filter(l => l.employeeId === user.id);
   const myAttendance = attendance.filter(a => a.employeeId === user.id);
   const myNotifications = notifications.filter(n => n.userId === user.id);
 
-  // Today's Date
   const todayStr = new Date().toISOString().split('T')[0];
   const todayAttendance = myAttendance.find(a => (a.logDate || a.date) === todayStr);
 
-  // breaks is stored as a JSON TEXT string in the DB; parse on read, stringify on write
   const parseBreaks = (att) => {
     if (!att?.breaks) return [];
     if (Array.isArray(att.breaks)) return att.breaks;
@@ -26,15 +23,11 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
 
   const resolvedBreaks = parseBreaks(todayAttendance);
 
-  // -------------------------
-  // ATTENDANCE ACTIONS
-  // -------------------------
   const [attType, setAttType] = useState('Office');
-  
+
   const handleClockIn = () => {
     const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // "HH:MM"
-    
+    const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
     const newAtt = {
       id: `ATT${Date.now()}`,
       employeeId: user.id,
@@ -45,10 +38,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       status: "Present",
       type: attType
     };
-
     updateState({ attendance: [...attendance, newAtt] });
-    
-    // Log Audit Log
     const newAudit = {
       id: `AUD${Date.now()}`,
       userId: user.id,
@@ -57,7 +47,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
     };
     updateState({ auditLogs: [newAudit, ...state.auditLogs] });
-
     toast.success(`Clocked in at ${timeStr}`);
   };
 
@@ -65,16 +54,11 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     if (!todayAttendance) return;
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
-
     const updated = attendance.map(a => {
-      if (a.id === todayAttendance.id) {
-        return { ...a, clockOut: timeStr };
-      }
+      if (a.id === todayAttendance.id) return { ...a, clockOut: timeStr };
       return a;
     });
-
     updateState({ attendance: updated });
-
     const newAudit = {
       id: `AUD${Date.now()}`,
       userId: user.id,
@@ -83,11 +67,9 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
     };
     updateState({ auditLogs: [newAudit, ...state.auditLogs] });
-
     toast.success(`Clocked out at ${timeStr}`);
   };
 
-  // Derived: is there an open (un-ended) break right now?
   const onBreak = resolvedBreaks.some(
     (b) => typeof b === 'object' && b.end === null
   );
@@ -95,16 +77,14 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   const handleToggleBreak = () => {
     if (!todayAttendance) return;
     const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // "HH:MM"
+    const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
     const breaks = resolvedBreaks;
 
     let updatedBreaks;
     if (!onBreak) {
-      // ── Start break: append an open break object ──────────────────────────
       updatedBreaks = [...breaks, { start: timeStr, end: null, minutes: null }];
       toast.info(`Break started at ${timeStr}.`);
     } else {
-      // ── End break: close the open entry and calculate real minutes ─────────
       updatedBreaks = breaks.map((b) => {
         if (typeof b !== 'object' || b.end !== null) return b;
         const [sh, sm] = b.start.split(':').map(Number);
@@ -122,8 +102,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       a.id === todayAttendance.id ? { ...a, breaks: JSON.stringify(updatedBreaks) } : a
     );
     updateState({ attendance: updated });
-
-    // Audit log
     const newAudit = {
       id: `AUD${Date.now()}`,
       userId: user.id,
@@ -134,25 +112,19 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     updateState({ auditLogs: [newAudit, ...state.auditLogs] });
   };
 
-  // -------------------------
-  // TASK STOPWATCH TIMER STATE
-  // -------------------------
   const [timerTaskId, setTimerTaskId] = useState('');
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const timerIntervalRef = useRef(null);
   const [logDesc, setLogDesc] = useState('');
 
-  // Manual Log form
   const [manualTaskId, setManualTaskId] = useState('');
   const [manualHours, setManualHours] = useState('');
   const [manualDesc, setManualDesc] = useState('');
 
   useEffect(() => {
     if (timerRunning) {
-      const id = setInterval(() => {
-        setTimerSeconds(s => s + 1);
-      }, 1000);
+      const id = setInterval(() => setTimerSeconds(s => s + 1), 1000);
       timerIntervalRef.current = id;
     } else {
       if (timerIntervalRef.current) {
@@ -177,10 +149,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   const handleStopTimer = () => {
     setTimerRunning(false);
     const hrs = parseFloat((timerSeconds / 3600).toFixed(2));
-    
-    // Minimum 1 min logging mock
-    const finalHrs = hrs > 0 ? hrs : 0.1; 
-
+    const finalHrs = hrs > 0 ? hrs : 0.1;
     const task = tasks.find(t => t.id === timerTaskId);
     const newLog = {
       id: `TL${Date.now()}`,
@@ -192,11 +161,8 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       startTime: null,
       timerRunning: false
     };
-
     updateState({ timelogs: [...timelogs, newLog] });
     toast.success(`${finalHrs} hrs logged against "${task?.title}"`);
-    
-    // Reset timer states
     setTimerSeconds(0);
     setLogDesc('');
   };
@@ -204,7 +170,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   const handleManualLog = (e) => {
     e.preventDefault();
     if (!manualTaskId || !manualHours) return;
-
     const task = tasks.find(t => t.id === manualTaskId);
     const newLog = {
       id: `TL${Date.now()}`,
@@ -216,18 +181,15 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       startTime: null,
       timerRunning: false
     };
-
     updateState({ timelogs: [...timelogs, newLog] });
     toast.success('Time entry saved.');
     setManualHours('');
     setManualDesc('');
   };
 
-  // ── To-do: quick comment ─────────────────────────────────────────────────
   const [commentingTaskId, setCommentingTaskId] = useState(null);
   const [quickComment, setQuickComment] = useState('');
 
-  // ── To-do: sort active tasks by urgency ─────────────────────────────────
   const todayStr2 = todayStr;
   const todoTasks = useMemo(() => {
     const active = myTasks.filter(t => t.status !== 'Completed' && t.status !== 'Blocked');
@@ -247,25 +209,17 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
 
   const commentCounts = useMemo(() => {
     const counts = {};
-    (state.taskComments || []).forEach(c => {
-      counts[c.taskId] = (counts[c.taskId] || 0) + 1;
-    });
+    (state.taskComments || []).forEach(c => counts[c.taskId] = (counts[c.taskId] || 0) + 1);
     return counts;
   }, [state.taskComments]);
 
-  // ── To-do: employee name lookup ─────────────────────────────────────────
   const empName = (id) => state.employees?.find(e => e.id === id)?.name || 'Unknown';
 
-  // -------------------------
-  // TASK UPDATE
-  // -------------------------
   const handleUpdateStatus = (taskId, newStatus) => {
     const found = tasks.find(x => x.id === taskId);
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     const updated = tasks.map(task => {
-      if (task.id === taskId) {
-        return { ...task, status: newStatus };
-      }
+      if (task.id === taskId) return { ...task, status: newStatus };
       return task;
     });
     const notifUpdates = {};
@@ -292,16 +246,13 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     });
   };
 
-  // ── To-do: acknowledge (Seen / Working on it) ────────────────────────────
   const handleAcknowledge = (taskId, mode) => {
     const found = tasks.find(x => x.id === taskId);
     if (!found) return;
     const now = new Date().toISOString();
     const displayTime = now.replace('T', ' ').substring(0, 16);
     const updated = tasks.map(task => {
-      if (task.id === taskId) {
-        return { ...task, acknowledgedAt: now, status: mode === 'working' ? 'In Progress' : task.status };
-      }
+      if (task.id === taskId) return { ...task, acknowledgedAt: now, status: mode === 'working' ? 'In Progress' : task.status };
       return task;
     });
     const msg = mode === 'working'
@@ -322,7 +273,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     toast.success(mode === 'working' ? 'Marked as In Progress' : 'Acknowledged');
   };
 
-  // ── To-do: quick post comment ────────────────────────────────────────────
   const handleQuickComment = (taskId) => {
     if (!quickComment.trim()) return;
     const now = new Date().toISOString();
@@ -361,7 +311,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     toast.success('Comment posted');
   };
 
-  // ── Reverse cascade: compute "Ready to publish" for calendar entries ────
   const calendarReady = useMemo(() => {
     const map = {};
     (state.smmCalendar || []).forEach(entry => {
@@ -374,15 +323,11 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     return map;
   }, [state.smmCalendar, state.tasks]);
 
-  // -------------------------
-  // NOTIFICATION ACTIONS
-  // -------------------------
   const handleMarkAsRead = (id) => {
     const updated = notifications.map(n => n.id === id ? { ...n, read: true } : n);
     updateState({ notifications: updated });
   };
 
-  // Formatting seconds to HH:MM:SS
   const formatTime = (totalSeconds) => {
     const hrs = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
     const mins = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
@@ -391,20 +336,19 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      
-      {/* 1. Administrative Pings notifications alert drawer */}
+    <div className="space-y-5 sm:space-y-8 animate-fade-in">
+
       {myNotifications.filter(n => !n.read).length > 0 && (
         <div className="space-y-3">
           {myNotifications.filter(n => !n.read).map(notif => (
-            <div key={notif.id} className="bg-violet-650/15 border border-violet-500/25 p-4 rounded-2xl flex items-center justify-between gap-4 animate-pulse">
-              <div className="flex items-center gap-3 text-sm text-slate-200">
+            <div key={notif.id} className="bg-violet-650/15 border border-violet-500/25 p-3 sm:p-4 rounded-2xl flex items-center justify-between gap-4 animate-pulse-soft">
+              <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-200 min-w-0">
                 <Bell className="w-5 h-5 text-violet-400 flex-shrink-0" />
-                <span>{notif.message}</span>
+                <span className="truncate">{notif.message}</span>
               </div>
               <button
                 onClick={() => handleMarkAsRead(notif.id)}
-                className="bg-violet-600 hover:bg-violet-700 text-white text-3xs font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-xl transition cursor-pointer"
+                className="bg-violet-600 hover:bg-violet-700 text-white text-3xs font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
               >
                 Acknowledge
               </button>
@@ -413,62 +357,54 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
         </div>
       )}
 
-      {/* Overview Cards & Clock in actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
 
-        {/* Attendance card clock-in/out */}
-        <div className="glass-panel p-6 rounded-2xl space-y-5">
-          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-violet-400" /> Attendance Registry
+        <div className="glass-panel p-4 sm:p-6 rounded-2xl space-y-4 sm:space-y-5">
+          <h3 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-violet-400" /> Attendance
           </h3>
 
           {!todayAttendance ? (
             <div className="space-y-4">
-              <p className="text-sm text-slate-400">You are not clocked in for today ({todayStr}).</p>
+              <p className="text-sm text-slate-400">Not clocked in for today.</p>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Work Location Type</label>
+                <label className="block text-xs text-slate-400 mb-1">Work Location</label>
                 <select
                   value={attType}
                   onChange={(e) => setAttType(e.target.value)}
                   className="w-full glass-input p-3 rounded-xl text-sm"
                 >
-                  <option value="Office">Office Attendance</option>
-                  <option value="WFH">Work From Home (WFH)</option>
+                  <option value="Office">Office</option>
+                  <option value="WFH">Work From Home</option>
                 </select>
               </div>
               <button
                 onClick={handleClockIn}
-                className="w-full bg-neon-gradient hover:opacity-95 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow"
+                className="w-full bg-neon-gradient hover:opacity-95 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow transition-opacity"
               >
-                <LogIn className="w-4 h-4" /> Clock In Now
+                <LogIn className="w-4 h-4" /> Clock In
               </button>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="bg-slate-950 p-4 rounded-xl space-y-2 border border-slate-900">
+              <div className="bg-slate-950/50 p-4 rounded-xl space-y-2 border border-slate-900">
                 <div className="flex justify-between text-xs text-slate-400">
-                  <span>Duty Mode: <span className="text-slate-200 font-semibold">{todayAttendance.type}</span></span>
+                  <span>{todayAttendance.type}</span>
                   <span className="text-emerald-400 font-bold font-mono">Present</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span>Clocked In: <span className="font-mono text-slate-200 font-bold">{todayAttendance.clockIn}</span></span>
-                  <span>Clocked Out: <span className="font-mono text-slate-350">{todayAttendance.clockOut || '--:--'}</span></span>
+                  <span>In: <span className="font-mono text-slate-200 font-bold">{todayAttendance.clockIn}</span></span>
+                  <span>Out: <span className="font-mono text-slate-500">{todayAttendance.clockOut || '--:--'}</span></span>
                 </div>
                 <div className="text-3xs text-slate-500 border-t border-slate-900 pt-2 flex items-center justify-between">
                   <span>
-                    Cumulative break periods:
-                    {onBreak && (
-                      <span className="ml-1.5 text-amber-400 font-bold animate-pulse">● On break</span>
-                    )}
+                    Breaks:
+                    {onBreak && <span className="ml-1.5 text-amber-400 font-bold animate-pulse-soft">● On break</span>}
                   </span>
-                  <span>
-                    {resolvedBreaks.reduce((sum, b) => {
-                      // legacy format: plain integer minutes
-                      if (typeof b === 'number') return sum + b;
-                      // new format: only count completed breaks
-                      return b.minutes ? sum + b.minutes : sum;
-                    }, 0)} min logged
-                  </span>
+                  <span>{resolvedBreaks.reduce((sum, b) => {
+                    if (typeof b === 'number') return sum + b;
+                    return b.minutes ? sum + b.minutes : sum;
+                  }, 0)} min</span>
                 </div>
               </div>
 
@@ -476,39 +412,38 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={handleToggleBreak}
-                    className={`py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border transition ${
+                    className={`py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border transition-all duration-200 ${
                       onBreak
                         ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
-                        : 'bg-slate-800 hover:bg-slate-750 text-slate-200 border-slate-750'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                     }`}
                   >
                     <Coffee className="w-4 h-4 text-amber-400" />
-                    {onBreak ? 'End Break' : 'Start Break'}
+                    {onBreak ? 'End Break' : 'Break'}
                   </button>
                   <button
                     onClick={handleClockOut}
-                    className="bg-rose-600/80 hover:bg-rose-600 text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="bg-rose-600/80 hover:bg-rose-600 text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <LogOut className="w-4 h-4" /> Clock Out
                   </button>
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 text-center font-bold">Duty finished for today. Clock logs synced.</p>
+                <p className="text-xs text-slate-500 text-center font-bold">Duty finished for today.</p>
               )}
             </div>
           )}
         </div>
 
-        {/* Stopwatch Active Time Tracker */}
-        <div className="glass-panel p-6 rounded-2xl space-y-5 lg:col-span-2 relative overflow-hidden">
-          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-fuchsia-400" /> Live Stopwatch Time Tracker
+        <div className="glass-panel p-4 sm:p-6 rounded-2xl space-y-4 sm:space-y-5 lg:col-span-2 relative overflow-hidden">
+          <h3 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-fuchsia-400" /> Time Tracker
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-center">
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Select Task Context</label>
+                <label className="block text-xs text-slate-400 mb-1">Select Task</label>
                 <select
                   value={timerTaskId}
                   onChange={(e) => setTimerTaskId(e.target.value)}
@@ -523,14 +458,14 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
               </div>
 
               {timerRunning && (
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Time log note (optional)</label>
+                <div className="animate-fade-in">
+                  <label className="block text-xs text-slate-400 mb-1">Note</label>
                   <input
                     type="text"
                     value={logDesc}
                     onChange={(e) => setLogDesc(e.target.value)}
                     className="w-full glass-input p-3 rounded-xl text-xs"
-                    placeholder="Describe progress details..."
+                    placeholder="Describe progress..."
                   />
                 </div>
               )}
@@ -539,34 +474,33 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                 {!timerRunning ? (
                   <button
                     onClick={handleStartTimer}
-                    className="flex-1 bg-neon-gradient hover:opacity-95 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer"
+                    className="flex-1 bg-neon-gradient hover:opacity-95 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-opacity"
                   >
-                    <Play className="w-4 h-4" /> Start Stopwatch
+                    <Play className="w-4 h-4" /> Start
                   </button>
                 ) : (
                   <button
                     onClick={handleStopTimer}
-                    className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer"
+                    className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-colors"
                   >
-                    <Square className="w-4 h-4" /> Stop & Log Time
+                    <Square className="w-4 h-4" /> Stop & Log
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Timer visual block */}
-            <div className="flex flex-col items-center justify-center bg-slate-950/45 border border-slate-900/60 p-6 rounded-2xl h-full">
-              <span className="text-3xl font-extrabold font-mono text-glow text-violet-400 animate-pulse">
+            <div className="flex flex-col items-center justify-center bg-slate-950/45 border border-slate-900/60 p-5 sm:p-6 rounded-2xl">
+              <span className="text-2xl sm:text-3xl font-extrabold font-mono text-glow text-violet-400">
                 {formatTime(timerSeconds)}
               </span>
               <span className="text-3xs uppercase tracking-widest text-slate-500 font-mono mt-1">
-                {timerRunning ? 'Timer active' : 'Stopwatch standby'}
+                {timerRunning ? 'Timer active' : 'Ready'}
               </span>
             </div>
           </div>
         </div>
-        {/* Calendar Summary Widgets */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 lg:col-span-3">
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 lg:col-span-3">
           {(() => {
             const weekStart = todayStr;
             const weekEnd = new Date();
@@ -596,19 +530,19 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                 icon: AlertCircle,
               },
               {
-                label: 'Completed This Month',
+                label: 'Completed',
                 val: myTasks.filter(t => t.status === 'Completed' && t.createdAt?.startsWith(monthStart)).length,
                 color: 'text-emerald-400', bg: 'bg-emerald-500/10',
                 icon: CheckSquare,
               },
               {
-                label: 'Recently Assigned',
+                label: 'New',
                 val: myTasks.filter(t => t.createdAt && new Date(t.createdAt) >= sevenDaysAgo).length,
                 color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10',
                 icon: Plus,
               },
               {
-                label: 'Upcoming Deadlines',
+                label: 'Next Deadline',
                 val: (() => {
                   const upcoming = myTasks.filter(t => t.dueDate && t.dueDate >= todayStr && t.status !== 'Completed').sort((a, b) => a.dueDate.localeCompare(b.dueDate));
                   return upcoming.length > 0 ? upcoming[0].dueDate : '—';
@@ -617,13 +551,13 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                 icon: Bell,
               },
             ];
-            return widgets.map(w => (
-              <div key={w.label} className="glass-card p-3 rounded-xl flex items-center gap-3">
+            return widgets.map((w, i) => (
+              <div key={w.label} className={`glass-card p-3 rounded-xl flex items-center gap-3 animate-fade-in stagger-${i + 1}`}>
                 <div className={`p-2 rounded-lg ${w.bg}`}>
                   <w.icon className={`w-4 h-4 ${w.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <div className={`text-lg font-extrabold ${w.color}`}>{w.val}</div>
+                  <div className={`text-base sm:text-lg font-extrabold ${w.color} truncate`}>{w.val}</div>
                   <div className="text-3xs text-slate-400 truncate">{w.label}</div>
                 </div>
               </div>
@@ -631,42 +565,40 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
           })()}
         </div>
 
-        <div className="glass-panel p-6 rounded-3xl space-y-5 lg:col-span-3 relative overflow-hidden">
-          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Calendar className="w-6 h-6 text-fuchsia-400" /> My Calendar
+        <div className="glass-panel p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4 sm:space-y-5 lg:col-span-3 relative overflow-hidden">
+          <h3 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-fuchsia-400" /> My Calendar
           </h3>
-        {/* My Calendar widget — tasks/leaves/attendance preview */}
-        <PersonalCalendar
-          user={user}
-          state={state}
-          updateState={updateState}
-          compact
-          onExpand={() => onNavigate && onNavigate('my-calendar')}
-        />
+          <PersonalCalendar
+            user={user}
+            state={state}
+            updateState={updateState}
+            compact
+            onExpand={() => onNavigate && onNavigate('my-calendar')}
+          />
         </div>
       </div>
 
-      {/* ── Interactive To-Do Dashboard (§8a-8b) ── */}
-      <div className="glass-panel p-6 rounded-2xl space-y-6">
+      <div className="glass-panel p-4 sm:p-6 rounded-2xl space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+          <h3 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
             <CheckSquare className="w-5 h-5 text-violet-400" /> My To-Do List
           </h3>
-          <span className="text-xs text-slate-400">{todoTasks.length} active task{todoTasks.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-slate-400">{todoTasks.length} active</span>
         </div>
 
         {todoTasks.length === 0 ? (
           <p className="text-slate-500 text-sm py-8 text-center">No active tasks. You're all caught up.</p>
         ) : (
           <div className="space-y-2">
-            {todoTasks.map(t => {
+            {todoTasks.map((t, i) => {
               const isOverdue = t.dueDate && t.dueDate < todayStr;
               const isDueToday = t.dueDate === todayStr;
               const commentsCount = commentCounts[t.id] || 0;
               const isCommenting = commentingTaskId === t.id;
               return (
                 <div key={t.id}
-                  className={`glass-card p-4 rounded-xl border-l-4 transition ${
+                  className={`glass-card p-3 sm:p-4 rounded-xl border-l-4 transition-all duration-200 animate-fade-in stagger-${Math.min(i + 1, 8)} ${
                     isOverdue ? 'border-l-rose-500 bg-rose-500/5' :
                     isDueToday ? 'border-l-amber-500 bg-amber-500/5' :
                     t.status === 'In Progress' ? 'border-l-blue-500' :
@@ -674,9 +606,9 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                     'border-l-violet-500'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={`text-3xs px-1.5 py-0.5 rounded font-bold font-mono ${
                           t.priority === 'Emergency' ? 'bg-red-600/20 text-red-400' :
                           t.priority === 'High' ? 'bg-rose-500/15 text-rose-400' :
@@ -689,17 +621,13 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                           t.status === 'Review' ? 'bg-fuchsia-500/15 text-fuchsia-400' :
                           'bg-emerald-500/15 text-emerald-400'
                         }`}>{t.status}</span>
-                        {t.department && (
-                          <span className="text-3xs text-slate-500">{t.department}</span>
-                        )}
-                        {isOverdue && <span className="text-3xs text-rose-400 font-bold">🔴 OVERDUE</span>}
-                        {isDueToday && <span className="text-3xs text-amber-400 font-bold">🟡 DUE TODAY</span>}
+                        {t.department && <span className="text-3xs text-slate-500">{t.department}</span>}
+                        {isOverdue && <span className="text-3xs text-rose-400 font-bold">OVERDUE</span>}
+                        {isDueToday && <span className="text-3xs text-amber-400 font-bold">DUE TODAY</span>}
                       </div>
-                      <h5 className="font-bold text-sm text-slate-200 mt-1">{t.title}</h5>
-                      {t.description && (
-                        <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{t.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 text-3xs text-slate-500 mt-1.5">
+                      <h5 className="font-bold text-xs sm:text-sm text-slate-200">{t.title}</h5>
+                      {t.description && <p className="text-xs text-slate-400 line-clamp-1">{t.description}</p>}
+                      <div className="flex items-center gap-3 text-3xs text-slate-500 flex-wrap">
                         <span>Due: {t.dueDate || '—'}</span>
                         {t.assignedBy && <span>From: {empName(t.assignedBy)}</span>}
                         {t.acknowledgedAt && <span className="text-emerald-400">✓ Seen</span>}
@@ -707,9 +635,8 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                     </div>
 
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {/* Quick comment button */}
                       <button onClick={() => setCommentingTaskId(isCommenting ? null : t.id)}
-                        className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-violet-300 transition relative"
+                        className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-violet-300 transition-colors relative cursor-pointer"
                         title="Quick comment">
                         <MessageSquare className="w-3.5 h-3.5" />
                         {commentsCount > 0 && (
@@ -717,56 +644,53 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                         )}
                       </button>
 
-                      {/* Acknowledge / Seen */}
                       {t.status === 'New' && !t.acknowledgedAt && (
                         <button onClick={() => handleAcknowledge(t.id, 'seen')}
-                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-emerald-300 transition" title="Mark as seen">
+                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-emerald-300 transition-colors cursor-pointer" title="Mark as seen">
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                       )}
 
-                      {/* Status quick actions */}
                       {t.status === 'New' && (
                         <button onClick={() => handleAcknowledge(t.id, 'working')}
-                          className="bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-violet-500/25 transition cursor-pointer whitespace-nowrap">
+                          className="bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-violet-500/25 transition-colors cursor-pointer whitespace-nowrap">
                           Start Work
                         </button>
                       )}
                       {t.status === 'In Progress' && (
                         <button onClick={() => handleUpdateStatus(t.id, 'Review')}
-                          className="bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-fuchsia-500/25 transition cursor-pointer whitespace-nowrap">
-                          Request Review
+                          className="bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-fuchsia-500/25 transition-colors cursor-pointer whitespace-nowrap">
+                          Review
                         </button>
                       )}
                       {t.status === 'Review' && (
                         <button onClick={() => handleUpdateStatus(t.id, 'Completed')}
-                          className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-emerald-500/25 transition cursor-pointer whitespace-nowrap">
-                          Mark Complete
+                          className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-3xs font-bold px-2.5 py-1.5 rounded-lg border border-emerald-500/25 transition-colors cursor-pointer whitespace-nowrap">
+                          Complete
                         </button>
                       )}
                       {t.status === 'New' && (
                         <button onClick={() => handleUpdateStatus(t.id, 'Blocked')}
-                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition" title="Blocked">
+                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer" title="Blocked">
                           <AlertCircle className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* ── Inline quick comment ── */}
                   {isCommenting && (
-                    <div className="mt-3 pt-3 border-t border-slate-800/60 flex gap-2">
+                    <div className="mt-3 pt-3 border-t border-slate-800/60 flex gap-2 animate-fade-in">
                       <input
                         type="text"
                         value={quickComment}
                         onChange={e => setQuickComment(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleQuickComment(t.id); }}
-                        placeholder="Type a quick note or question..."
+                        placeholder="Type a note..."
                         className="flex-1 glass-input p-2 rounded-xl text-xs"
                         autoFocus
                       />
                       <button onClick={() => handleQuickComment(t.id)}
-                        className="bg-violet-600 hover:bg-violet-700 text-white p-2 rounded-xl transition" title="Send">
+                        className="bg-violet-600 hover:bg-violet-700 text-white p-2 rounded-xl transition-colors cursor-pointer" title="Send">
                         <Send className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -778,39 +702,38 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
         )}
       </div>
 
-      {/* ── Reverse cascade: posts ready to publish (§8c) ── */}
       {Object.keys(calendarReady).length > 0 && (
-        <div className="glass-panel p-5 rounded-2xl space-y-3 border border-emerald-500/20">
+        <div className="glass-panel p-4 sm:p-5 rounded-2xl space-y-3 border border-emerald-500/20 animate-fade-in">
           <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
             <CheckSquare className="w-4 h-4" /> Ready to Publish
           </h3>
-          <p className="text-xs text-slate-400">All linked tasks completed — these calendar entries are ready to go live.</p>
+          <p className="text-xs text-slate-400">All linked tasks completed.</p>
           <div className="flex flex-wrap gap-2">
             {Object.keys(calendarReady).map(entryId => {
               const entry = (state.smmCalendar || []).find(e => e.id === entryId);
               if (!entry) return null;
               return (
                 <span key={entryId} className="bg-emerald-500/10 text-emerald-300 text-xs px-3 py-1.5 rounded-xl font-medium">
-                  {entry.title} — {entry.post_date || entry.date}
+                  {entry.title}
                 </span>
               );
             })}
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Manual Time Log entry */}
-        <div className="glass-panel p-6 rounded-2xl space-y-5">
-          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-violet-400" /> Manual Timelog Entry
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
+        <div className="glass-panel p-4 sm:p-6 rounded-2xl space-y-4 sm:space-y-5">
+          <h3 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+            <Plus className="w-5 h-5 text-violet-400" /> Manual Timelog
           </h3>
           <form onSubmit={handleManualLog} className="space-y-4">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Select Task Context</label>
+              <label className="block text-xs text-slate-400 mb-1">Task</label>
               <select
                 value={manualTaskId}
                 onChange={(e) => setManualTaskId(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm"
+                className="w-full glass-input p-3 rounded-xl text-sm min-h-[44px]"
                 required
               >
                 <option value="">-- Choose Task --</option>
@@ -820,56 +743,54 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Hours Spent</label>
+              <label className="block text-xs text-slate-400 mb-1">Hours</label>
               <input
                 type="number"
                 step="0.5"
                 value={manualHours}
                 onChange={(e) => setManualHours(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm"
+                className="w-full glass-input p-3 rounded-xl text-sm min-h-[44px]"
                 placeholder="2.5"
                 min="0.5"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Description of Work</label>
+              <label className="block text-xs text-slate-400 mb-1">Description</label>
               <textarea
                 value={manualDesc}
                 onChange={(e) => setManualDesc(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm h-16"
-                placeholder="Wrote client-specific REST endpoints..."
+                className="w-full glass-input p-3 rounded-xl text-sm min-h-[80px]"
+                placeholder="Describe the work done..."
                 required
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-violet-650 hover:bg-violet-755 py-3 rounded-xl text-sm text-white font-bold transition cursor-pointer"
+              className="w-full bg-violet-650 hover:bg-violet-700 py-3 rounded-xl text-sm text-white font-bold transition-colors cursor-pointer min-h-[44px]"
             >
-              Submit Manual Timelog
+              Submit Timelog
             </button>
           </form>
         </div>
 
-        {/* Timelog History Logs */}
-        <div className="glass-panel p-6 rounded-2xl space-y-4">
-          <h3 className="text-lg font-bold text-slate-100">My Logged Timesheet</h3>
-          
+        <div className="glass-panel p-4 sm:p-6 rounded-2xl space-y-4">
+          <h3 className="text-base sm:text-lg font-bold text-slate-100">My Timesheet</h3>
           <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
             {myLogs.length === 0 ? (
-              <p className="text-slate-400 text-center py-10 text-xs">No logged hours reported yet.</p>
+              <p className="text-slate-400 text-center py-10 text-xs">No logged hours yet.</p>
             ) : (
               myLogs.map(log => {
                 const task = tasks.find(t => t.id === log.taskId);
                 return (
-                  <div key={log.id} className="glass-card p-4 rounded-xl flex items-start justify-between gap-4 border-l-2 border-l-fuchsia-500">
-                    <div className="space-y-1">
-                      <h5 className="font-bold text-xs text-slate-200">{task ? task.title : 'General Work'}</h5>
-                      <p className="text-2xs text-slate-400 line-clamp-1 italic">"{log.description}"</p>
+                  <div key={log.id} className="glass-card p-3 sm:p-4 rounded-xl flex items-start justify-between gap-4 border-l-2 border-l-fuchsia-500">
+                    <div className="space-y-1 min-w-0">
+                      <h5 className="font-bold text-xs text-slate-200 truncate">{task ? task.title : 'General Work'}</h5>
+                      <p className="text-2xs text-slate-400 line-clamp-1 italic truncate">"{log.description}"</p>
                       <p className="text-3xs text-slate-500">{log.date}</p>
                     </div>
-                    <span className="bg-fuchsia-500/10 text-fuchsia-400 text-xs px-2.5 py-1 rounded-xl font-bold font-mono">
-                      {log.hours} Hrs
+                    <span className="bg-fuchsia-500/10 text-fuchsia-400 text-xs px-2.5 py-1 rounded-xl font-bold font-mono flex-shrink-0">
+                      {log.hours}h
                     </span>
                   </div>
                 );

@@ -1,9 +1,5 @@
 import React from 'react';
 
-/**
- * Skeleton — shimmer placeholder for loading states.
- * Use `lines` for a stacked text block, or pass className for a single shape.
- */
 export default function Skeleton({ className = 'h-4 w-full', lines = 1, rounded = 'rounded-lg' }) {
   const base = {
     background:
@@ -29,7 +25,6 @@ export default function Skeleton({ className = 'h-4 w-full', lines = 1, rounded 
   return <div style={base} className={`${rounded} ${className}`} />;
 }
 
-/** A grid of card-shaped skeletons for dashboard loading states. */
 export function SkeletonCards({ count = 4 }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -3,17 +3,6 @@ import { AlertTriangle } from 'lucide-react';
 import Modal from './Modal';
 import Button from './Button';
 
-/**
- * ConfirmDialog — replaces window.confirm with an in-theme modal.
- *
- * Props:
- *   open, onClose
- *   onConfirm: () => void
- *   title, message
- *   confirmLabel (default 'Confirm'), cancelLabel (default 'Cancel')
- *   tone: 'danger' | 'primary'  (confirm button variant; default danger)
- *   loading: boolean
- */
 export default function ConfirmDialog({
   open,
   onClose,
@@ -41,9 +30,9 @@ export default function ConfirmDialog({
         </>
       }
     >
-      <div className="flex gap-4">
+      <div className="flex gap-3 sm:gap-4">
         <div
-          className={`p-3 rounded-xl flex-shrink-0 h-fit ${
+          className={`p-2.5 sm:p-3 rounded-xl flex-shrink-0 h-fit ${
             tone === 'danger'
               ? 'bg-rose-500/15 text-rose-300'
               : 'bg-violet-500/15 text-violet-300'
@@ -51,9 +40,9 @@ export default function ConfirmDialog({
         >
           <AlertTriangle className="w-5 h-5" />
         </div>
-        <div>
-          <h3 className="text-base font-bold text-slate-100">{title}</h3>
-          {message && <p className="text-sm text-slate-400 mt-1">{message}</p>}
+        <div className="min-w-0">
+          <h3 className="text-sm sm:text-base font-bold text-slate-100">{title}</h3>
+          {message && <p className="text-xs sm:text-sm text-slate-400 mt-1">{message}</p>}
         </div>
       </div>
     </Modal>

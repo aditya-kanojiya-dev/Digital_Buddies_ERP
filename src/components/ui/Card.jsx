@@ -1,9 +1,5 @@
 import React from 'react';
 
-/**
- * Card — glass surface container. `interactive` enables the hover lift used by
- * `.glass-card`; otherwise a static panel.
- */
 export default function Card({
   interactive = false,
   as: Tag = 'div',

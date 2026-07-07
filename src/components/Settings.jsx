@@ -6,18 +6,9 @@ import { useToast } from './shared/Toast';
 const SETTINGS_KEY = 'db_erp_settings';
 
 export const loadSettings = () => {
-  try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; }
 };
 
-/**
- * Settings — company profile + workspace preferences. Persisted to
- * localStorage (no dedicated settings table yet); the shape is small and
- * device-local which is appropriate for display/branding prefs.
- */
 export default function Settings({ user, state }) {
   const toast = useToast();
   const saved = loadSettings();
@@ -39,74 +30,56 @@ export default function Settings({ user, state }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
       <PageHeader icon={SettingsIcon} title="Settings" subtitle="Company profile and workspace preferences" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Company profile */}
-        <Card className="p-6 lg:col-span-2 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <Card className="p-4 sm:p-6 lg:col-span-2 space-y-4">
           <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
             <Building2 className="w-4 h-4 text-violet-400" /> Company Profile
           </h3>
-
-          <Field label="Company name">
-            <Input value={company} onChange={(e) => setCompany(e.target.value)} />
-          </Field>
-          <Field label="Tagline">
-            <Input value={tagline} onChange={(e) => setTagline(e.target.value)} />
-          </Field>
-          <Field label="Default currency" hint="Used across invoices, payroll and analytics.">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Company Name" htmlFor="company">
+              <Input id="company" value={company} onChange={e => setCompany(e.target.value)} />
+            </Field>
+            <Field label="Company Tagline" htmlFor="tagline">
+              <Input id="tagline" value={tagline} onChange={e => setTagline(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Default Currency" htmlFor="currency">
             <select
+              id="currency"
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="w-full glass-input rounded-xl px-3.5 py-2.5 text-sm cursor-pointer"
+              onChange={e => setCurrency(e.target.value)}
+              className="w-full glass-input rounded-xl px-3.5 py-2.5 text-sm min-h-[44px]"
             >
-              <option value="INR">INR — Indian Rupee (₹)</option>
-              <option value="USD">USD — US Dollar ($)</option>
-              <option value="EUR">EUR — Euro (€)</option>
-              <option value="GBP">GBP — British Pound (£)</option>
+              <option value="INR">INR (₹)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
             </select>
           </Field>
-
-          <div className="pt-2">
-            <Button icon={Save} onClick={handleSave}>
-              Save Changes
-            </Button>
-          </div>
+          <Button icon={Save} onClick={handleSave}>Save Settings</Button>
         </Card>
 
-        {/* Workspace info */}
-        <div className="space-y-6">
-          <Card className="p-6 space-y-3">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" /> Your Access
-            </h3>
-            <div className="text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Role</span>
-                <span className="font-bold text-violet-300">{user.role}</span>
+        <Card className="p-4 sm:p-6 space-y-4">
+          <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <Database className="w-4 h-4 text-violet-400" /> Data Summary
+          </h3>
+          <div className="space-y-3">
+            {Object.entries(counts).map(([k, v]) => (
+              <div key={k} className="flex justify-between text-sm">
+                <span className="text-slate-400">{k}</span>
+                <span className="text-slate-200 font-bold font-mono">{v}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Department</span>
-                <span className="font-bold text-slate-200">{user.department || '—'}</span>
-              </div>
+            ))}
+          </div>
+          <div className="pt-3 border-t border-slate-800/60">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              {user.role === 'Super Admin' ? 'Full admin access' : `${user.role} access`}
             </div>
-          </Card>
-
-          <Card className="p-6 space-y-3">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Database className="w-4 h-4 text-sky-400" /> Data Summary
-            </h3>
-            <div className="text-xs space-y-2">
-              {Object.entries(counts).map(([label, n]) => (
-                <div key={label} className="flex justify-between">
-                  <span className="text-slate-400">{label}</span>
-                  <span className="font-bold text-slate-200">{n}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

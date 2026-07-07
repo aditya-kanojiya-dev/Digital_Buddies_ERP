@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, Mail, Calendar, Code, Save, Image, Shield, Briefcase } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { useToast } from './shared/Toast';
+import { Button, Card, Field, Input, Textarea } from './ui';
 
 export default function Profile({ user, state, updateState }) {
   const toast = useToast();
@@ -17,9 +18,7 @@ export default function Profile({ user, state, updateState }) {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatar(reader.result);
-      };
+      reader.onloadend = () => setAvatar(reader.result);
       reader.readAsDataURL(file);
     }
   };
@@ -27,7 +26,6 @@ export default function Profile({ user, state, updateState }) {
   const handleSave = (e) => {
     e.preventDefault();
     if (!name) return;
-
     const updatedEmployees = state.employees.map(emp => {
       if (emp.id === user.id) {
         return {
@@ -37,152 +35,90 @@ export default function Profile({ user, state, updateState }) {
           bio: DOMPurify.sanitize(bio),
           skills: DOMPurify.sanitize(skills),
           avatar
-          // password is intentionally excluded — use ChangePassword modal
         };
       }
       return emp;
     });
-
     updateState({ employees: updatedEmployees });
-
-    // Sync session storage profile avatar
     const session = sessionStorage.getItem('neomax_session');
     if (session) {
       try {
-        const u = JSON.parse(session);
-        u.name = DOMPurify.sanitize(name);
-        u.avatar = avatar;
-        sessionStorage.setItem('neomax_session', JSON.stringify(u));
-      } catch (err) {
-        console.error(err);
-      }
+        const s = JSON.parse(session);
+        s.user.name = name;
+        s.user.avatar = avatar;
+        sessionStorage.setItem('neomax_session', JSON.stringify(s));
+      } catch {}
     }
-
-    toast.success('Profile saved.');
+    toast.success('Profile updated');
   };
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
-      {/* Header Profile Cover card */}
-      <div className="glass-panel p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6 relative overflow-hidden border border-violet-500/10">
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-violet-600/10 rounded-full blur-3xl" />
-
-        {/* Avatar Upload Frame */}
-        <div className="relative group">
-          <div className="w-24 h-24 rounded-full bg-violet-600/20 border-2 border-violet-500/30 flex items-center justify-center overflow-hidden">
-            {avatar ? (
-              <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-3xl font-bold text-violet-400">{name.charAt(0)}</span>
-            )}
-          </div>
-          <label className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition duration-200">
-            <Image className="w-5 h-5 text-white" />
-            <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-          </label>
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
+      <div className="flex items-center gap-3 mb-5 sm:mb-6">
+        <div className="bg-neon-gradient p-2.5 rounded-xl text-white shadow-lg shadow-fuchsia-600/20">
+          <User className="w-5 h-5" />
         </div>
-
-        <div className="text-center md:text-left space-y-1">
-          <div className="flex flex-wrap justify-center md:justify-start items-center gap-2">
-            <h2 className="text-2xl font-bold text-slate-100">{name}</h2>
-            <span className="bg-violet-500/10 border border-violet-500/20 text-violet-400 text-3xs px-2.5 py-0.5 rounded-full font-bold uppercase font-mono">
-              {employee?.role || 'Employee'}
-            </span>
-          </div>
-          <p className="text-sm text-slate-400">{employee?.designation || 'Specialist'}</p>
-          <p className="text-xs text-slate-500">{employee?.department} Department</p>
+        <div>
+          <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-100">My Profile</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Manage your personal information</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Profile details form - Left */}
-        <div className="glass-panel p-6 rounded-2xl md:col-span-2 space-y-6">
-          <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-            <User className="w-5 h-5 text-violet-450" /> Personal Biography
-          </h3>
-          <form onSubmit={handleSave} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Contact Phone</label>
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  placeholder="+91 99999 99999"
-                />
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <Card className="p-4 sm:p-6 space-y-5">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-violet-650 flex items-center justify-center text-white font-bold text-2xl overflow-hidden mb-4 border-2 border-violet-500/30">
+              {avatar ? (
+                <img src={avatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                (user.name || 'U').charAt(0).toUpperCase()
+              )}
             </div>
+            <label className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-4 py-2 rounded-xl cursor-pointer transition-colors inline-flex items-center gap-2">
+              <Image className="w-4 h-4" /> Upload Photo
+              <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+            </label>
+          </div>
 
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Personal Bio</label>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm h-28"
-                placeholder="Tell us about yourself..."
-              />
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2 text-slate-400">
+              <Mail className="w-4 h-4" /> {user.email}
             </div>
-
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Key Skills (Comma separated)</label>
-              <textarea
-                value={skills}
-                onChange={(e) => setSkills(e.target.value)}
-                className="w-full glass-input p-3 rounded-xl text-sm h-16"
-                placeholder="React, CSS, Brand Consulting..."
-              />
+            <div className="flex items-center gap-2 text-slate-400">
+              <Briefcase className="w-4 h-4" /> {employee?.designation || '—'}
             </div>
-
-            {/* Password changes are handled exclusively via the ChangePassword modal */}
-            <p className="text-2xs text-slate-500 border-t border-slate-900 pt-4">
-              To change your password, use the <span className="text-violet-400 font-semibold">Change Password</span> option from your account menu.
-            </p>
-
-            <button
-              type="submit"
-              className="bg-neon-gradient hover:opacity-95 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition duration-205 cursor-pointer shadow-md"
-            >
-              <Save className="w-4 h-4" /> Save Workspace Profile
-            </button>
-          </form>
-        </div>
-
-        {/* Account Info details card - Right */}
-        <div className="glass-panel p-6 rounded-2xl space-y-6 md:col-span-1">
-          <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-fuchsia-450" /> System Details
-          </h3>
-
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center justify-between py-2 border-b border-slate-900">
-              <span className="text-slate-400 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Email</span>
-              <span className="text-slate-200 font-mono">{employee?.email}</span>
+            <div className="flex items-center gap-2 text-slate-400">
+              <Calendar className="w-4 h-4" /> Joined {employee?.joinDate || '—'}
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-slate-900">
-              <span className="text-slate-400 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Hired Date</span>
-              <span className="text-slate-200">{employee?.joinDate}</span>
+            <div className="flex items-center gap-2 text-slate-400">
+              <Code className="w-4 h-4" /> {employee?.department || '—'}
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-slate-900">
-              <span className="text-slate-400 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5" /> Designation</span>
-              <span className="text-slate-200">{employee?.designation}</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-slate-400 flex items-center gap-1.5"><Code className="w-3.5 h-3.5" /> Dept</span>
-              <span className="text-slate-200">{employee?.department}</span>
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-violet-400" />
+              <span className="text-xs font-bold text-violet-300 bg-violet-500/15 px-2 py-0.5 rounded-full">{user.role}</span>
             </div>
           </div>
-        </div>
+        </Card>
+
+        <Card className="p-4 sm:p-6 lg:col-span-2">
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Full Name" htmlFor="pname" required>
+                <Input id="pname" value={name} onChange={e => setName(e.target.value)} required />
+              </Field>
+              <Field label="Phone" htmlFor="pphone">
+                <Input id="pphone" value={phone} onChange={e => setPhone(e.target.value)} />
+              </Field>
+            </div>
+            <Field label="Bio" htmlFor="pbio">
+              <Textarea id="pbio" value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Tell us about yourself..." />
+            </Field>
+            <Field label="Skills" htmlFor="pskills" hint="Comma-separated list of your skills">
+              <Input id="pskills" value={skills} onChange={e => setSkills(e.target.value)} placeholder="React, Design, Marketing..." />
+            </Field>
+            <Button type="submit" icon={Save}>Save Profile</Button>
+          </form>
+        </Card>
       </div>
     </div>
   );

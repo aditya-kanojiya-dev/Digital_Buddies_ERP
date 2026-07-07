@@ -1,9 +1,5 @@
 import React from 'react';
 
-/**
- * Badge — small status pill. `tone` maps to a color set; pass `dot` for a
- * leading status dot.
- */
 const TONES = {
   violet: 'bg-violet-500/15 text-violet-300 border-violet-500/25',
   emerald: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25',

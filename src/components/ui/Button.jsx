@@ -1,20 +1,10 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-/**
- * Button — variant + size wrapper over the `.btn` helper classes.
- *
- * Props:
- *   variant: 'primary' | 'secondary' | 'ghost' | 'danger'  (default primary)
- *   size:    'sm' | 'md' | 'lg'                             (default md)
- *   loading: boolean   — shows spinner, disables interaction
- *   icon:    LucideIcon component (rendered before children)
- *   as:      element/component override (e.g. 'a')
- */
 const SIZES = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2.5 text-sm',
-  lg: 'px-5 py-3 text-sm',
+  sm: 'px-3 py-1.5 text-xs min-h-[32px]',
+  md: 'px-4 py-2.5 text-sm min-h-[40px]',
+  lg: 'px-5 py-3 text-sm min-h-[48px]',
 };
 
 const ICON_SIZES = { sm: 'w-3.5 h-3.5', md: 'w-4 h-4', lg: 'w-4 h-4' };
@@ -44,7 +34,7 @@ export default function Button({
       ) : (
         Icon && <Icon className={iconCls} />
       )}
-      {children}
+      {children && <span>{children}</span>}
     </Tag>
   );
 }

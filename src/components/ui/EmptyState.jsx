@@ -1,14 +1,6 @@
 import React from 'react';
 import { Inbox } from 'lucide-react';
 
-/**
- * EmptyState — friendly placeholder for empty lists/sections.
- *
- * Props:
- *   icon: LucideIcon (default Inbox)
- *   title, message
- *   action: node (e.g. a "Create" button)
- */
 export default function EmptyState({
   icon: Icon = Inbox,
   title = 'Nothing here yet',
@@ -18,10 +10,10 @@ export default function EmptyState({
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center py-12 px-6 ${className}`}
+      className={`flex flex-col items-center justify-center text-center py-10 sm:py-12 px-4 sm:px-6 ${className}`}
     >
-      <div className="p-4 rounded-2xl bg-violet-500/10 text-violet-300 mb-4">
-        <Icon className="w-7 h-7" />
+      <div className="p-3 sm:p-4 rounded-2xl bg-violet-500/10 text-violet-300 mb-4">
+        <Icon className="w-6 h-6 sm:w-7 sm:h-7" />
       </div>
       <h4 className="text-sm font-bold text-slate-200">{title}</h4>
       {message && (

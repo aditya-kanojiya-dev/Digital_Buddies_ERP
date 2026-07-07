@@ -1,19 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
-/**
- * Modal — replaces the repeated `fixed inset-0 … bg-black/75 backdrop-blur`
- * overlay pattern. Esc-to-close, overlay-click close, body scroll-lock, and a
- * focus trap for accessibility.
- *
- * Props:
- *   open: boolean
- *   onClose: () => void
- *   title, subtitle: header content (optional)
- *   size: 'sm' | 'md' | 'lg' | 'xl'   (default md)
- *   footer: node rendered in a sticky footer (optional)
- *   closeOnOverlay: boolean (default true)
- */
 const SIZES = {
   sm: 'max-w-md',
   md: 'max-w-xl',
@@ -41,11 +28,9 @@ export default function Modal({
     };
     document.addEventListener('keydown', onKey);
 
-    // Lock background scroll while open.
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    // Move focus into the panel.
     panelRef.current?.focus();
 
     return () => {
@@ -74,20 +59,20 @@ export default function Modal({
         } max-h-[90vh] flex flex-col shadow-2xl animate-modal-pop outline-none`}
       >
         {(title || onClose) && (
-          <div className="flex items-start justify-between gap-4 p-6 border-b border-violet-500/10">
-            <div>
+          <div className="flex items-start justify-between gap-4 p-4 sm:p-6 border-b border-violet-500/10">
+            <div className="min-w-0">
               {title && (
-                <h3 className="text-lg font-bold text-slate-100 tracking-tight">
+                <h3 className="text-base sm:text-lg font-bold text-slate-100 tracking-tight truncate">
                   {title}
                 </h3>
               )}
               {subtitle && (
-                <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+                <p className="text-xs text-slate-400 mt-0.5 truncate">{subtitle}</p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="text-slate-500 hover:text-slate-200 transition p-1 -m-1 rounded-lg flex-shrink-0"
+              className="text-slate-500 hover:text-slate-200 transition p-1 -m-1 rounded-lg flex-shrink-0 cursor-pointer"
               aria-label="Close dialog"
             >
               <X className="w-5 h-5" />
@@ -95,10 +80,10 @@ export default function Modal({
           </div>
         )}
 
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">{children}</div>
 
         {footer && (
-          <div className="p-4 px-6 border-t border-violet-500/10 flex items-center justify-end gap-3">
+          <div className="p-4 px-4 sm:px-6 border-t border-violet-500/10 flex items-center justify-end gap-3 flex-wrap">
             {footer}
           </div>
         )}

@@ -24,20 +24,6 @@ const TYPE_COLORS = {
 
 const FILTER_TYPES = ['all', 'unread', 'assignment', 'ping', 'comment', 'deadline-overdue', 'deadline-today', 'deadline-24h'];
 
-/**
- * NotificationsCenter — full notifications page.
- *
- * - All / Unread / Type filter chips
- * - Individual mark-read
- * - "Open source" button → calls onNotifNavigate(n) which App.jsx routes
- * - Mark all read
- *
- * Props:
- *   state:           full app state
- *   updateState:     from App.jsx
- *   user:            session user
- *   onNotifNavigate: (n) => void  — App.jsx's resolver
- */
 export default function NotificationsCenter({ state, updateState, user, onNotifNavigate }) {
     const toast = useToast();
     const [filter, setFilter] = useState('all');
@@ -76,30 +62,28 @@ export default function NotificationsCenter({ state, updateState, user, onNotifN
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-5 sm:space-y-6 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2">
-                        <Bell className="w-6 h-6 text-violet-400" /> Notifications Center
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2">
+                        <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" /> Notifications
                     </h2>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-xs sm:text-sm text-slate-400">
                         {unreadCount} unread of {myNotifs.length} total
                     </p>
                 </div>
                 <button
                     onClick={handleMarkAll}
                     disabled={unreadCount === 0}
-                    className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition cursor-pointer"
+                    className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
                 >
                     <CheckCheck className="w-4 h-4 text-emerald-400" /> Mark all read
                 </button>
             </div>
 
-            {/* Filter chips */}
             <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-3xs uppercase text-slate-500 tracking-wider flex items-center gap-1.5 mr-1">
-                    <Filter className="w-3.5 h-3.5" /> Filter
+                    <Filter className="w-3.5 h-3.5" />
                 </span>
                 {FILTER_TYPES.map(f => {
                     const count = f === 'all' ? myNotifs.length
@@ -109,7 +93,7 @@ export default function NotificationsCenter({ state, updateState, user, onNotifN
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-3 py-1.5 rounded-lg text-3xs font-bold uppercase tracking-wider transition ${
+                            className={`px-3 py-1.5 rounded-lg text-3xs font-bold uppercase tracking-wider transition-all duration-150 ${
                                 filter === f
                                     ? 'bg-violet-600 text-white border border-violet-600'
                                     : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
@@ -121,14 +105,13 @@ export default function NotificationsCenter({ state, updateState, user, onNotifN
                 })}
             </div>
 
-            {/* List */}
-            <div className="glass-panel p-6 rounded-2xl space-y-3">
+            <div className="glass-panel p-4 sm:p-6 rounded-2xl space-y-3">
                 {filtered.length === 0 ? (
-                    <div className="text-center py-12 space-y-2">
-                        <BellOff className="w-10 h-10 text-slate-600 mx-auto" />
-                        <p className="text-slate-500 text-sm">
+                    <div className="text-center py-10 sm:py-12 space-y-2">
+                        <BellOff className="w-8 h-8 sm:w-10 sm:h-10 text-slate-600 mx-auto" />
+                        <p className="text-slate-500 text-xs sm:text-sm">
                             {filter === 'unread'
-                                ? 'No unread notifications — you\'re all caught up.'
+                                ? 'No unread notifications.'
                                 : 'No notifications matching this filter.'}
                         </p>
                     </div>
@@ -141,44 +124,39 @@ export default function NotificationsCenter({ state, updateState, user, onNotifN
                             return (
                                 <div
                                     key={n.id}
-                                    className={`p-4 rounded-xl flex items-start gap-4 border ${
+                                    className={`p-3 sm:p-4 rounded-xl flex items-start gap-3 sm:gap-4 border ${
                                         n.read
                                             ? 'bg-slate-950/30 border-slate-900'
                                             : 'bg-violet-650/8 border-violet-500/20'
                                     }`}
                                 >
-                                    {/* Unread dot */}
-                                    <span className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${n.read ? 'bg-slate-700' : 'bg-violet-400 animate-pulse'}`} />
+                                    <span className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${n.read ? 'bg-slate-700' : 'bg-violet-400'}`} />
 
-                                    {/* Body */}
                                     <div className="flex-1 min-w-0 space-y-1">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <span className={`text-3xs px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${typeClass}`}>
                                                 {typeLabel}
                                             </span>
-                                            <span className="text-3xs text-slate-500 font-mono">
-                                                {n.timestamp}
-                                            </span>
+                                            <span className="text-3xs text-slate-500 font-mono">{n.timestamp}</span>
                                         </div>
-                                        <p className={`text-sm ${n.read ? 'text-slate-400' : 'text-slate-200'}`}>
+                                        <p className={`text-xs sm:text-sm ${n.read ? 'text-slate-400' : 'text-slate-200'}`}>
                                             {n.message}
                                         </p>
                                     </div>
 
-                                    {/* Actions */}
                                     <div className="flex flex-col gap-1.5 flex-shrink-0">
                                         <button
                                             onClick={() => handleOpen(n)}
-                                            className="bg-violet-600 hover:bg-violet-500 text-white px-2.5 py-1 rounded-lg text-3xs font-bold flex items-center gap-1 transition"
+                                            className="bg-violet-600 hover:bg-violet-500 text-white px-2.5 py-1 rounded-lg text-3xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                         >
                                             Open <ArrowRight className="w-3 h-3" />
                                         </button>
                                         {!n.read && (
                                             <button
                                                 onClick={() => handleMarkOne(n.id)}
-                                                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg text-3xs font-semibold flex items-center gap-1 transition"
+                                                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg text-3xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                                             >
-                                                <Check className="w-3 h-3" /> Mark read
+                                                <Check className="w-3 h-3" /> Read
                                             </button>
                                         )}
                                     </div>

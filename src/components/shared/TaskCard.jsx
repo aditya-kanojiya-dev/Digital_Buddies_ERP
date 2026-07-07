@@ -4,24 +4,6 @@ import DeadlineBadge from './DeadlineBadge';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
-/**
- * TaskCard — single source of truth for how a task renders across the app.
- *
- * Used by:
- *   - ManagerDashboard (with renderActions for ping/reassign)
- *   - Dashboard       (employee self-view)
- *   - Departments/*   (each department's task feed)
- *
- * Props:
- *   task:           the row from `state.tasks`
- *   assignee:       employee row (looked up from state.employees by parent)
- *   commentsCount:  number — pre-computed by parent to avoid re-walking state on every render
- *   currentUser:    session user (we don't gate on this here; parent decides what to show)
- *   viewMode:       'manager' | 'employee' | 'department' — only tweaks the default action surface
- *   onStatusChange: (taskId, nextStatus) => void
- *   onOpenDetail:   (task) => void
- *   renderActions:  optional (task) => ReactNode — for ManagerDashboard's ping/reassign compose boxes
- */
 export default function TaskCard({
     task,
     assignee,
@@ -50,12 +32,10 @@ export default function TaskCard({
     const STATUS_PIPELINE = ['New', 'In Progress', 'Review', 'Completed'];
 
     return (
-        <div className={`glass-card p-5 rounded-2xl flex flex-col gap-3 border-l-4 ${borderColor}`}>
-
-            {/* ── Header ── */}
+        <div className={`glass-card p-4 sm:p-5 rounded-2xl flex flex-col gap-3 border-l-4 ${borderColor}`}>
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
                 <div className="space-y-1.5 flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                         <span className={`text-3xs px-2 py-0.5 rounded font-mono font-semibold ${statusBadgeColor}`}>
                             {task.status}
                         </span>
@@ -75,7 +55,6 @@ export default function TaskCard({
                         </span>
                         {task.scheduledDate && (
                             <span className="text-3xs text-violet-400 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
                                 Prior: {task.scheduledDate}
                             </span>
                         )}
@@ -86,7 +65,7 @@ export default function TaskCard({
                         onClick={() => onOpenDetail?.(task)}
                         className="block text-left w-full"
                     >
-                        <h4 className="font-bold text-sm text-slate-100 hover:text-violet-300 transition">{task.title}</h4>
+                        <h4 className="font-bold text-xs sm:text-sm text-slate-100 hover:text-violet-300 transition-colors">{task.title}</h4>
                     </button>
 
                     {task.description && (
@@ -102,24 +81,23 @@ export default function TaskCard({
                         )}
                         {commentsCount > 0 && (
                             <span className="flex items-center gap-1 text-violet-400 font-semibold">
-                                <MessageSquare className="w-3 h-3" /> {commentsCount} comment{commentsCount > 1 ? 's' : ''}
+                                <MessageSquare className="w-3 h-3" /> {commentsCount}c
                             </span>
                         )}
                         {task.pinged > 0 && (
                             <span className="text-amber-400 font-bold">
-                                · {task.pinged} ping{task.pinged > 1 ? 's' : ''} sent
+                                · {task.pinged} ping{task.pinged > 1 ? 's' : ''}
                             </span>
                         )}
                     </div>
                 </div>
 
-                {/* ── Action buttons (employee view) ── */}
                 {viewMode === 'employee' && !isCompleted && !renderActions && (
                     <div className="flex flex-wrap gap-1.5 flex-shrink-0">
                         {task.status === 'New' || task.status === 'Assigned' ? (
                             <button
                                 onClick={() => onStatusChange?.(task.id, 'In Progress')}
-                                className="bg-violet-600/20 hover:bg-violet-650/40 text-violet-400 px-2.5 py-1 rounded-lg border border-violet-500/25 transition cursor-pointer font-bold text-3xs"
+                                className="bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 px-2.5 py-1 rounded-lg border border-violet-500/25 transition-colors cursor-pointer font-bold text-3xs"
                             >
                                 Start Work
                             </button>
@@ -127,30 +105,30 @@ export default function TaskCard({
                         {task.status === 'In Progress' && (
                             <button
                                 onClick={() => onStatusChange?.(task.id, 'Review')}
-                                className="bg-fuchsia-600/20 hover:bg-fuchsia-650/40 text-fuchsia-400 px-2.5 py-1 rounded-lg border border-fuchsia-500/25 transition cursor-pointer font-bold text-3xs"
+                                className="bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 px-2.5 py-1 rounded-lg border border-fuchsia-500/25 transition-colors cursor-pointer font-bold text-3xs"
                             >
-                                Request Review
+                                Review
                             </button>
                         )}
                         {task.status === 'Review' && (
                             <button
                                 onClick={() => onStatusChange?.(task.id, 'Completed')}
-                                className="bg-emerald-600/20 hover:bg-emerald-650/40 text-emerald-400 px-2.5 py-1 rounded-lg border border-emerald-500/25 transition cursor-pointer font-bold text-3xs"
+                                className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-2.5 py-1 rounded-lg border border-emerald-500/25 transition-colors cursor-pointer font-bold text-3xs"
                             >
-                                Mark Done
+                                Done
                             </button>
                         )}
                         {!STATUS_PIPELINE.includes(task.status) && task.status !== 'Blocked' && (
                             <button
                                 onClick={() => onStatusChange?.(task.id, 'In Progress')}
-                                className="bg-blue-600/20 hover:bg-blue-650/40 text-blue-400 px-2.5 py-1 rounded-lg border border-blue-500/25 transition cursor-pointer font-bold text-3xs"
+                                className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2.5 py-1 rounded-lg border border-blue-500/25 transition-colors cursor-pointer font-bold text-3xs"
                             >
                                 In Progress
                             </button>
                         )}
                         <button
                             onClick={() => onStatusChange?.(task.id, 'Completed')}
-                            className="bg-emerald-600/20 hover:bg-emerald-650/40 text-emerald-400 px-2.5 py-1 rounded-lg border border-emerald-500/25 transition cursor-pointer font-bold text-3xs"
+                            className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-2.5 py-1 rounded-lg border border-emerald-500/25 transition-colors cursor-pointer font-bold text-3xs"
                         >
                             Complete
                         </button>
@@ -164,17 +142,15 @@ export default function TaskCard({
                 )}
             </div>
 
-            {/* ── Manager or department render slot ── */}
             {renderActions && renderActions(task)}
 
-            {/* ── WhatsApp asset sharing & submission ── */}
             <div className="flex gap-2 pt-1">
                 <a
                     href={`https://wa.me/?text=${encodeURIComponent(
                         `📎 *Asset Request - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease share the required assets/content for this task.`
                     )}`}
                     target="_blank" rel="noopener noreferrer"
-                    className="flex-1 bg-green-600/10 hover:bg-green-600/20 text-green-400 text-3xs font-semibold py-2 rounded-lg border border-green-500/15 transition flex items-center justify-center gap-1.5"
+                    className="flex-1 bg-green-600/10 hover:bg-green-600/20 text-green-400 text-3xs font-semibold py-2 rounded-lg border border-green-500/15 transition-colors flex items-center justify-center gap-1.5"
                 >
                     <Send className="w-3.5 h-3.5" /> Share Assets
                 </a>
@@ -184,9 +160,9 @@ export default function TaskCard({
                             `✅ *Submission - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nWork has been completed. Please find the deliverables attached.`
                         )}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-3xs font-semibold py-2 rounded-lg border border-emerald-500/15 transition flex items-center justify-center gap-1.5"
+                        className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-3xs font-semibold py-2 rounded-lg border border-emerald-500/15 transition-colors flex items-center justify-center gap-1.5"
                     >
-                        Submit on WhatsApp
+                        Submit via WhatsApp
                     </a>
                 )}
             </div>

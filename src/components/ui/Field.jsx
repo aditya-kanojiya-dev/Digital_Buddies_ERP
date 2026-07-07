@@ -1,11 +1,5 @@
 import React from 'react';
 
-/**
- * Form primitives wrapping the `.glass-input` style with a consistent
- * label + error layout. Field is the labelled wrapper; Input/Textarea/Select
- * are the controls.
- */
-
 export function Field({ label, error, hint, required, htmlFor, children, className = '' }) {
   return (
     <div className={className}>
@@ -20,7 +14,7 @@ export function Field({ label, error, hint, required, htmlFor, children, classNa
       )}
       {children}
       {error ? (
-        <p className="text-[0.7rem] text-rose-400 mt-1">{error}</p>
+        <p className="text-[0.7rem] text-rose-400 mt-1.5 flex items-center gap-1">{error}</p>
       ) : hint ? (
         <p className="text-[0.7rem] text-slate-500 mt-1">{hint}</p>
       ) : null}
@@ -29,7 +23,7 @@ export function Field({ label, error, hint, required, htmlFor, children, classNa
 }
 
 const baseControl =
-  'w-full glass-input rounded-xl px-3.5 py-2.5 text-sm placeholder:text-slate-600 disabled:opacity-50';
+  'w-full glass-input rounded-xl px-3.5 py-2.5 text-sm placeholder:text-slate-600 disabled:opacity-50 min-h-[44px]';
 const errorRing = 'border-rose-500/50 focus:border-rose-500/60';
 
 export function Input({ error, className = '', ...rest }) {

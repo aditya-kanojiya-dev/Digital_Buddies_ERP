@@ -1,18 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
-/**
- * StatCard — KPI tile with icon, value, label and optional trend / sparkline.
- *
- * Props:
- *   icon: LucideIcon
- *   label, value: primary content
- *   tone: accent color for the icon chip (violet|emerald|amber|rose|sky)
- *   trend: number (+/-) → shows up/down delta
- *   trendLabel: string under the trend
- *   onClick: makes the card interactive
- *   children: optional footer (e.g. a <Sparkline/>)
- */
 const TONES = {
   violet: 'bg-violet-500/15 text-violet-300',
   emerald: 'bg-emerald-500/15 text-emerald-300',
@@ -39,20 +27,20 @@ export default function StatCard({
   return (
     <div
       onClick={onClick}
-      className={`glass-card rounded-2xl p-5 ${
+      className={`glass-card rounded-2xl p-4 sm:p-5 ${
         onClick ? 'cursor-pointer' : ''
       } ${className}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-slate-400 truncate">{label}</p>
-          <p className="text-2xl font-extrabold text-slate-100 mt-1 tracking-tight">
+          <p className="text-xl sm:text-2xl font-extrabold text-slate-100 mt-1 tracking-tight">
             {value}
           </p>
         </div>
         {Icon && (
-          <div className={`p-2.5 rounded-xl flex-shrink-0 ${TONES[tone] || TONES.violet}`}>
-            <Icon className="w-5 h-5" />
+          <div className={`p-2 sm:p-2.5 rounded-xl flex-shrink-0 ${TONES[tone] || TONES.violet}`}>
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         )}
       </div>
