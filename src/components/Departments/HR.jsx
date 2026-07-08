@@ -43,6 +43,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   const [candName, setCandName] = useState('');
   const [candPos, setCandPos] = useState('');
   const [candDate, setCandDate] = useState('');
+  const [candTime, setCandTime] = useState('10:00');
   const [candInterviewer, setCandInterviewer] = useState('');
   const [candLink, setCandLink] = useState('');
 
@@ -76,6 +77,13 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
 
   // Pay slip modal state
   const [selectedPayslipEmp, setSelectedPayslipEmp] = useState(null);
+
+  // Escrow & Operations local state
+  const [escrows, setEscrows] = useState([]);
+  const [escrowOpen, setEscrowOpen] = useState(false);
+  const [escrowName, setEscrowName] = useState('');
+  const [escrowAmount, setEscrowAmount] = useState('');
+  const [newOpsText, setNewOpsText] = useState('');
 
   // -------------------------
   // EMPLOYEE CRUD & INVITATION FUNCTIONS
@@ -225,20 +233,30 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     setEmpManagerId(emp.managerId || '');
   };
 
-  const handleDeleteEmployee = (id) => {
+  const handleDeleteEmployee = async (id) => {
     if (window.confirm('Are you sure you want to terminate this employee profile?')) {
-      const updated = employees.filter(emp => emp.id !== id);
-      updateState({ employees: updated });
+      try {
+        await db.deleteEmployee(id);
+        const updated = employees.filter(emp => emp.id !== id);
+        updateState({ employees: updated });
+        toast.success('Employee terminated.');
+      } catch (err) {
+        toast.error(`Could not terminate: ${err.message}`);
+      }
     }
   };
 
-  const handleToggleSuspend = (emp) => {
+  const handleToggleSuspend = async (emp) => {
     const nextStatus = emp.status === 'Suspended' ? 'Active' : 'Suspended';
     if (!window.confirm(`Are you sure you want to change status to ${nextStatus} for ${emp.name}?`)) return;
-
-    const updated = employees.map(e => e.id === emp.id ? { ...e, status: nextStatus } : e);
-    updateState({ employees: updated });
-    toast.success(`Employee status updated to ${nextStatus}`);
+    try {
+      await db.updateEmployee(emp.id, { status: nextStatus });
+      const updated = employees.map(e => e.id === emp.id ? { ...e, status: nextStatus } : e);
+      updateState({ employees: updated });
+      toast.success(`Employee status updated to ${nextStatus}`);
+    } catch (err) {
+      toast.error(`Could not update status: ${err.message}`);
+    }
   };
 
   const handleResendInvite = async (emp) => {
@@ -410,11 +428,13 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     e.preventDefault();
     if (!candName || !candPos || !candDate) return;
 
+    const dateTime = candDate + 'T' + (candTime || '10:00') + ':00';
+
     const newInt = {
       id: `INT${Date.now()}`,
       candidateName: candName,
       position: candPos,
-      date: candDate,
+      date: dateTime,
       interviewerId: candInterviewer || 'EMP01',
       status: 'Scheduled',
       link: candLink || 'https://meet.google.com'
@@ -425,6 +445,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     setCandName('');
     setCandPos('');
     setCandDate('');
+    setCandTime('10:00');
     setCandLink('');
   };
 
@@ -604,6 +625,42 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     a.download = `HR_Audit_Timelog_Report.csv`;
     a.click();
     toast.success('Report downloaded.');
+  };
+
+  // ── Escrow handlers ────────────────────────────────────────────────────
+  const handleAddEscrow = (e) => {
+    e.preventDefault();
+    if (!escrowName || !escrowAmount) return;
+    setEscrows(prev => [...prev, {
+      id: `ESC${Date.now()}`,
+      name: escrowName.trim(),
+      amount: parseFloat(escrowAmount),
+      status: 'Pending'
+    }]);
+    setEscrowName('');
+    setEscrowAmount('');
+    setEscrowOpen(false);
+    toast.success('Escrow entry added');
+  };
+
+  const handleToggleEscrow = (id) => {
+    setEscrows(prev => prev.map(e =>
+      e.id === id ? { ...e, status: e.status === 'Verified' ? 'Pending' : 'Verified' } : e
+    ));
+  };
+
+  // ── Daily Ops handler ──────────────────────────────────────────────────
+  const handleAddOps = (e) => {
+    e.preventDefault();
+    if (!newOpsText.trim()) return;
+    const newOps = {
+      id: `OPS${Date.now()}`,
+      task: newOpsText.trim(),
+      status: 'Pending'
+    };
+    updateState({ dailyOps: [...dailyOps, newOps] });
+    setNewOpsText('');
+    toast.success('Operation task added');
   };
 
   return (
@@ -1015,18 +1072,22 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   </select>
                 </div>
                 <div>
-                  <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Report Manager</label>
-                  <select
-                    value={empManagerId}
-                    onChange={(e) => setEmpManagerId(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs"
-                  >
-                    <option value="">-- Choose Manager --</option>
-                    {employees.filter(e => e.role === 'Manager' || e.role === 'Super Admin').map(mgr => (
-                      <option key={mgr.id} value={mgr.id}>{mgr.name} ({mgr.id})</option>
-                    ))}
-                  </select>
+                  <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Join Date</label>
+                  <DatePicker value={empHire} onChange={setEmpHire} />
                 </div>
+              </div>
+              <div>
+                <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Report Manager</label>
+                <select
+                  value={empManagerId}
+                  onChange={(e) => setEmpManagerId(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-xs"
+                >
+                  <option value="">-- Choose Manager --</option>
+                  {employees.filter(e => e.role === 'Manager' || e.role === 'Super Admin').map(mgr => (
+                    <option key={mgr.id} value={mgr.id}>{mgr.name} ({mgr.id})</option>
+                  ))}
+                </select>
               </div>
               
               <button
@@ -1594,27 +1655,32 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Interview Date & Time</label>
+                  <label className="block text-xs text-slate-400 mb-1">Interview Date</label>
+                  <DatePicker value={candDate} onChange={setCandDate} placeholderText="Select date" required />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Time</label>
                   <input
-                    type="datetime-local"
-                    value={candDate}
-                    onChange={(e) => setCandDate(e.target.value)}
+                    type="time"
+                    value={candTime}
+                    onChange={(e) => setCandTime(e.target.value)}
                     className="w-full glass-input p-3 rounded-xl text-xs"
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Assigned Interviewer</label>
-                  <select
-                    value={candInterviewer}
-                    onChange={(e) => setCandInterviewer(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs"
-                  >
-                    {employees.map(e => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select>
-                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Assigned Interviewer</label>
+                <select
+                  value={candInterviewer}
+                  onChange={(e) => setCandInterviewer(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-xs"
+                >
+                  <option value="">-- Select Interviewer --</option>
+                  {employees.map(e => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Virtual Meeting Link</label>
@@ -1762,44 +1828,70 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       {activeSubTab === 'security' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:hidden">
           <div className="glass-panel p-6 rounded-2xl space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Payment Security & Escrows</h3>
-            
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-100">Payment Security & Escrows</h3>
+              <button onClick={() => setEscrowOpen(true)}
+                className="p-1.5 hover:bg-fuchsia-500/15 rounded text-fuchsia-400 transition cursor-pointer" title="Add Escrow">
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+
+            {escrowOpen && (
+              <form onSubmit={handleAddEscrow} className="glass-card p-4 rounded-xl space-y-3 border border-fuchsia-500/20">
+                <input type="text" value={escrowName} onChange={e => setEscrowName(e.target.value)}
+                  className="w-full glass-input p-2.5 rounded-xl text-xs" placeholder="Project / Milestone name" required />
+                <div className="flex gap-2">
+                  <input type="number" value={escrowAmount} onChange={e => setEscrowAmount(e.target.value)}
+                    className="flex-1 glass-input p-2.5 rounded-xl text-xs font-mono" placeholder="Amount (₹)" required />
+                  <button type="submit" className="bg-fuchsia-600 hover:bg-fuchsia-700 px-3 rounded-xl text-xs font-bold text-white transition cursor-pointer">Add</button>
+                  <button type="button" onClick={() => setEscrowOpen(false)} className="bg-slate-800 hover:bg-slate-700 px-3 rounded-xl text-xs text-slate-300 transition cursor-pointer">Cancel</button>
+                </div>
+              </form>
+            )}
+
             <div className="space-y-4">
-              <div className="glass-card p-4 rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-sm text-slate-200">Horizon Tech Portal Milestone 1</div>
-                  <div className="text-xs text-slate-400">Budget Escrow: ₹1,50,000</div>
+              {escrows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-slate-800/60 rounded-xl">
+                  <ShieldCheck className="w-8 h-8 text-slate-600 mb-2" />
+                  <p className="text-xs text-slate-500">No escrow entries yet.</p>
                 </div>
-                <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-medium">
-                  Verified
-                </span>
-              </div>
-              <div className="glass-card p-4 rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-sm text-slate-200">Aura Cosmetics Ad budget Retainer</div>
-                  <div className="text-xs text-slate-400">Budget Escrow: ₹1,20,000</div>
+              ) : escrows.map(esc => (
+                <div key={esc.id} className="glass-card p-4 rounded-xl flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-sm text-slate-200">{esc.name}</div>
+                    <div className="text-xs text-slate-400">Budget Escrow: ₹{esc.amount.toLocaleString()}</div>
+                  </div>
+                  <button onClick={() => handleToggleEscrow(esc.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition cursor-pointer ${
+                      esc.status === 'Verified'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'
+                    }`}>
+                    {esc.status === 'Verified' ? 'Verified' : 'Pending Verification'}
+                  </button>
                 </div>
-                <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-medium">
-                  Verified
-                </span>
-              </div>
-              <div className="glass-card p-4 rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-sm text-slate-200">Vortex Fitness Video shoot Deposit</div>
-                  <div className="text-xs text-slate-400">Budget Escrow: ₹50,000</div>
-                </div>
-                <span className="bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full text-xs font-medium">
-                  Pending Verification
-                </span>
-              </div>
+              ))}
             </div>
           </div>
 
           <div className="glass-panel p-6 rounded-2xl space-y-6">
             <h3 className="text-lg font-semibold text-slate-100">Daily Operations Checklist</h3>
-            
+
+            <form onSubmit={handleAddOps} className="flex items-center gap-2">
+              <input type="text" value={newOpsText} onChange={e => setNewOpsText(e.target.value)}
+                className="flex-1 glass-input p-2.5 rounded-xl text-xs" placeholder="New operation task..." required />
+              <button type="submit" className="bg-violet-600 hover:bg-violet-700 px-3 py-2.5 rounded-xl text-xs font-bold text-white transition cursor-pointer flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5" /> Add
+              </button>
+            </form>
+
             <div className="space-y-3">
-              {dailyOps.map(op => (
+              {dailyOps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-slate-800/60 rounded-xl">
+                  <Activity className="w-8 h-8 text-slate-600 mb-2" />
+                  <p className="text-xs text-slate-500">No operations logged yet.</p>
+                </div>
+              ) : dailyOps.map(op => (
                 <div key={op.id} className="flex items-center gap-3 p-3 bg-slate-950/45 rounded-xl border border-slate-900">
                   <input
                     type="checkbox"
