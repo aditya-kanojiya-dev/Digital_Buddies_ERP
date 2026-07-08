@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2 } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
 import TaskCard from './shared/TaskCard';
@@ -221,6 +221,90 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     setPingMessages(prev => { const n = { ...prev }; delete n[task.id]; return n; });
   };
 
+  // ── Review/Approval state ─────────────────────────────────────────────
+  const [changeRequestTaskId, setChangeRequestTaskId] = useState('');
+  const [changeRequestText, setChangeRequestText] = useState('');
+
+  const handleApproveTask = (task) => {
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const assignee = employees.find(e => e.id === task.assignedTo);
+
+    updateState({
+      tasks: (state.tasks || []).map(t =>
+        t.id === task.id ? { ...t, status: 'Completed', approvedAt: now } : t
+      ),
+      notifications: [{
+        id: `NTF${Date.now()}`,
+        userId: task.assignedTo,
+        message: `✅ ${user.name} approved your task "${task.title}". Great work!`,
+        type: 'info',
+        timestamp: now,
+        read: false,
+      }, ...(state.notifications || [])],
+      auditLogs: [{
+        id: `AUD${Date.now()}`,
+        userId: user.id,
+        action: 'Task Approved',
+        details: `${user.name} approved task "${task.title}" assigned to ${assignee?.name || task.assignedTo}.`,
+        timestamp: now,
+      }, ...(state.auditLogs || [])],
+    });
+    toast.success('Task approved and marked as completed.', `"${task.title}"`);
+  };
+
+  const handleRequestChanges = (task) => {
+    const notes = changeRequestText.trim();
+    if (!notes) {
+      toast.warning('Please describe the changes needed before requesting changes.');
+      return;
+    }
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const assignee = employees.find(e => e.id === task.assignedTo);
+    const revisionCount = (task.revisionCount || 0) + 1;
+
+    updateState({
+      tasks: (state.tasks || []).map(t =>
+        t.id === task.id ? {
+          ...t,
+          status: 'In Progress',
+          revisionCount,
+          changeRequest: notes,
+          changeRequestedAt: now,
+        } : t
+      ),
+      notifications: [{
+        id: `NTF${Date.now()}`,
+        userId: task.assignedTo,
+        message: `🔄 ${user.name} requested changes on "${task.title}" (revision ${revisionCount}): "${notes.substring(0, 100)}${notes.length > 100 ? '…' : ''}"`,
+        type: 'info',
+        timestamp: now,
+        read: false,
+      }, ...(state.notifications || [])],
+      auditLogs: [{
+        id: `AUD${Date.now()}`,
+        userId: user.id,
+        action: 'Changes Requested',
+        details: `${user.name} requested changes on "${task.title}" (v${revisionCount}): ${notes}`,
+        timestamp: now,
+      }, ...(state.auditLogs || [])],
+    });
+
+    // Also add a comment so it shows in the task detail panel
+    updateState({
+      taskComments: [{
+        id: `CMT${Date.now()}`,
+        taskId: task.id,
+        userId: user.id,
+        comment: `🔄 Changes requested (revision ${revisionCount}): ${notes}`,
+        createdAt: now,
+      }, ...(state.taskComments || [])],
+    });
+
+    setChangeRequestTaskId('');
+    setChangeRequestText('');
+    toast.success('Change request sent to assignee.', `"${task.title}"`);
+  };
+
   // ── Helper: pre-compute comment counts per task ─────────────────────────
   const commentCounts = (state.taskComments || []).reduce((acc, c) => {
     acc[c.taskId] = (acc[c.taskId] || 0) + 1;
@@ -236,7 +320,33 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     const isCompleted    = task.status === 'Completed';
 
     // Top row: action buttons (rendered above the compose boxes)
-    if (!isReassigning && !isPingOpen) {
+    if (!isReassigning && !isPingOpen && changeRequestTaskId !== task.id) {
+      // Task is in Review — show Approve / Request Changes
+      if (task.status === 'Review') {
+        return (
+          <div className="flex flex-wrap gap-2 justify-end border-t border-slate-800/40 pt-2.5">
+            <button
+              onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); setChangeRequestTaskId(''); }}
+              className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3 text-fuchsia-400" /> Reassign
+            </button>
+            <button
+              onClick={() => handleApproveTask(task)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+            >
+              <CheckCircle className="w-3.5 h-3.5" /> Approve
+            </button>
+            <button
+              onClick={() => { setChangeRequestTaskId(task.id); setChangeRequestText(''); setActivePingTaskId(''); setReassignTaskId(''); }}
+              className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-xl text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+            >
+              <Edit2 className="w-3.5 h-3.5" /> Request Changes
+            </button>
+          </div>
+        );
+      }
+
       return (
         <div className="flex flex-wrap gap-2 justify-end border-t border-slate-800/40 pt-2.5">
           <button
@@ -316,6 +426,37 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               Cancel
             </button>
           </form>
+        )}
+
+        {changeRequestTaskId === task.id && (
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 space-y-2.5">
+            <p className="text-2xs font-semibold text-amber-300">
+              Request changes from {assignee?.name || 'assignee'}
+            </p>
+            <textarea
+              value={changeRequestText}
+              onChange={e => setChangeRequestText(e.target.value)}
+              className="w-full glass-input p-2.5 rounded-lg text-xs h-20 resize-none"
+              placeholder="Describe what changes are needed — be specific about deliverables, formatting, revisions..."
+              maxLength={500}
+            />
+            <p className="text-3xs text-slate-500 text-right">{changeRequestText.length}/500</p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setChangeRequestTaskId(''); setChangeRequestText(''); }}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-2xs font-semibold cursor-pointer transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRequestChanges(task)}
+                disabled={!changeRequestText.trim()}
+                className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-2xs font-bold flex items-center gap-1 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Edit2 className="w-3 h-3" /> Send Change Request
+              </button>
+            </div>
+          </div>
         )}
       </>
     );

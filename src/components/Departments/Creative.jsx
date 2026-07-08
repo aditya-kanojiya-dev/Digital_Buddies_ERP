@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
-  GitBranch, X, Filter, UserPlus, Send,
+  GitBranch, X, Filter, UserPlus, Send, Edit3,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { linkifyText } from '../../lib/format';
@@ -482,6 +482,17 @@ export default function Creative({ user, state, updateState, activeDepartment })
                           </div>
                           {task.description && (
                             <p className="text-xs text-slate-500 line-clamp-1 mb-2">{linkifyText(task.description)}</p>
+                          )}
+                          {task.changeRequest && (
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 mb-2 space-y-1">
+                              <p className="text-3xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                                <Edit3 className="w-3 h-3" /> Changes Requested {task.revisionCount > 0 && <>(R{task.revisionCount})</>}
+                              </p>
+                              <p className="text-xs text-amber-300/90 leading-relaxed">{task.changeRequest}</p>
+                              {task.changeRequestedAt && (
+                                <p className="text-3xs text-amber-500/60">{task.changeRequestedAt}</p>
+                              )}
+                            </div>
                           )}
                           <div className="flex items-center gap-3 text-xs text-slate-500">
                             {assignee && (
