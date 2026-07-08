@@ -505,7 +505,7 @@ useEffect(() => {
       )}
 
       {activeTab === 'projects' && (
-        <Projects state={state} updateState={updateState} />
+        <Projects user={user} state={state} updateState={updateState} />
       )}
 
       {activeTab === 'crm' && (user.role === 'Super Admin' || user.role === 'Manager') && (

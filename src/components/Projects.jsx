@@ -18,7 +18,7 @@ const COLUMN_STYLES = {
   'Completed': { header: 'text-emerald-400',border: 'border-l-emerald-500' },
 };
 
-export default function Projects({ state, updateState }) {
+export default function Projects({ user, state, updateState }) {
   const toast = useToast();
   const { projects, clients, employees, tasks, taskComments } = state;
 
@@ -546,7 +546,7 @@ export default function Projects({ state, updateState }) {
                             task={task}
                             assignee={assignee}
                             commentsCount={cCount}
-                            currentUser={{}}
+                            currentUser={user}
                             viewMode="employee"
                             onStatusChange={(id, status) => {
                               const updated = (tasks || []).map(t => t.id === id ? { ...t, status } : t);
@@ -600,7 +600,7 @@ export default function Projects({ state, updateState }) {
           task={selectedTask}
           state={state}
           updateState={updateState}
-          currentUser={{}}
+           currentUser={user}
           onClose={() => setSelectedTask(null)}
         />
       )}
