@@ -56,6 +56,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const [selectedTask, setSelectedTask] = useState(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   // ── Revision ────────────────────────────────────────────────────────────
   const [revisionTaskId, setRevisionTaskId] = useState(null);
@@ -131,9 +132,10 @@ export default function Creative({ user, state, updateState, activeDepartment })
       const matchesTimeline = timelineFilter === 'all'
         ? true
         : String(task.deadlineDaysPrior) === timelineFilter;
-      return matchesDept && matchesTimeline;
+      const matchesStatus = showCompleted || task.status !== 'Completed';
+      return matchesDept && matchesTimeline && matchesStatus;
     });
-  }, [tasks, activeDepartment, timelineFilter]);
+  }, [tasks, activeDepartment, timelineFilter, showCompleted]);
 
   const columns = useMemo(() => {
     const grouped = {};
@@ -331,7 +333,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
      RENDER — Full-width Kanban
   ════════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] animate-fade-in gap-0">
+    <div className="flex flex-col h-[calc(100dvh-6rem)] animate-fade-in gap-0">
 
       {/* ── Row 1: Board identity ── */}
       <div className="flex items-center gap-3 mb-2 flex-shrink-0">
@@ -345,7 +347,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
       </div>
 
       {/* ── Row 2: Controls ── */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex flex-wrap items-center gap-2 mb-4 flex-shrink-0">
         <div className="flex items-center gap-1 bg-slate-950/50 p-0.5 rounded-lg border border-slate-800/40">
           {[
             { label: 'All', val: 'all' },
@@ -354,7 +356,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
             { label: '12D',val: '12' },
           ].map(f => (
             <button key={f.val} onClick={() => setTimelineFilter(f.val)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-3xs sm:text-xs font-medium transition ${
                 timelineFilter === f.val ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
               }`}>
               {f.label}
@@ -362,7 +364,14 @@ export default function Creative({ user, state, updateState, activeDepartment })
           ))}
         </div>
 
-        <div className="flex items-center gap-2 relative">
+        <div className="flex items-center gap-1.5 sm:gap-2 relative ml-auto">
+          <button onClick={() => setShowCompleted(!showCompleted)}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+              showCompleted ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+            }`} title={showCompleted ? 'Hide completed tasks' : 'Show completed tasks'}>
+            {showCompleted ? '✓ Completed' : '✓ Hidden'}
+          </button>
+
           <button onClick={() => setShowFilters(!showFilters)}
             className={`p-2 rounded-lg transition ${
               showFilters ? 'bg-violet-600/20 text-violet-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -373,7 +382,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
           {showFilters && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowFilters(false)} />
-              <div className="absolute right-0 top-full mt-2 z-20 w-64 glass-panel rounded-xl p-4 shadow-2xl border border-slate-700/60 animate-fade-in">
+              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 z-20 w-64 glass-panel rounded-xl p-4 shadow-2xl border border-slate-700/60 animate-fade-in">
                 <div className="space-y-4">
                   <div>
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Priority</h4>
@@ -455,6 +464,10 @@ export default function Creative({ user, state, updateState, activeDepartment })
                     const isOverdue = task.dueDate && task.dueDate < todayStr() && task.status !== 'Completed';
                     const isDueToday = task.dueDate === todayStr() && task.status !== 'Completed';
                     const isTaskFocused = focusedCol === col && focusedTaskIdx === idx;
+                    const priorityDot = task.priority === 'Emergency' ? 'bg-red-500'
+                      : task.priority === 'High' ? 'bg-rose-500'
+                      : task.priority === 'Medium' ? 'bg-amber-500'
+                      : 'bg-slate-500';
                     return (
                       <div key={task.id}
                         draggable
@@ -463,41 +476,35 @@ export default function Creative({ user, state, updateState, activeDepartment })
                       >
                         <div
                           onClick={() => { handleOpenDetail(task); setFocusedCol(null); setFocusedTaskIdx(null); }}
-                          className={`glass-card p-3 rounded-xl border-l-[3px] transition hover:border-l-violet-400 cursor-pointer ${
+                          className={`glass-card p-2.5 rounded-xl border-l-[3px] transition hover:border-l-violet-400 cursor-pointer ${
                             isOverdue ? 'border-l-rose-500 bg-rose-500/[0.04]' :
                             isDueToday ? 'border-l-amber-500 bg-amber-500/[0.04]' :
                             'border-l-violet-500/40'
                           } ${isTaskFocused ? 'ring-2 ring-violet-400/70 shadow-lg shadow-violet-500/20 border-violet-400/60' : ''}`}
                         >
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <span className="text-sm font-semibold text-slate-100 truncate leading-tight">{task.title}</span>
-                            {task.priority && (
-                              <span className={`text-3xs px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${
-                                task.priority === 'Emergency' ? 'bg-red-600/15 text-red-400' :
-                                task.priority === 'High' ? 'bg-rose-500/15 text-rose-400' :
-                                task.priority === 'Medium' ? 'bg-amber-500/15 text-amber-400' :
-                                'bg-slate-500/15 text-slate-400'
-                              }`}>{task.priority}</span>
-                            )}
+                          {/* Title row with priority dot */}
+                          <div className="flex items-center gap-1.5 mb-1">
+                            {task.priority && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityDot}`} />}
+                            <span className="text-xs font-semibold text-slate-100 truncate leading-tight">{task.title}</span>
+                            {task.revisionCount > 0 && <span className="text-3xs text-amber-400 font-bold flex-shrink-0">R{task.revisionCount}</span>}
                           </div>
+
                           {task.description && (
-                            <p className="text-xs text-slate-500 line-clamp-1 mb-2">{linkifyText(task.description)}</p>
+                            <p className="text-3xs text-slate-500 line-clamp-1 mb-1.5">{linkifyText(task.description)}</p>
                           )}
+
+                          {/* Compact change request banner */}
                           {task.changeRequest && (
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 mb-2 space-y-1">
-                              <p className="text-3xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
-                                <Edit3 className="w-3 h-3" /> Changes Requested {task.revisionCount > 0 && <>(R{task.revisionCount})</>}
-                              </p>
-                              <p className="text-xs text-amber-300/90 leading-relaxed">{task.changeRequest}</p>
-                              {task.changeRequestedAt && (
-                                <p className="text-3xs text-amber-500/60">{task.changeRequestedAt}</p>
-                              )}
+                            <div className="bg-amber-500/8 border border-amber-500/15 rounded-lg px-2 py-1.5 mb-1.5">
+                              <p className="text-3xs text-amber-300/80 leading-relaxed line-clamp-1">{task.changeRequest}</p>
                             </div>
                           )}
-                          <div className="flex items-center gap-3 text-xs text-slate-500">
+
+                          {/* Metadata row */}
+                          <div className="flex items-center gap-2 text-3xs text-slate-500">
                             {assignee && (
                               <span className="flex items-center gap-1">
-                                <User className="w-3 h-3" /> {assignee.name.split(' ')[0]}
+                                <User className="w-2.5 h-2.5" /> {assignee.name.split(' ')[0]}
                               </span>
                             )}
                             {task.dueDate && (
@@ -506,38 +513,37 @@ export default function Creative({ user, state, updateState, activeDepartment })
                               </span>
                             )}
                             {cCount > 0 && <span className="text-violet-400 font-semibold">{cCount}c</span>}
-                            {task.revisionCount > 0 && <span className="text-amber-400">R{task.revisionCount}</span>}
-                            {task.attachmentUrl && <LinkIcon className="w-3 h-3 text-violet-400" />}
+                            {task.attachmentUrl && <LinkIcon className="w-2.5 h-2.5 text-violet-400" />}
+                            {task.approvedAt && <span className="text-emerald-400">✓ done</span>}
                           </div>
-                          {canDelegate(task) && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setDelegateTaskId(task.id); setDelegateEmpId(task.assignedTo || ''); }}
-                              className="mt-2 w-full bg-violet-600/10 hover:bg-violet-600/20 text-violet-400 text-3xs font-semibold py-1.5 rounded-lg border border-violet-500/15 transition flex items-center justify-center gap-1"
-                            >
-                              <UserPlus className="w-3 h-3" /> Delegate
-                            </button>
-                          )}
-                          <div className="flex gap-1.5 mt-2">
-                            <a
+
+                          {/* Compact action row — icon-only */}
+                          <div className="flex gap-1.5 mt-1.5">
+                            {canDelegate(task) && (
+                              <button title="Delegate"
+                                onClick={(e) => { e.stopPropagation(); setDelegateTaskId(task.id); setDelegateEmpId(task.assignedTo || ''); }}
+                                className="p-1.5 sm:p-1 rounded-md bg-violet-600/10 hover:bg-violet-600/20 text-violet-400 transition border border-violet-500/15 min-w-[28px] min-h-[28px] flex items-center justify-center">
+                                <UserPlus className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
+                              </button>
+                            )}
+                            <a title="Request assets via WhatsApp"
                               href={`https://wa.me/?text=${encodeURIComponent(
                                 `📎 *Asset Request - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease share the required assets/content for this task.`
                               )}`}
                               target="_blank" rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="flex-1 bg-green-600/10 hover:bg-green-600/20 text-green-400 text-3xs font-semibold py-1.5 rounded-lg border border-green-500/15 transition flex items-center justify-center gap-1"
-                            >
-                              <Send className="w-3 h-3" /> Share Assets
+                              className="p-1.5 sm:p-1 rounded-md bg-green-600/10 hover:bg-green-600/20 text-green-400 transition border border-green-500/15 min-w-[28px] min-h-[28px] flex items-center justify-center">
+                              <Send className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
                             </a>
                             {(task.status === 'Review' || task.status === 'Completed') && (
-                              <a
+                              <a title="Submit via WhatsApp"
                                 href={`https://wa.me/?text=${encodeURIComponent(
                                   `✅ *Submission - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nWork has been completed. Please find the deliverables attached.`
                                 )}`}
                                 target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-3xs font-semibold py-1.5 rounded-lg border border-emerald-500/15 transition flex items-center justify-center gap-1"
-                              >
-                                Submit on WhatsApp
+                                className="p-1.5 sm:p-1 rounded-md bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 transition border border-emerald-500/15 min-w-[28px] min-h-[28px] flex items-center justify-center">
+                                <Send className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
                               </a>
                             )}
                           </div>
