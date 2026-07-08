@@ -51,8 +51,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const [priority, setPriority] = useState('Medium');
   const [attachmentUrl, setAttachmentUrl] = useState('');
 
-  // ── Timeline filter, modals ─────────────────────────────────────────────
-  const [timelineFilter, setTimelineFilter] = useState('all');
+  // ── Quick filters, modals ──────────────────────────────────────────────
+  const [quickFilter, setQuickFilter] = useState('all');
   const [selectedTask, setSelectedTask] = useState(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -129,13 +129,14 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const deptTasks = useMemo(() => {
     return (tasks || []).filter(task => {
       const matchesDept = task.department === activeDepartment;
-      const matchesTimeline = timelineFilter === 'all'
-        ? true
-        : String(task.deadlineDaysPrior) === timelineFilter;
       const matchesStatus = showCompleted || task.status !== 'Completed';
-      return matchesDept && matchesTimeline && matchesStatus;
+      if (!matchesDept || !matchesStatus) return false;
+      if (quickFilter === 'mine') return task.assignedTo === user.id;
+      if (quickFilter === 'overdue') return task.dueDate && task.dueDate < todayStr() && task.status !== 'Completed';
+      if (quickFilter === 'today') return task.dueDate === todayStr() && task.status !== 'Completed';
+      return true;
     });
-  }, [tasks, activeDepartment, timelineFilter, showCompleted]);
+  }, [tasks, activeDepartment, quickFilter, showCompleted, user.id]);
 
   const columns = useMemo(() => {
     const grouped = {};
@@ -351,13 +352,13 @@ export default function Creative({ user, state, updateState, activeDepartment })
         <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800/60 shadow-inner">
           {[
             { label: 'All', val: 'all' },
-            { label: '3D', val: '3' },
-            { label: '4D', val: '4' },
-            { label: '12D',val: '12' },
+            { label: 'Mine', val: 'mine' },
+            { label: 'Overdue', val: 'overdue' },
+            { label: 'Today', val: 'today' },
           ].map(f => (
-            <button key={f.val} onClick={() => setTimelineFilter(f.val)}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-3xs sm:text-xs font-bold tracking-wide transition-all duration-150 ${
-                timelineFilter === f.val ? 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/25' : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/60'
+            <button key={f.val} onClick={() => setQuickFilter(f.val)}
+              className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-3xs sm:text-xs font-bold tracking-wide transition-all duration-150 ${
+                quickFilter === f.val ? 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/25' : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/60'
               }`}>
               {f.label}
             </button>
