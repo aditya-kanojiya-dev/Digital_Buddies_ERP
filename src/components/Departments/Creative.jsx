@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
   GitBranch, X, Filter, UserPlus, Send,
@@ -67,6 +67,62 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
   // ── Drag ────────────────────────────────────────────────────────────────
   const [dragOverCol, setDragOverCol] = useState(null);
+
+  // ── Keyboard navigation ────────────────────────────────────────────────
+  const [focusedCol, setFocusedCol] = useState(null);
+  const [focusedTaskIdx, setFocusedTaskIdx] = useState(null);
+  const kanbanRef = useRef(null);
+
+  const handleKanbanKeyDown = (e) => {
+    const colKeys = Object.keys(columns);
+    const colIdx = focusedCol !== null ? colKeys.indexOf(focusedCol) : -1;
+    const tasksInCol = focusedCol ? (columns[focusedCol] || []) : [];
+
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault();
+        if (colIdx < colKeys.length - 1) {
+          const nextCol = colKeys[colIdx + 1];
+          setFocusedCol(nextCol);
+          setFocusedTaskIdx(null);
+        }
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        if (colIdx > 0) {
+          const prevCol = colKeys[colIdx - 1];
+          setFocusedCol(prevCol);
+          setFocusedTaskIdx(null);
+        }
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        if (focusedCol && tasksInCol.length > 0) {
+          setFocusedTaskIdx(prev =>
+            prev === null ? 0 : Math.min(prev + 1, tasksInCol.length - 1)
+          );
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (focusedCol && tasksInCol.length > 0) {
+          setFocusedTaskIdx(prev =>
+            prev === null ? tasksInCol.length - 1 : Math.max(prev - 1, 0)
+          );
+        }
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (focusedCol && focusedTaskIdx !== null && tasksInCol[focusedTaskIdx]) {
+          handleOpenDetail(tasksInCol[focusedTaskIdx]);
+        }
+        break;
+      case 'Escape':
+        setFocusedCol(null);
+        setFocusedTaskIdx(null);
+        break;
+    }
+  };
 
   // ── Filter tasks ────────────────────────────────────────────────────────
   const deptTasks = useMemo(() => {
@@ -359,15 +415,17 @@ export default function Creative({ user, state, updateState, activeDepartment })
       </div>
 
       {/* ── Kanban columns ── */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 min-h-0 overflow-hidden">
+      <div ref={kanbanRef} tabIndex={0} onKeyDown={handleKanbanKeyDown}
+        className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 min-h-0 overflow-hidden focus:outline-none">
         {COLUMNS.map(col => {
           const colTasks = columns[col] || [];
           const overdue = overdueCount(colTasks);
           const style = COLUMN_STYLES[col];
           const isOver = dragOverCol === col;
+          const isColFocused = focusedCol === col;
           return (
             <div key={col}
-              className={`flex flex-col min-h-0 rounded-xl border ${style.borderCol} ${style.panelBg} ${isOver ? 'ring-2 ring-violet-500/50' : ''}`}
+              className={`flex flex-col min-h-0 rounded-xl border ${style.borderCol} ${style.panelBg} ${isOver ? 'ring-2 ring-violet-500/50' : ''} ${isColFocused ? 'ring-2 ring-violet-400/60 shadow-lg shadow-violet-500/10' : ''}`}
               onDragOver={(e) => handleDragOver(e, col)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col)}
@@ -391,24 +449,25 @@ export default function Creative({ user, state, updateState, activeDepartment })
                     <p className="text-3xs text-slate-600">Drop tasks here</p>
                   </div>
                 ) : (
-                  colTasks.map(task => {
+                  colTasks.map((task, idx) => {
                     const assignee = employees.find(e => e.id === task.assignedTo);
                     const cCount = commentCounts[task.id] || 0;
                     const isOverdue = task.dueDate && task.dueDate < todayStr() && task.status !== 'Completed';
                     const isDueToday = task.dueDate === todayStr() && task.status !== 'Completed';
+                    const isTaskFocused = focusedCol === col && focusedTaskIdx === idx;
                     return (
                       <div key={task.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, task.id)}
-                        className="cursor-grab active:cursor-grabbing"
+                        className={`cursor-grab active:cursor-grabbing ${isTaskFocused ? 'z-10' : ''}`}
                       >
                         <div
-                          onClick={() => handleOpenDetail(task)}
+                          onClick={() => { handleOpenDetail(task); setFocusedCol(null); setFocusedTaskIdx(null); }}
                           className={`glass-card p-3 rounded-xl border-l-[3px] transition hover:border-l-violet-400 cursor-pointer ${
                             isOverdue ? 'border-l-rose-500 bg-rose-500/[0.04]' :
                             isDueToday ? 'border-l-amber-500 bg-amber-500/[0.04]' :
                             'border-l-violet-500/40'
-                          }`}
+                          } ${isTaskFocused ? 'ring-2 ring-violet-400/70 shadow-lg shadow-violet-500/20 border-violet-400/60' : ''}`}
                         >
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <span className="text-sm font-semibold text-slate-100 truncate leading-tight">{task.title}</span>

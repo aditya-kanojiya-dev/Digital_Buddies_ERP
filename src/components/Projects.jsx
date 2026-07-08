@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Layers, Plus, Search, User, Filter, X, Edit3, Trash2,
   AlertCircle, CheckCircle2, Clock, Briefcase, Target
@@ -33,6 +33,55 @@ export default function Projects({ state, updateState }) {
 
   // ── Drag state ──────────────────────────────────────────────────────────
   const [dragOverCol, setDragOverCol] = useState(null);
+  const [focusedCol, setFocusedCol] = useState(null);
+  const [focusedProjIdx, setFocusedProjIdx] = useState(null);
+  const kanbanRef = useRef(null);
+
+  const handleKanbanKeyDown = (e) => {
+    const colKeys = Object.keys(columns);
+    const colIdx = focusedCol !== null ? colKeys.indexOf(focusedCol) : -1;
+    const projsInCol = focusedCol ? (columns[focusedCol] || []) : [];
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault();
+        if (colIdx < colKeys.length - 1) {
+          setFocusedCol(colKeys[colIdx + 1]);
+          setFocusedProjIdx(null);
+        }
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        if (colIdx > 0) {
+          setFocusedCol(colKeys[colIdx - 1]);
+          setFocusedProjIdx(null);
+        }
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        if (focusedCol && projsInCol.length > 0) {
+          setFocusedProjIdx(prev => prev === null ? 0 : Math.min(prev + 1, projsInCol.length - 1));
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (focusedCol && projsInCol.length > 0) {
+          setFocusedProjIdx(prev => prev === null ? projsInCol.length - 1 : Math.max(prev - 1, 0));
+        }
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (focusedCol && focusedProjIdx !== null && projsInCol[focusedProjIdx]) {
+          setSelectedProject(projsInCol[focusedProjIdx]);
+          setFocusedCol(null);
+          setFocusedProjIdx(null);
+        }
+        break;
+      case 'Escape':
+        setFocusedCol(null);
+        setFocusedProjIdx(null);
+        break;
+    }
+  };
 
   // ── New project form ────────────────────────────────────────────────────
   const [showForm, setShowForm] = useState(false);
@@ -239,14 +288,16 @@ export default function Projects({ state, updateState }) {
       </div>
 
       {/* ── Kanban Board ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div ref={kanbanRef} tabIndex={0} onKeyDown={handleKanbanKeyDown}
+        className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 focus:outline-none">
         {COLUMNS.map(col => {
           const colProjs = columns[col] || [];
           const style = COLUMN_STYLES[col];
           const isOver = dragOverCol === col;
+          const isColFocused = focusedCol === col;
           return (
             <div key={col}
-              className={`glass-panel rounded-2xl flex flex-col min-h-[300px] border-l-4 ${style.border} ${isOver ? 'ring-2 ring-violet-500/50' : ''}`}
+              className={`glass-panel rounded-2xl flex flex-col min-h-[300px] border-l-4 ${style.border} ${isOver ? 'ring-2 ring-violet-500/50' : ''} ${isColFocused ? 'ring-2 ring-violet-400/60 shadow-lg shadow-violet-500/10' : ''}`}
               onDragOver={(e) => handleDragOver(e, col)}
               onDragLeave={() => setDragOverCol(null)}
               onDrop={(e) => handleDrop(e, col)}
@@ -261,18 +312,19 @@ export default function Projects({ state, updateState }) {
                     <p className="text-3xs text-slate-600">Drop here</p>
                   </div>
                 ) : (
-                  colProjs.map(proj => {
+                  colProjs.map((proj, idx) => {
                     const progress = projectProgress(proj.id);
                     const msCount = projectMilestones(proj.id).length;
                     const doneMs = projectMilestones(proj.id).filter(t => t.status === 'Completed').length;
                     const isOverdue = proj.deadline && proj.deadline < new Date().toISOString().split('T')[0] && proj.status !== 'Completed';
+                    const isProjFocused = focusedCol === col && focusedProjIdx === idx;
                     return (
                       <div key={proj.id} draggable
                         onDragStart={(e) => handleDragStart(e, proj.id)}
                         className={`glass-card p-4 rounded-xl space-y-2.5 cursor-grab active:cursor-grabbing border-l-2 ${
                           isOverdue ? 'border-l-rose-500' : 'border-l-violet-500'
-                        }`}
-                        onClick={() => setSelectedProject(proj)}
+                        } ${isProjFocused ? 'ring-2 ring-violet-400/70 shadow-lg shadow-violet-500/20' : ''}`}
+                        onClick={() => { setSelectedProject(proj); setFocusedCol(null); setFocusedProjIdx(null); }}
                       >
                         <div className="flex items-center justify-between">
                           <h4 className="font-bold text-xs text-slate-200">{proj.name}</h4>

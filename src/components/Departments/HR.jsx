@@ -14,6 +14,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
 
   // Active sub-tab inside HR
   const [activeSubTab, setActiveSubTab] = useState('employees');
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
   // Form states for Employees
   const [empName, setEmpName] = useState('');
@@ -91,122 +92,120 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   const handleSaveEmployee = async (e) => {
     e.preventDefault();
     if (!empName || !empSalary || !empEmail) return;
+    setInviteSubmitting(true);
 
-    if (editingEmpId) {
-      const updatedFields = {
-        name: empName,
-        email: empEmail.toLowerCase().trim(),
-        phone: empPhone,
-        department: empDept,
-        designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
-        role: empRole,
-        managerId: empManagerId || 'EMP01',
-        salary: parseFloat(empSalary),
-        joinDate: empHire
-      };
-
-      try {
-        await db.updateEmployee(editingEmpId, updatedFields);
-      } catch (err) {
-        toast.error(`Could not save changes: ${err.message}`);
-        return;
-      }
-
-      const updated = employees.map(emp =>
-        emp.id === editingEmpId ? { ...emp, ...updatedFields } : emp
-      );
-      updateState({ employees: updated });
-      toast.success('Employee details updated.');
-      resetForm();
-    } else {
-      // Find maximum numeric value in existing employee IDs
-      const nextNum = employees.reduce((max, e) => {
-        const num = parseInt(e.id.replace('EMP', ''), 10);
-        return isNaN(num) ? max : (num > max ? num : max);
-      }, 0) + 1;
-      const employeeId = `EMP${String(nextNum).padStart(2, '0')}`;
-const inviteToken =
-  'tok_' + Math.random().toString(36).substring(2, 10);
-
-const normalizedEmail =
-  empEmail.toLowerCase().trim();
-
-      const newEmp = {
-        id: employeeId,
-        name: empName,
-        email: normalizedEmail,
-        phone: empPhone || "+91 99999 99999",
-        role: empRole,
-        department: empDept,
-        designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
-        salary: parseFloat(empSalary),
-        joinDate: empHire,
-        bio: "Company team member.",
-        skills: "Operations",
-        managerId: empManagerId || "EMP01",
-        password: null,
-        status: 'Invited',
-        mustChangePassword: true,
-        avatar: ""
-      };
-
-      const newInvite = {
-        id: `INV${Date.now()}`,
-        employeeId: employeeId,
-        email: normalizedEmail,
-        token: inviteToken,
-        expiresAt: new Date(Date.now() + 7*60*60*1000).toISOString(),
-        accepted: false,
-        createdBy: user?.id || 'EMP01',
-        createdAt: new Date().toISOString()
-      };
-
-      // Step 1a: Write employee row to Supabase FIRST.
-      // The validate-invite Edge Function queries the employees table by id —
-      // if this row doesn't exist yet, the invite link returns "No employee found".
-      // We must guarantee it lands in the DB before the invite is usable.
-      try {
-        await db.addEmployee(newEmp);
-      } catch (empErr) {
-        toast.error(`Could not create employee record: ${empErr.message}`);
-        return;
-      }
-
-      // Step 1b: Write invite record while HR session is still active → RLS passes.
-      // signUpEmployee (step 2) calls supabase.auth.signUp() which replaces the
-      // current session with the new employee's unconfirmed session, so any DB
-      // write after it runs as the wrong user and hits the RLS block.
-      try {
-        await db.addEmployeeInvite(newInvite);
-      } catch (inviteErr) {
-        toast.error(`Could not save invite record: ${inviteErr.message}`);
-        return;
-      }
-
-      // Sync local state (now just reflecting what's already in Supabase)
-      updateState({
-        employees: [...employees, newEmp],
-        employeeInvites: [...(state.employeeInvites || []), newInvite]
-      });
-
-      // Step 2: Send welcome email with invite link (non-fatal)
-      try {
-        await emailService.sendWelcomeEmail({
+    try {
+      if (editingEmpId) {
+        const updatedFields = {
           name: empName,
-          email: normalizedEmail
-        });
-      } catch (emailErr) {
-        console.warn('[Invite] Welcome email failed:', emailErr.message);
-        toast.warning('Employee created but welcome email could not be sent. Share credentials manually.');
-      }
+          email: empEmail.toLowerCase().trim(),
+          phone: empPhone,
+          department: empDept,
+          designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
+          role: empRole,
+          managerId: empManagerId || 'EMP01',
+          salary: parseFloat(empSalary),
+          joinDate: empHire
+        };
 
-      setCreatedInviteInfo({
-        name: empName,
-        email: normalizedEmail,
-        type: 'create'
-      });
-      setShowInviteModal(true);
-      resetForm();
+        try {
+          await db.updateEmployee(editingEmpId, updatedFields);
+        } catch (err) {
+          toast.error(`Could not save changes: ${err.message}`);
+          return;
+        }
+
+        const updated = employees.map(emp =>
+          emp.id === editingEmpId ? { ...emp, ...updatedFields } : emp
+        );
+        updateState({ employees: updated });
+        toast.success('Employee details updated.');
+        resetForm();
+      } else {
+        // Find maximum numeric value in existing employee IDs
+        const nextNum = employees.reduce((max, e) => {
+          const num = parseInt(e.id.replace('EMP', ''), 10);
+          return isNaN(num) ? max : (num > max ? num : max);
+        }, 0) + 1;
+        const employeeId = `EMP${String(nextNum).padStart(2, '0')}`;
+  const inviteToken =
+    'tok_' + Math.random().toString(36).substring(2, 10);
+
+  const normalizedEmail =
+    empEmail.toLowerCase().trim();
+
+        const newEmp = {
+          id: employeeId,
+          name: empName,
+          email: normalizedEmail,
+          phone: empPhone || "+91 99999 99999",
+          role: empRole,
+          department: empDept,
+          designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
+          salary: parseFloat(empSalary),
+          joinDate: empHire,
+          bio: "Company team member.",
+          skills: "Operations",
+          managerId: empManagerId || "EMP01",
+          password: null,
+          status: 'Invited',
+          mustChangePassword: true,
+          avatar: ""
+        };
+
+        const newInvite = {
+          id: `INV${Date.now()}`,
+          employeeId: employeeId,
+          email: normalizedEmail,
+          token: inviteToken,
+          expiresAt: new Date(Date.now() + 7*60*60*1000).toISOString(),
+          accepted: false,
+          createdBy: user?.id || 'EMP01',
+          createdAt: new Date().toISOString()
+        };
+
+        // Step 1a: Write employee row to Supabase FIRST.
+        try {
+          await db.addEmployee(newEmp);
+        } catch (empErr) {
+          toast.error(`Could not create employee record: ${empErr.message}`);
+          return;
+        }
+
+        // Step 1b: Write invite record while HR session is still active
+        try {
+          await db.addEmployeeInvite(newInvite);
+        } catch (inviteErr) {
+          toast.error(`Could not save invite record: ${inviteErr.message}`);
+          return;
+        }
+
+        updateState({
+          employees: [...employees, newEmp],
+          employeeInvites: [...(state.employeeInvites || []), newInvite]
+        });
+
+        // Step 2: Send welcome email (non-fatal)
+        try {
+          await emailService.sendWelcomeEmail({
+            name: empName,
+            email: normalizedEmail
+          });
+        } catch (emailErr) {
+          console.warn('[Invite] Welcome email failed:', emailErr.message);
+          toast.warning('Employee created but welcome email could not be sent. Share credentials manually.');
+        }
+
+        setCreatedInviteInfo({
+          name: empName,
+          email: normalizedEmail,
+          type: 'create'
+        });
+        setShowInviteModal(true);
+        resetForm();
+      }
+    } finally {
+      setInviteSubmitting(false);
     }
   };
 
@@ -672,7 +671,7 @@ const normalizedEmail =
               </div>
 
               {/* Earnings & Deductions Table */}
-              <div className="border border-slate-800 rounded-xl overflow-hidden print:border-black">
+              <div className="border border-slate-800 rounded-xl overflow-x-auto print:border-black">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-bold print:border-black print:bg-slate-100 print:text-black">
@@ -1002,9 +1001,12 @@ const normalizedEmail =
               
               <button
                 type="submit"
-                className="w-full bg-neon-gradient hover:opacity-95 text-white font-medium py-3 rounded-xl shadow-md transition cursor-pointer"
+                disabled={inviteSubmitting}
+                className="w-full bg-neon-gradient hover:opacity-95 text-white font-medium py-3 rounded-xl shadow-md transition disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer inline-flex items-center justify-center gap-2"
               >
-                {editingEmpId ? 'Save Changes' : 'Invite Staff Member'}
+                {inviteSubmitting ? (
+                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</>
+                ) : editingEmpId ? 'Save Changes' : 'Invite Staff Member'}
               </button>
 
               {editingEmpId && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, startTransition } from 'react';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import Login from './components/Login';
@@ -6,23 +6,22 @@ import SetupWizard from './components/SetupWizard';
 import ChangePassword from './components/ChangePassword';
 import Profile from './components/Profile';
 import Dashboard from './components/Dashboard';
-import CRM from './components/CRM';
 import Projects from './components/Projects';
-import FounderDashboard from './components/FounderDashboard';
-import ManagerDashboard from './components/ManagerDashboard';
-
-import PaidAds from './components/Departments/PaidAds';
-import SocialMedia from './components/Departments/SocialMedia';
-import Creative from './components/Departments/Creative';
-import Developers from './components/Departments/Developers';
-import HR from './components/Departments/HR';
-
-import NotificationsCenter from './components/shared/NotificationsCenter';
-import PersonalCalendar from './components/shared/PersonalCalendar';
 import AcceptInvite from './components/AcceptInvite';
-import Analytics from './components/Analytics';
-import Settings from './components/Settings';
-import CommandPalette from './components/CommandPalette';
+
+const CRM = lazy(() => import('./components/CRM'));
+const FounderDashboard = lazy(() => import('./components/FounderDashboard'));
+const ManagerDashboard = lazy(() => import('./components/ManagerDashboard'));
+const PaidAds = lazy(() => import('./components/Departments/PaidAds'));
+const SocialMedia = lazy(() => import('./components/Departments/SocialMedia'));
+const Creative = lazy(() => import('./components/Departments/Creative'));
+const Developers = lazy(() => import('./components/Departments/Developers'));
+const HR = lazy(() => import('./components/Departments/HR'));
+const NotificationsCenter = lazy(() => import('./components/shared/NotificationsCenter'));
+const PersonalCalendar = lazy(() => import('./components/shared/PersonalCalendar'));
+const Analytics = lazy(() => import('./components/Analytics'));
+const Settings = lazy(() => import('./components/Settings'));
+const CommandPalette = lazy(() => import('./components/CommandPalette'));
 import { auth, supabase } from './data/auth';
 import { db } from './data/db';
 import { runDeadlineEngine } from './lib/deadlineEngine';
@@ -247,35 +246,38 @@ useEffect(() => {
 }, [user]);
 
 // ── Fallback: periodic auto-refresh (every 15s) for changes real-time misses ─
-useEffect(() => {
-  if (!user) return;
-  const REFRESH_KEYS = ['tasks', 'smmCalendar', 'taskComments', 'notifications', 'employees'];
-  const interval = setInterval(() => {
-    Promise.allSettled([
-      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
-      db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data }))),
-      db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data }))),
-      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
-      db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data }))),
-    ]);
-  }, 15000);
-  return () => clearInterval(interval);
-}, [user]);
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      startTransition(() => {
+        Promise.allSettled([
+          db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
+          db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data }))),
+          db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data }))),
+          db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
+          db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data }))),
+        ]);
+      });
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [user]);
 
 // ── Tab-visibility refresh: re-fetch when user returns to the tab ──────────
-useEffect(() => {
-  if (!user) return;
-  const onVisible = () => {
-    if (document.visibilityState !== 'visible') return;
-    Promise.allSettled([
-      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
-      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
-      db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data }))),
-    ]);
-  };
-  document.addEventListener('visibilitychange', onVisible);
-  return () => document.removeEventListener('visibilitychange', onVisible);
-}, [user]);
+  useEffect(() => {
+    if (!user) return;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      startTransition(() => {
+        Promise.allSettled([
+          db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
+          db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
+          db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data }))),
+        ]);
+      });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user]);
 
 // ── Global Ctrl/Cmd+K to open the command palette ─────────────────────────
 useEffect(() => {
@@ -470,14 +472,21 @@ useEffect(() => {
       onNotifNavigate={handleNotifNavigate}
       onOpenSearch={() => setSearchOpen(true)}
     >
-      <CommandPalette
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        state={state}
-        onNavigate={(tab) => setActiveTab(tab)}
-      />
+      <Suspense fallback={null}>
+        <CommandPalette
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          state={state}
+          onNavigate={(tab) => setActiveTab(tab)}
+        />
+      </Suspense>
 
       <ErrorBoundary key={activeTab}>
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-64">
+            <div className="w-8 h-8 border-4 border-violet-500/30 border-t-violet-400 rounded-full animate-spin" />
+          </div>
+        }>
 
       {activeTab === 'founder' && user.role === 'Super Admin' && (
         <FounderDashboard state={state} />
@@ -552,6 +561,7 @@ useEffect(() => {
         <Profile user={user} state={state} updateState={updateState} />
       )}
 
+      </Suspense>
       </ErrorBoundary>
     </Layout>
   );

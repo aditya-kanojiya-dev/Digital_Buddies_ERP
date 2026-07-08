@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import {
   Layers,
   Shield,
@@ -48,6 +48,53 @@ const ALL_TABS = [
 ];
 
 const GROUP_ORDER = ['Overview', 'Work', 'Departments', 'Admin'];
+
+const SidebarContent = memo(function SidebarContentBase({ showLabels, activeTab, goTo, allowedTabs }) {
+  const grouped = GROUP_ORDER.map((g) => ({
+    group: g,
+    tabs: allowedTabs.filter((t) => t.group === g),
+  })).filter((g) => g.tabs.length > 0);
+
+  return (
+    <nav className="space-y-5">
+      {grouped.map(({ group, tabs }) => (
+        <div key={group}>
+          {showLabels && (
+            <p className="text-[0.6rem] uppercase text-[var(--nav-text-section)] tracking-[0.15em] px-3 mb-1.5 font-semibold">
+              {group}
+            </p>
+          )}
+          <div className="space-y-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => goTo(tab.id)}
+                  title={tab.label}
+                  className={`w-full flex items-center gap-3 ${
+                    showLabels ? 'px-3.5' : 'px-0 justify-center'
+                  } py-2.5 rounded-xl text-xs font-bold transition-all duration-150 active:scale-[0.98] group relative ${
+                    active
+                      ? 'bg-[var(--nav-brand-bg)] text-[var(--nav-text-active)] shadow-lg shadow-[var(--nav-brand-shadow)]'
+                      : 'text-[var(--nav-text-inactive)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--nav-text-active)]'
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-[var(--nav-brand)]" />
+                  )}
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {showLabels && <span className="truncate">{tab.label}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+});
 
 export default function Layout({
   children,
@@ -129,46 +176,6 @@ export default function Layout({
     group: g,
     tabs: allowedTabs.filter((t) => t.group === g),
   })).filter((g) => g.tabs.length > 0);
-
-  const SidebarContent = ({ showLabels }) => (
-    <nav className="space-y-5">
-      {grouped.map(({ group, tabs }) => (
-        <div key={group}>
-          {showLabels && (
-            <p className="text-[0.6rem] uppercase text-[var(--nav-text-section)] tracking-[0.15em] px-3 mb-1.5 font-semibold">
-              {group}
-            </p>
-          )}
-          <div className="space-y-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => goTo(tab.id)}
-                  title={tab.label}
-                  className={`w-full flex items-center gap-3 ${
-                    showLabels ? 'px-3.5' : 'px-0 justify-center'
-                  } py-2.5 rounded-xl text-xs font-bold transition-all duration-150 active:scale-[0.98] group relative ${
-                    active
-                      ? 'bg-[var(--nav-brand-bg)] text-[var(--nav-text-active)] shadow-lg shadow-[var(--nav-brand-shadow)]'
-                      : 'text-[var(--nav-text-inactive)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--nav-text-active)]'
-                  }`}
-                >
-                  {active && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-[var(--nav-brand)]" />
-                  )}
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  {showLabels && <span className="truncate">{tab.label}</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
 
   return (
     <div className="min-h-screen bg-dark-gradient flex flex-col font-sans">
@@ -359,10 +366,10 @@ export default function Layout({
           <div className="overflow-y-auto overflow-x-hidden relative">
             <div className="sticky bottom-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-t from-[var(--bg-base)] to-transparent z-10" />
             <div className={`transition-all duration-200 ease-in-out ${collapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
-              <SidebarContent showLabels />
+              <SidebarContent showLabels activeTab={activeTab} goTo={goTo} allowedTabs={allowedTabs} />
             </div>
             <div className={`transition-all duration-200 ease-in-out ${!collapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
-              <SidebarContent showLabels={false} />
+              <SidebarContent showLabels={false} activeTab={activeTab} goTo={goTo} allowedTabs={allowedTabs} />
             </div>
           </div>
           <button
@@ -390,7 +397,7 @@ export default function Layout({
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <SidebarContent showLabels />
+              <SidebarContent showLabels activeTab={activeTab} goTo={goTo} allowedTabs={allowedTabs} />
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 mt-5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 border-t border-[var(--border-divider)] pt-4 transition-colors cursor-pointer"

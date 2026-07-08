@@ -14,7 +14,7 @@ export function Field({ label, error, hint, required, htmlFor, children, classNa
       )}
       {children}
       {error ? (
-        <p className="text-[0.7rem] text-rose-400 mt-1.5 flex items-center gap-1">{error}</p>
+        <p className="text-[0.7rem] text-rose-400 mt-1.5 flex items-center gap-1" role="alert">{error}</p>
       ) : hint ? (
         <p className="text-[0.7rem] text-slate-500 mt-1">{hint}</p>
       ) : null}

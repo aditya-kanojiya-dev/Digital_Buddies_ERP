@@ -3,13 +3,16 @@
 @layer base {
   :root {
     --bg-base: #0c0817;
-    --surface-1: rgba(18, 12, 36, 0.65);
-    --surface-2: rgba(25, 18, 48, 0.45);
+    --bg-deep: #05030a;
+    --surface-1: rgba(22, 16, 40, 0.75);
+    --surface-2: rgba(28, 22, 48, 0.55);
+    --surface-elevated: rgba(32, 26, 52, 0.85);
+    --surface-overlay: rgba(38, 32, 56, 0.92);
     --surface-input: rgba(15, 10, 30, 0.8);
-    --surface-hover: rgba(25, 20, 50, 0.5);
-    --surface-soft: rgba(15, 12, 25, 0.5);
+    --surface-hover: rgba(40, 32, 64, 0.5);
+    --surface-soft: rgba(18, 15, 30, 0.6);
     --surface-kbd: rgba(30, 41, 59, 0.7);
-    --surface-notif-item: rgba(15, 12, 25, 0.5);
+    --surface-notif-item: rgba(20, 16, 35, 0.55);
 
     --accent: #8b5cf6;
     --accent-strong: #7c3aed;
@@ -36,6 +39,9 @@
 
     --glow: 0 0 20px rgba(139, 92, 246, 0.15);
     --glow-strong: 0 0 28px rgba(139, 92, 246, 0.28);
+    --elevation-1: 0 1px 3px rgba(0,0,0,0.3);
+    --elevation-2: 0 4px 12px rgba(0,0,0,0.4);
+    --elevation-3: 0 8px 24px rgba(0,0,0,0.5);
 
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -97,6 +103,9 @@
               border-color var(--duration-slow) var(--ease-smooth),
               box-shadow var(--duration-slow) var(--ease-smooth);
 }
+.glass-panel:active {
+  transform: scale(0.995);
+}
 
 .glass-card {
   background: var(--surface-2);
@@ -110,6 +119,9 @@
   border-color: var(--border-strong);
   box-shadow: var(--glow);
   transform: translateY(-2px);
+}
+.glass-card:active {
+  transform: scale(0.98);
 }
 
 .glass-card-static {
@@ -147,7 +159,7 @@
 }
 
 .bg-dark-gradient {
-  background: radial-gradient(circle at top, #1e113a 0%, #0c0817 100%);
+  background: radial-gradient(ellipse at 50% 0%, #1e113a 0%, #0c0817 70%, var(--bg-deep) 100%);
   transition: background var(--duration-slow) var(--ease-smooth);
 }
 
