@@ -202,15 +202,15 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
     ].sort((a, b) => new Date(a.ts) - new Date(b.ts));
 
     return (
-        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
             {/* Backdrop */}
-            <div
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
             {/* Panel */}
-            <aside className="fixed right-0 top-0 h-full w-full max-w-md glass-panel border-l border-violet-500/15 z-50 flex flex-col shadow-2xl">
+            <aside
+                onClick={e => e.stopPropagation()}
+                className="relative w-full max-w-lg max-h-[90dvh] glass-panel border border-violet-500/15 z-10 flex flex-col shadow-2xl rounded-2xl overflow-hidden animate-fade-in"
+            >
 
                 {/* Header */}
                 <div className="p-5 border-b border-slate-800 flex items-start justify-between gap-3 flex-shrink-0">
@@ -418,6 +418,6 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                     </button>
                 </form>
             </aside>
-        </>
+        </div>
     );
 }

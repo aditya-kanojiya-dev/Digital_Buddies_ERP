@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
-  GitBranch, X, Filter, UserPlus, Send, Edit3,
+  GitBranch, X, Filter, UserPlus, Send, Edit3, GripVertical,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { linkifyText } from '../../lib/format';
@@ -477,14 +477,17 @@ export default function Creative({ user, state, updateState, activeDepartment })
                       >
                         <div
                           onClick={() => { handleOpenDetail(task); setFocusedCol(null); setFocusedTaskIdx(null); }}
-                          className={`glass-card p-2.5 rounded-xl border-l-[3px] transition-all duration-200 hover:border-l-fuchsia-400 hover:bg-fuchsia-500/[0.02] hover:shadow-lg hover:shadow-fuchsia-500/5 cursor-pointer ${
+                          className={`glass-card p-2.5 pl-2 rounded-xl border-l-[3px] transition-all duration-200 hover:border-l-fuchsia-400 hover:bg-fuchsia-500/[0.02] hover:shadow-lg hover:shadow-fuchsia-500/5 cursor-pointer active:scale-[0.98] ${
                             isOverdue ? 'border-l-rose-500 bg-rose-500/[0.04]' :
                             isDueToday ? 'border-l-amber-500 bg-amber-500/[0.04]' :
                             'border-l-fuchsia-500/40'
                           } ${isTaskFocused ? 'ring-2 ring-fuchsia-400/70 shadow-lg shadow-fuchsia-500/20 border-fuchsia-400/60' : ''}`}
                         >
-                          {/* Title row with priority dot */}
-                          <div className="flex items-center gap-1.5 mb-1">
+                          {/* Drag handle + Title row */}
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className="text-slate-600 hover:text-slate-400 flex-shrink-0 mr-0.5" title="Drag to reorder">
+                              <GripVertical className="w-3 h-3" />
+                            </span>
                             {task.priority && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityDot}`} />}
                             <span className="text-xs font-semibold text-slate-100 truncate leading-tight">{task.title}</span>
                             {task.revisionCount > 0 && <span className="text-3xs text-amber-400 font-bold flex-shrink-0">R{task.revisionCount}</span>}
