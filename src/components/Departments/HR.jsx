@@ -8,6 +8,8 @@ import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
 import { DatePicker } from '../ui';
 
+const todayStr = () => new Date().toISOString().split('T')[0];
+
 export default function HR({ state, updateState, user = { role: 'Super Admin', id: 'EMP01' } }) {
   const toast = useToast();
   const { employees, attendance, leaves, advances, clients, devProjects, interviews, feedback, dailyOps, timelogs, tasks } = state;
@@ -33,6 +35,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   // Modals / Popups state
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [createdInviteInfo, setCreatedInviteInfo] = useState(null);
+  const [empSearch, setEmpSearch] = useState('');
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [selectedActivityEmp, setSelectedActivityEmp] = useState(null);
 
@@ -606,7 +609,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   return (
     <div className="space-y-8 animate-fade-in print:bg-white print:text-black">
       {/* Sub tabs navigation */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-4 print:hidden">
+      <div className="flex gap-2 overflow-x-auto flex-nowrap pb-4 border-b border-slate-800 print:hidden scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent -mx-2 px-2">
         {[
           { id: 'employees', label: 'Employee Roster', icon: Users },
           { id: 'attendance', label: 'Attendance & Leaves', icon: Clock },
@@ -622,14 +625,14 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition flex-shrink-0 ${
                 activeSubTab === tab.id 
                   ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20' 
                   : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
               }`}
             >
-              <Icon className="w-4 h-4" />
-              {tab.label}
+              <Icon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+              <span>{tab.label}</span>
             </button>
           );
         })}
@@ -686,13 +689,13 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                       <td className="py-2.5 px-4">Basic Pay</td>
                       <td className="py-2.5 px-4 text-right">₹{pay.base.toLocaleString()}</td>
                       <td className="py-2.5 px-4 border-l border-slate-800 print:border-black">Leave Deductions ({pay.leavesCount})</td>
-                      <td className="py-2.5 px-4 text-right border-l border-slate-800 print:border-black text-rose-455">-₹{pay.leaveDeduction.toLocaleString()}</td>
+                      <td className="py-2.5 px-4 text-right border-l border-slate-800 print:border-black text-rose-400">-₹{pay.leaveDeduction.toLocaleString()}</td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4">HRA Allowances</td>
                       <td className="py-2.5 px-4 text-right">₹0</td>
                       <td className="py-2.5 px-4 border-l border-slate-800 print:border-black">Advances Offsets</td>
-                      <td className="py-2.5 px-4 text-right border-l border-slate-800 print:border-black text-rose-455">-₹{pay.advancesDeduction.toLocaleString()}</td>
+                      <td className="py-2.5 px-4 text-right border-l border-slate-800 print:border-black text-rose-400">-₹{pay.advancesDeduction.toLocaleString()}</td>
                     </tr>
                   </tbody>
                   <tfoot>
@@ -700,7 +703,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                       <td className="py-2.5 px-4">Gross Earnings</td>
                       <td className="py-2.5 px-4 text-right">₹{pay.base.toLocaleString()}</td>
                       <td className="py-2.5 px-4 border-l border-slate-800 print:border-black">Total Deductions</td>
-                      <td className="py-2.5 px-4 text-right border-l border-slate-800 print:border-black text-rose-455">
+                      <td className="py-2.5 px-4 text-right border-l border-slate-800 print:border-black text-rose-400">
                         -₹{(pay.leaveDeduction + pay.advancesDeduction).toLocaleString()}
                       </td>
                     </tr>
@@ -709,7 +712,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
               </div>
 
               {/* Net pay highlight */}
-              <div className="bg-slate-950 p-4 rounded-xl flex items-center justify-between border border-slate-850 print:border-black print:bg-slate-100">
+              <div className="bg-slate-950 p-4 rounded-xl flex items-center justify-between border border-slate-800 print:border-black print:bg-slate-100">
                 <span className="text-sm font-bold text-slate-300 print:text-black">Net Salary Payout</span>
                 <span className="text-xl font-extrabold text-emerald-400 print:text-black">
                   ₹{pay.totalSalary.toLocaleString()}
@@ -717,7 +720,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
               </div>
 
               {/* Signatures */}
-              <div className="grid grid-cols-2 gap-8 pt-8 text-2xs text-slate-455 print:text-black">
+              <div className="grid grid-cols-2 gap-8 pt-8 text-2xs text-slate-400 print:text-black">
                 <div className="space-y-4">
                   <div className="border-b border-slate-800 w-32 print:border-black" />
                   <p>Employee Signature</p>
@@ -732,13 +735,13 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
               <div className="flex gap-4 pt-4 border-t border-slate-900 print:hidden">
                 <button
                   onClick={() => window.print()}
-                  className="flex-1 bg-violet-650 hover:bg-violet-755 py-3 rounded-xl text-white font-bold flex items-center justify-center gap-2 transition"
+                  className="flex-1 bg-violet-600 hover:bg-violet-700 py-3 rounded-xl text-white font-bold flex items-center justify-center gap-2 transition"
                 >
                   <Printer className="w-4 h-4" /> Print PDF Slip
                 </button>
                 <button
                   onClick={() => setSelectedPayslipEmp(null)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-750 py-3 rounded-xl text-slate-205 font-bold transition"
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 py-3 rounded-xl text-slate-200 font-bold transition"
                 >
                   Close
                 </button>
@@ -754,10 +757,34 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       {activeSubTab === 'employees' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
           <div className="glass-panel p-6 rounded-2xl lg:col-span-2 space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100 flex justify-between items-center">
-              <span>Registered Team Directory</span>
-              <span className="text-2xs text-slate-400 font-mono font-medium">Count: {employees.length}</span>
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold text-slate-100">Registered Team Directory</h3>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 sm:flex-initial">
+                  <input type="text" value={empSearch} onChange={e => setEmpSearch(e.target.value)}
+                    className="w-full sm:w-48 glass-input pl-8 pr-3 py-2 rounded-xl text-xs"
+                    placeholder="Search members..." />
+                  <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+                <span className="text-2xs text-slate-400 font-mono font-medium whitespace-nowrap">{employees.length} total</span>
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Active', count: employees.filter(e => (e.status || 'Active') === 'Active').length, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+                { label: 'Invited', count: employees.filter(e => (e.status || 'Active') === 'Invited').length, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                { label: 'Suspended', count: employees.filter(e => (e.status || 'Active') === 'Suspended').length, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+                { label: 'Total Payroll', count: `₹${employees.reduce((s, e) => s + (e.salary || 0), 0).toLocaleString()}`, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+              ].map(s => (
+                <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3 border border-slate-800/40`}>
+                  <p className="text-3xs text-slate-500 uppercase tracking-wider">{s.label}</p>
+                  <p className={`text-sm font-bold ${s.color} mt-0.5`}>{s.count}</p>
+                </div>
+              ))}
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -770,12 +797,15 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
-                  {employees.map(emp => {
+                  {employees.filter(emp => {
+                    const q = empSearch.toLowerCase();
+                    return !q || emp.name.toLowerCase().includes(q) || emp.email.toLowerCase().includes(q) || emp.id.toLowerCase().includes(q) || (emp.designation || '').toLowerCase().includes(q);
+                  }).map(emp => {
                     const statusColors = {
                       Invited: 'bg-amber-500/10 text-amber-400 border border-amber-500/15',
                       Active: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15',
                       Suspended: 'bg-rose-500/10 text-rose-400 border border-rose-500/15',
-                      Terminated: 'bg-slate-850 text-slate-500 border border-slate-800'
+                      Terminated: 'bg-slate-800 text-slate-500 border border-slate-800'
                     };
                     const statusVal = emp.status || (emp.mustChangePassword ? 'Invited' : 'Active');
                     
@@ -783,13 +813,13 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                       <tr key={emp.id} className="text-slate-300 hover:bg-slate-900/25">
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-violet-650 flex items-center justify-center font-bold text-white text-xs">
+                            <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center font-bold text-white text-xs">
                               {emp.name.charAt(0)}
                             </div>
                             <div>
                               <div className="font-semibold text-slate-100 flex items-center gap-1.5">
                                 {emp.name}
-                                <span className="text-4xs text-slate-450 font-mono">({emp.id})</span>
+                                <span className="text-4xs text-slate-400 font-mono">({emp.id})</span>
                               </div>
                               <div className="text-2xs text-slate-400 font-mono">{emp.email}</div>
                               {emp.phone && <div className="text-3xs text-slate-500">{emp.phone}</div>}
@@ -797,8 +827,8 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="text-xs font-semibold text-slate-205">{emp.designation || `${Array.isArray(emp.department) ? emp.department[0] : emp.department} Staff`}</div>
-                          <div className="text-3xs text-slate-450 uppercase tracking-wider">{emp.role} • {Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department}</div>
+                          <div className="text-xs font-semibold text-slate-200">{emp.designation || `${Array.isArray(emp.department) ? emp.department[0] : emp.department} Staff`}</div>
+                          <div className="text-3xs text-slate-400 uppercase tracking-wider">{emp.role} • {Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department}</div>
                         </td>
                         <td className="py-3.5 px-4">
                           <span className={`inline-block px-2.5 py-0.5 rounded-full text-3xs font-medium ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
@@ -856,7 +886,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                                 {/* Reset Password */}
                                 <button
                                   onClick={() => handleResetPassword(emp)}
-                                  className="p-1.5 hover:bg-violet-600/20 rounded text-violet-405 transition cursor-pointer"
+                                  className="p-1.5 hover:bg-violet-600/20 rounded text-violet-400 transition cursor-pointer"
                                   title="Reset Password & Set Force Change"
                                 >
                                   <Key className="w-3.5 h-3.5" />
@@ -1013,7 +1043,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="w-full bg-slate-800 text-slate-200 py-2.5 rounded-xl text-sm hover:bg-slate-750 transition cursor-pointer"
+                  className="w-full bg-slate-800 text-slate-200 py-2.5 rounded-xl text-sm hover:bg-slate-700 transition cursor-pointer"
                 >
                   Cancel Edit
                 </button>
@@ -1027,14 +1057,33 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           SUBTAB: ATTENDANCE & LEAVES
           ------------------------- */}
       {activeSubTab === 'attendance' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:hidden">
+        <div className="space-y-6 print:hidden">
+          {/* Stats row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Pending Leaves', count: leaves.filter(l => l.status === 'Pending').length, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+              { label: 'Approved', count: leaves.filter(l => l.status === 'Approved').length, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+              { label: 'Rejected', count: leaves.filter(l => l.status === 'Rejected').length, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+              { label: 'Today Logged', count: attendance.filter(a => a.logDate === todayStr() || a.date === todayStr()).length, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            ].map(s => (
+              <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3 border border-slate-800/40`}>
+                <p className="text-3xs text-slate-500 uppercase tracking-wider">{s.label}</p>
+                <p className={`text-sm font-bold ${s.color} mt-0.5`}>{s.count}</p>
+              </div>
+            ))}
+          </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Leaves Manager */}
           <div className="glass-panel p-6 rounded-2xl space-y-6">
             <h3 className="text-lg font-semibold text-slate-100">Leave Requests & Approvals</h3>
             
             <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
               {leaves.length === 0 ? (
-                <p className="text-slate-400 text-center py-6 text-sm">No leave requests logged yet.</p>
+                <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-slate-800/60 rounded-xl">
+                  <Clock className="w-8 h-8 text-slate-600 mb-2" />
+                  <p className="text-xs text-slate-500">No leave requests logged yet.</p>
+                </div>
               ) : (
                 leaves.map(l => {
                   const emp = employees.find(e => e.id === l.employeeId);
@@ -1047,7 +1096,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                         <div className="text-xs text-slate-400">
                           {l.type} | {l.startDate} to {l.endDate}
                         </div>
-                        <div className="text-xs text-slate-505 italic">" {l.reason} "</div>
+                        <div className="text-xs text-slate-500 italic">" {l.reason} "</div>
                       </div>
                       
                       <div className="flex gap-2">
@@ -1083,11 +1132,11 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
             </div>
 
             <form onSubmit={handleApplyLeave} className="border-t border-slate-900 pt-6 space-y-4">
-              <h4 className="font-bold text-sm text-slate-350">Submit Leave Application</h4>
+              <h4 className="font-bold text-sm text-slate-300">Submit Leave Application</h4>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-450 mb-1">Employee</label>
+                  <label className="block text-xs text-slate-400 mb-1">Employee</label>
                   <select
                     value={leaveEmpId}
                     onChange={(e) => setLeaveEmpId(e.target.value)}
@@ -1101,7 +1150,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-455 mb-1">Leave Type</label>
+                  <label className="block text-xs text-slate-400 mb-1">Leave Type</label>
                   <select
                     value={leaveType}
                     onChange={(e) => setLeaveType(e.target.value)}
@@ -1121,7 +1170,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
               </div>
 
               <div>
-                <label className="block text-xs text-slate-455 mb-1">Reason Description</label>
+                <label className="block text-xs text-slate-400 mb-1">Reason Description</label>
                 <input
                   type="text"
                   value={leaveReason}
@@ -1134,7 +1183,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
 
               <button
                 type="submit"
-                className="w-full bg-violet-650 hover:bg-violet-755 py-2.5 rounded-xl text-xs font-semibold text-white transition"
+                className="w-full bg-violet-600 hover:bg-violet-700 py-2.5 rounded-xl text-xs font-semibold text-white transition"
               >
                 Submit Request
               </button>
@@ -1158,9 +1207,9 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                         Date Log: {a.logDate || a.date} | Mode: {a.type || 'Office'}
                       </div>
                     </div>
-                    <div className="text-right text-xs text-slate-350">
-                      <div>Clock In: <span className="font-mono text-emerald-450 font-semibold">{a.clockIn}</span></div>
-                      <div>Clock Out: <span className="font-mono text-slate-405">{a.clockOut || '--:--'}</span></div>
+                    <div className="text-right text-xs text-slate-300">
+                      <div>Clock In: <span className="font-mono text-emerald-400 font-semibold">{a.clockIn}</span></div>
+                      <div>Clock Out: <span className="font-mono text-slate-400">{a.clockOut || '--:--'}</span></div>
                     </div>
                   </div>
                 );
@@ -1168,11 +1217,11 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
             </div>
 
             <form onSubmit={handleClockIn} className="border-t border-slate-900 pt-6 space-y-4">
-              <h4 className="font-bold text-sm text-slate-350 font-sans">Register Day Timestamp</h4>
+              <h4 className="font-bold text-sm text-slate-300 font-sans">Register Day Timestamp</h4>
               
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-1">
-                  <label className="block text-xs text-slate-455 mb-1">Employee</label>
+                  <label className="block text-xs text-slate-400 mb-1">Employee</label>
                   <select
                     value={clockEmpId}
                     onChange={(e) => setClockEmpId(e.target.value)}
@@ -1186,7 +1235,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-455 mb-1">Clock In</label>
+                  <label className="block text-xs text-slate-400 mb-1">Clock In</label>
                   <input
                     type="time"
                     value={clockInTime}
@@ -1196,7 +1245,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-455 mb-1">Clock Out</label>
+                  <label className="block text-xs text-slate-400 mb-1">Clock Out</label>
                   <input
                     type="time"
                     value={clockOutTime}
@@ -1215,6 +1264,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
             </form>
           </div>
         </div>
+      </div>
       )}
 
       {/* -------------------------
@@ -1229,7 +1279,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
             </div>
             <button
               onClick={handleExportTimelogs}
-              className="bg-violet-650 hover:bg-violet-755 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
             >
               <Download className="w-4 h-4" /> Export Timesheets (.csv)
             </button>
@@ -1256,7 +1306,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                       <td className="py-3.5 px-4 font-mono font-bold text-violet-400">{task?.title || 'General Activity'}</td>
                       <td className="py-3.5 px-4">{log.date}</td>
                       <td className="py-3.5 px-4 font-mono font-bold">{log.hours} Hrs</td>
-                      <td className="py-3.5 px-4 text-slate-450 italic line-clamp-1">"{log.description}"</td>
+                      <td className="py-3.5 px-4 text-slate-400 italic line-clamp-1">"{log.description}"</td>
                     </tr>
                   );
                 })}
@@ -1270,13 +1320,31 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           SUBTAB: SALARY & ADVANCES
           ------------------------- */}
       {activeSubTab === 'salary' && (
-        <div className="space-y-8 print:hidden">
+        <div className="space-y-6 print:hidden">
+          {/* Stats row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Total Payroll', count: `₹${employees.reduce((s, e) => s + (e.salary || 0), 0).toLocaleString()}`, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+              { label: 'Pending Advances', count: advances.filter(a => a.status === 'Pending').length, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+              { label: 'Approved Advances', count: advances.filter(a => a.status === 'Approved').length, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+              { label: 'Total Advances', count: `₹${advances.filter(a => a.status === 'Approved').reduce((s, a) => s + a.amount, 0).toLocaleString()}`, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+            ].map(s => (
+              <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3 border border-slate-800/40`}>
+                <p className="text-3xs text-slate-500 uppercase tracking-wider">{s.label}</p>
+                <p className={`text-sm font-bold ${s.color} mt-0.5`}>{s.count}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="glass-panel p-6 rounded-2xl space-y-6">
             <h3 className="text-lg font-semibold text-slate-100">Advance Salary Requests</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {advances.length === 0 ? (
-                <p className="text-slate-400 col-span-2 text-center text-sm py-4">No advance requests logged.</p>
+                <div className="flex flex-col items-center justify-center py-8 text-center col-span-2 border border-dashed border-slate-800/60 rounded-xl">
+                  <DollarSign className="w-8 h-8 text-slate-600 mb-2" />
+                  <p className="text-xs text-slate-500">No advance requests logged yet.</p>
+                </div>
               ) : (
                 advances.map(a => {
                   const emp = employees.find(e => e.id === a.employeeId);
@@ -1321,10 +1389,10 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
             </div>
 
             <form onSubmit={handleRequestAdvance} className="border-t border-slate-900 pt-6 space-y-4">
-              <h4 className="font-bold text-sm text-slate-350">Create Advance Request Form</h4>
+              <h4 className="font-bold text-sm text-slate-300">Create Advance Request Form</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-455 mb-1">Employee Profile</label>
+                  <label className="block text-xs text-slate-400 mb-1">Employee Profile</label>
                   <select
                     value={advEmpId}
                     onChange={(e) => setAdvEmpId(e.target.value)}
@@ -1338,7 +1406,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-455 mb-1">Request Amount (₹)</label>
+                  <label className="block text-xs text-slate-400 mb-1">Request Amount (₹)</label>
                   <input
                     type="number"
                     value={advAmount}
@@ -1349,7 +1417,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-455 mb-1">Deduction Reason</label>
+                  <label className="block text-xs text-slate-400 mb-1">Deduction Reason</label>
                   <input
                     type="text"
                     value={advReason}
@@ -1382,7 +1450,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                     <th className="py-2.5 px-4">Employee</th>
                     <th className="py-2.5 px-4">Base</th>
                     <th className="py-2.5 px-4 text-rose-400">Leave Ded.</th>
-                    <th className="py-2.5 px-4 text-amber-550">Advance Ded.</th>
+                    <th className="py-2.5 px-4 text-amber-500">Advance Ded.</th>
                     <th className="py-2.5 px-4 text-emerald-400 font-bold">Total Payout</th>
                     <th className="py-2.5 px-4 text-right">Reciept</th>
                   </tr>
@@ -1394,7 +1462,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                       <tr key={emp.id} className="text-slate-300 text-xs hover:bg-slate-900/25">
                         <td className="py-3 px-4 font-semibold text-slate-200">{emp.name}</td>
                         <td className="py-3 px-4 font-mono">₹{pay.base.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-rose-455 font-mono">-₹{pay.leaveDeduction.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-rose-400 font-mono">-₹{pay.leaveDeduction.toLocaleString()}</td>
                         <td className="py-3 px-4 text-amber-500 font-mono">-₹{pay.advancesDeduction.toLocaleString()}</td>
                         <td className="py-3 px-4 text-emerald-400 font-bold font-mono text-sm">
                           ₹{pay.totalSalary.toLocaleString()}
@@ -1402,7 +1470,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                         <td className="py-3 px-4 text-right">
                           <button
                             onClick={() => setSelectedPayslipEmp(emp)}
-                            className="bg-violet-650/15 hover:bg-violet-650/30 text-violet-400 px-3 py-1.5 rounded-xl border border-violet-500/20 transition flex items-center gap-1.5 ml-auto text-xs cursor-pointer font-bold"
+                            className="bg-violet-600/15 hover:bg-violet-600/30 text-violet-400 px-3 py-1.5 rounded-xl border border-violet-500/20 transition flex items-center gap-1.5 ml-auto text-xs cursor-pointer font-bold"
                           >
                             <Printer className="w-3.5 h-3.5" /> Payslip
                           </button>
@@ -1462,7 +1530,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
               </div>
               <button
                 type="submit"
-                className="w-full bg-violet-650 hover:bg-violet-755 py-3 rounded-xl text-white font-medium transition flex items-center justify-center gap-2"
+                className="w-full bg-violet-600 hover:bg-violet-700 py-3 rounded-xl text-white font-medium transition flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" /> Route Project Lead
               </button>
@@ -1676,11 +1744,11 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                       <h4 className="font-semibold text-slate-200">{fb.clientName}</h4>
                       <p className="text-xs text-slate-400">Department: {fb.department} | {fb.date}</p>
                     </div>
-                    <span className="text-amber-450 font-bold flex gap-0.5">
+                    <span className="text-amber-400 font-bold flex gap-0.5">
                       {'⭐'.repeat(fb.rating)}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-355 italic">" {fb.comment} "</p>
+                  <p className="text-sm text-slate-300 italic">" {fb.comment} "</p>
                 </div>
               ))}
             </div>
@@ -1747,7 +1815,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                     }}
                     className="w-4.5 h-4.5 border-slate-800 rounded accent-violet-600 focus:ring-0 cursor-pointer"
                   />
-                  <span className={`text-sm ${op.status === 'Completed' ? 'line-through text-slate-500' : 'text-slate-255'}`}>
+                  <span className={`text-sm ${op.status === 'Completed' ? 'line-through text-slate-500' : 'text-slate-200'}`}>
                     {op.task}
                   </span>
                 </div>
@@ -1899,8 +1967,9 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   <tbody className="divide-y divide-slate-800/40 text-slate-300">
                     {activityLogs.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-6 text-center text-slate-500 italic">
-                          No login session logs found.
+                        <td colSpan={4} className="py-8 text-center text-slate-500">
+                          <Activity className="w-6 h-6 text-slate-600 mx-auto mb-2" />
+                          <p className="text-xs">No login session logs found.</p>
                         </td>
                       </tr>
                     ) : (
@@ -1909,7 +1978,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                           <td className="py-2.5 px-3 font-mono text-violet-300">{log.loginAt}</td>
                           <td className="py-2.5 px-3 font-mono text-slate-400">
                             {log.logoutAt ? (
-                              <span className="text-emerald-450">{log.logoutAt}</span>
+                              <span className="text-emerald-400">{log.logoutAt}</span>
                             ) : (
                               <span className="text-amber-400 font-semibold animate-pulse">Active Session</span>
                             )}
@@ -1925,10 +1994,10 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                 </table>
               </div>
 
-              <div className="flex justify-end pt-2 border-t border-slate-850">
+              <div className="flex justify-end pt-2 border-t border-slate-800">
                 <button
                   onClick={() => { setShowActivityModal(false); setSelectedActivityEmp(null); }}
-                  className="bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-bold py-2.5 px-5 rounded-xl transition cursor-pointer"
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-2.5 px-5 rounded-xl transition cursor-pointer"
                 >
                   Close Log History
                 </button>
