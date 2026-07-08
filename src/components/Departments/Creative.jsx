@@ -12,15 +12,15 @@ import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
 const COLUMNS = ['New', 'In Progress', 'Review', 'Completed'];
 
 const COLUMN_STYLES = {
-  'New':         { header: 'text-violet-300',    panelBg: 'bg-violet-950/30',    borderCol: 'border-violet-500/15' },
-  'In Progress': { header: 'text-blue-300',      panelBg: 'bg-blue-950/30',      borderCol: 'border-blue-500/15' },
-  'Review':      { header: 'text-amber-300',     panelBg: 'bg-amber-950/30',     borderCol: 'border-amber-500/15' },
-  'Completed':   { header: 'text-emerald-300',   panelBg: 'bg-emerald-950/30',   borderCol: 'border-emerald-500/15' },
+  'New':         { header: 'text-fuchsia-300',     panelBg: 'bg-fuchsia-950/20',    borderCol: 'border-fuchsia-500/20',     glow: 'shadow-fuchsia-500/5' },
+  'In Progress': { header: 'text-blue-300',       panelBg: 'bg-blue-950/20',       borderCol: 'border-blue-500/20',        glow: 'shadow-blue-500/5' },
+  'Review':      { header: 'text-amber-300',      panelBg: 'bg-amber-950/20',      borderCol: 'border-amber-500/20',       glow: 'shadow-amber-500/5' },
+  'Completed':   { header: 'text-emerald-300',    panelBg: 'bg-emerald-950/20',    borderCol: 'border-emerald-500/20',     glow: 'shadow-emerald-500/5' },
 };
 
 const DEPT_DOT = {
   'Paid Ads':               'bg-orange-500',
-  'Social Media':           'bg-violet-500',
+  'Social Media':           'bg-fuchsia-500',
   'Video Editors':          'bg-red-500',
   'Graphic Designers':      'bg-pink-500',
   'Videography/Photography':'bg-teal-500',
@@ -336,19 +336,19 @@ export default function Creative({ user, state, updateState, activeDepartment })
     <div className="flex flex-col h-[calc(100dvh-6rem)] animate-fade-in gap-0">
 
       {/* ── Row 1: Board identity ── */}
-      <div className="flex items-center gap-3 mb-2 flex-shrink-0">
-        <div className="p-2 bg-violet-500/10 rounded-xl text-violet-400">
+      <div className="flex items-center gap-4 mb-4 flex-shrink-0">
+        <div className="p-2.5 bg-fuchsia-500/10 rounded-xl text-fuchsia-400 ring-1 ring-fuchsia-500/20">
           <DeptIcon className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-100">{activeDepartment}</h1>
-          <p className="text-xs text-slate-500">{deptTasks.length} task{deptTasks.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-xl font-extrabold text-slate-100 tracking-tight">{activeDepartment}</h1>
+          <p className="text-xs text-slate-500 mt-0.5">{deptTasks.length} task{deptTasks.length !== 1 ? 's' : ''} · {employees.filter(e => e.department?.includes(activeDepartment)).length} members</p>
         </div>
       </div>
 
       {/* ── Row 2: Controls ── */}
       <div className="flex flex-wrap items-center gap-2 mb-4 flex-shrink-0">
-        <div className="flex items-center gap-1 bg-slate-950/50 p-0.5 rounded-lg border border-slate-800/40">
+        <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800/60 shadow-inner">
           {[
             { label: 'All', val: 'all' },
             { label: '3D', val: '3' },
@@ -356,8 +356,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
             { label: '12D',val: '12' },
           ].map(f => (
             <button key={f.val} onClick={() => setTimelineFilter(f.val)}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-3xs sm:text-xs font-medium transition ${
-                timelineFilter === f.val ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-3xs sm:text-xs font-bold tracking-wide transition-all duration-150 ${
+                timelineFilter === f.val ? 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/25' : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/60'
               }`}>
               {f.label}
             </button>
@@ -366,15 +366,16 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
         <div className="flex items-center gap-1.5 sm:gap-2 relative ml-auto">
           <button onClick={() => setShowCompleted(!showCompleted)}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
-              showCompleted ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 ${
+              showCompleted ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 border border-transparent'
             }`} title={showCompleted ? 'Hide completed tasks' : 'Show completed tasks'}>
-            {showCompleted ? '✓ Completed' : '✓ Hidden'}
+            <span className={`w-1.5 h-1.5 rounded-full ${showCompleted ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+            {showCompleted ? 'Completed' : 'Hidden'}
           </button>
 
           <button onClick={() => setShowFilters(!showFilters)}
             className={`p-2 rounded-lg transition ${
-              showFilters ? 'bg-violet-600/20 text-violet-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              showFilters ? 'bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`} title="Filters & Legend">
             <Filter className="w-4 h-4" />
           </button>
@@ -416,8 +417,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
           {canAssignTasks && (
             <button onClick={() => setShowTaskForm(true)}
-              className="btn-primary px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5" title="Add task">
-              <Plus className="w-4 h-4" /> Add
+              className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-fuchsia-500/20 transition-all duration-150 hover:shadow-fuchsia-500/30" title="Add task">
+              <Plus className="w-4 h-4" /> Add Task
             </button>
           )}
         </div>
@@ -434,15 +435,15 @@ export default function Creative({ user, state, updateState, activeDepartment })
           const isColFocused = focusedCol === col;
           return (
             <div key={col}
-              className={`flex flex-col min-h-0 rounded-xl border ${style.borderCol} ${style.panelBg} ${isOver ? 'ring-2 ring-violet-500/50' : ''} ${isColFocused ? 'ring-2 ring-violet-400/60 shadow-lg shadow-violet-500/10' : ''}`}
+              className={`flex flex-col min-h-0 rounded-xl border ${style.borderCol} ${style.panelBg} ${isOver ? 'ring-2 ring-fuchsia-500/50' : ''} ${isColFocused ? 'ring-2 ring-fuchsia-400/60 shadow-lg shadow-fuchsia-500/10' : ''}`}
               onDragOver={(e) => handleDragOver(e, col)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col)}
             >
-              <div className="px-4 py-3 border-b border-slate-800/40 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <h3 className={`text-xs font-bold uppercase tracking-wider ${style.header}`}>{col}</h3>
-                  <span className="text-xs text-slate-500 bg-slate-800/50 px-1.5 py-0.5 rounded-full font-medium">{colTasks.length}</span>
+              <div className={`px-4 py-3 border-b border-slate-800/40 flex items-center justify-between flex-shrink-0 ${style.glow || ''}`}>
+                <div className="flex items-center gap-2.5">
+                  <h3 className={`text-xs font-extrabold uppercase tracking-[0.12em] ${style.header}`}>{col}</h3>
+                  <span className={`text-2xs font-bold px-2 py-0.5 rounded-full ${style.header} bg-slate-800/50`}>{colTasks.length}</span>
                 </div>
                 {overdue > 0 && (
                   <span className="text-3xs text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold">
@@ -476,11 +477,11 @@ export default function Creative({ user, state, updateState, activeDepartment })
                       >
                         <div
                           onClick={() => { handleOpenDetail(task); setFocusedCol(null); setFocusedTaskIdx(null); }}
-                          className={`glass-card p-2.5 rounded-xl border-l-[3px] transition hover:border-l-violet-400 cursor-pointer ${
+                          className={`glass-card p-2.5 rounded-xl border-l-[3px] transition-all duration-200 hover:border-l-fuchsia-400 hover:bg-fuchsia-500/[0.02] hover:shadow-lg hover:shadow-fuchsia-500/5 cursor-pointer ${
                             isOverdue ? 'border-l-rose-500 bg-rose-500/[0.04]' :
                             isDueToday ? 'border-l-amber-500 bg-amber-500/[0.04]' :
-                            'border-l-violet-500/40'
-                          } ${isTaskFocused ? 'ring-2 ring-violet-400/70 shadow-lg shadow-violet-500/20 border-violet-400/60' : ''}`}
+                            'border-l-fuchsia-500/40'
+                          } ${isTaskFocused ? 'ring-2 ring-fuchsia-400/70 shadow-lg shadow-fuchsia-500/20 border-fuchsia-400/60' : ''}`}
                         >
                           {/* Title row with priority dot */}
                           <div className="flex items-center gap-1.5 mb-1">
@@ -512,8 +513,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
                                 {task.dueDate}
                               </span>
                             )}
-                            {cCount > 0 && <span className="text-violet-400 font-semibold">{cCount}c</span>}
-                            {task.attachmentUrl && <LinkIcon className="w-2.5 h-2.5 text-violet-400" />}
+                            {cCount > 0 && <span className="text-fuchsia-400 font-semibold">{cCount}c</span>}
+                            {task.attachmentUrl && <LinkIcon className="w-2.5 h-2.5 text-fuchsia-400" />}
                             {task.approvedAt && <span className="text-emerald-400">✓ done</span>}
                           </div>
 
@@ -522,7 +523,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
                             {canDelegate(task) && (
                               <button title="Delegate"
                                 onClick={(e) => { e.stopPropagation(); setDelegateTaskId(task.id); setDelegateEmpId(task.assignedTo || ''); }}
-                                className="p-1.5 sm:p-1 rounded-md bg-violet-600/10 hover:bg-violet-600/20 text-violet-400 transition border border-violet-500/15 min-w-[28px] min-h-[28px] flex items-center justify-center">
+                                className="p-1.5 sm:p-1 rounded-md bg-fuchsia-600/10 hover:bg-fuchsia-600/20 text-fuchsia-400 transition border border-fuchsia-500/15 min-w-[28px] min-h-[28px] flex items-center justify-center">
                                 <UserPlus className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
                               </button>
                             )}
@@ -562,7 +563,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
       {showTaskForm && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setShowTaskForm(false)}>
-          <div className="glass-panel border border-violet-500/20 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          <div className="glass-panel border border-fuchsia-500/20 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-slate-800">
               <h3 className="font-bold text-slate-100 text-sm">New Task</h3>
@@ -631,7 +632,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
                   </div>
                 </div>
                 <button type="submit" onClick={() => setShowTaskForm(false)}
-                  className="w-full bg-neon-gradient py-2.5 rounded-xl text-white font-medium shadow-md transition duration-200 flex items-center justify-center gap-2 hover:opacity-90">
+                  className="w-full bg-fuchsia-500 hover:bg-fuchsia-600 py-2.5 rounded-xl text-white font-bold shadow-lg shadow-fuchsia-500/20 transition-all duration-150 flex items-center justify-center gap-2">
                   <Plus className="w-5 h-5" /> Queue Asset
                 </button>
               </form>
@@ -683,10 +684,10 @@ export default function Creative({ user, state, updateState, activeDepartment })
           <>
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => { setDelegateTaskId(null); setDelegateEmpId(''); }} />
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="glass-panel border border-violet-500/20 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4"
+              <div className="glass-panel border border-fuchsia-500/20 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4"
                 onClick={e => e.stopPropagation()}>
                 <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                  <UserPlus className="w-5 h-5 text-violet-400" />
+                  <UserPlus className="w-5 h-5 text-fuchsia-400" />
                   Delegate Task
                 </h3>
                 <p className="text-sm text-slate-400">
@@ -707,7 +708,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
                   </div>
                   <div className="flex gap-2">
                     <button type="submit"
-                      className="flex-1 bg-violet-600 hover:bg-violet-700 py-2.5 rounded-xl text-white text-sm font-medium transition">
+                      className="flex-1 bg-fuchsia-500 hover:bg-fuchsia-600 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-fuchsia-500/20 transition-all duration-150">
                       <UserPlus className="w-4 h-4 inline mr-1.5" /> Delegate
                     </button>
                     <button type="button"
