@@ -290,6 +290,10 @@ export const db = {
   saveDailyOps: (data) => saveTable('daily_ops', data),     // was missing (was updateDailyOps)
   updateDailyOps: (ops) => saveTable('daily_ops', ops),     // keep old name for back-compat
 
+  getAttendanceDocs: () => getTable('attendance_docs'),
+  saveAttendanceDocs: (data) => saveTable('attendance_docs', data),
+  addAttendanceDoc: (doc) => addRow('attendance_docs', doc),
+
   getMoms: () => getTable('moms'),
   saveMoms: (data) => saveTable('moms', data),              // was missing
   addMom: (mom) => addRow('moms', mom),

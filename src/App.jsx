@@ -37,6 +37,7 @@ const DB_SAVE_MAP = {
   interviews:      db.saveInterviews,
   feedback:        db.saveFeedback,
   dailyOps:        db.saveDailyOps,
+  attendanceDocs:  db.saveAttendanceDocs,
   attendance:      db.saveAttendance,
   leaves:          db.saveLeaves,
   advances:        db.saveAdvances,
@@ -70,7 +71,7 @@ export default function App() {
 
   const [state, setState] = useState({
     employees: [], clients: [], adStats: [], adCampaigns: [], smmCalendar: [], smmQuotes: [],
-    devProjects: [], interviews: [], feedback: [], dailyOps: [], attendance: [],
+    devProjects: [], interviews: [], feedback: [], dailyOps: [], attendanceDocs: [], attendance: [],
     leaves: [], advances: [], moms: [], tasks: [], taskComments: [], timelogs: [],
     notifications: [], leads: [], proposals: [], invoices: [], projects: [],
     auditLogs: [], employeeInvites: [], loginActivity: []
@@ -106,7 +107,8 @@ const fetchAllData = async () => {
       db.getAuditLogs(),
       db.getEmployeeInvites(),
       db.getLoginActivity(),
-      db.getAdCampaigns()
+      db.getAdCampaigns(),
+      db.getAttendanceDocs()
     ]);
 
     // Log failed requests so you know which tables have RLS issues
@@ -146,7 +148,8 @@ const fetchAllData = async () => {
       auditLogs: getResult(21),
       employeeInvites: getResult(22),
       loginActivity: getResult(23),
-      adCampaigns: getResult(24)
+      adCampaigns: getResult(24),
+      attendanceDocs: getResult(25)
     };
 
     setState(newState);
