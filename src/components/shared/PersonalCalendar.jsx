@@ -2,10 +2,11 @@ import React, { useMemo, useState } from 'react';
 import {
     Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock,
     Plane, Briefcase, Home, X, List, Grid3X3, Columns, CalendarDays,
-    Search, Filter,
+    Search, Filter, Plus, Edit3, Trash2,
 } from 'lucide-react';
 import TaskDetailPanel from './TaskDetailPanel';
 import { linkifyText } from '../../lib/format';
+import { db } from '../../data/db';
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -139,6 +140,76 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
     });
     const [showFilters, setShowFilters] = useState(false);
 
+    // ── Personal task CRUD state ────────────────────────────────────────────
+    const { personalTasks } = state;
+    const [showPersonalForm, setShowPersonalForm] = useState(false);
+    const [editingPersonalId, setEditingPersonalId] = useState(null);
+    const [personalTitle, setPersonalTitle] = useState('');
+    const [personalDate, setPersonalDate] = useState('');
+    const [personalPriority, setPersonalPriority] = useState('Medium');
+    const [personalDesc, setPersonalDesc] = useState('');
+
+    const resetPersonalForm = () => {
+        setEditingPersonalId(null);
+        setPersonalTitle('');
+        setPersonalDate('');
+        setPersonalPriority('Medium');
+        setPersonalDesc('');
+    };
+
+    const handleSavePersonalTask = async (e) => {
+        e.preventDefault();
+        if (!personalTitle.trim()) return;
+        if (editingPersonalId) {
+            const updated = (personalTasks || []).map(t =>
+                t.id === editingPersonalId
+                    ? { ...t, title: personalTitle.trim(), date: personalDate || t.date, priority: personalPriority, description: personalDesc.trim() }
+                    : t
+            );
+            updateState({ personalTasks: updated });
+            try { await db.updatePersonalTask(editingPersonalId, { title: personalTitle.trim(), date: personalDate, priority: personalPriority, description: personalDesc.trim() }); } catch {}
+        } else {
+            const newTask = {
+                id: `PT${Date.now()}`,
+                userId: user.id,
+                title: personalTitle.trim(),
+                date: personalDate || today,
+                priority: personalPriority,
+                description: personalDesc.trim(),
+                completed: false,
+                createdAt: new Date().toISOString(),
+            };
+            updateState({ personalTasks: [...(personalTasks || []), newTask] });
+            try { await db.addPersonalTask(newTask); } catch {}
+        }
+        resetPersonalForm();
+        setShowPersonalForm(false);
+    };
+
+    const handleEditPersonalTask = (task) => {
+        setEditingPersonalId(task.id);
+        setPersonalTitle(task.title);
+        setPersonalDate(task.date || '');
+        setPersonalPriority(task.priority || 'Medium');
+        setPersonalDesc(task.description || '');
+        setShowPersonalForm(true);
+    };
+
+    const handleDeletePersonalTask = async (id) => {
+        if (!window.confirm('Delete this personal task?')) return;
+        updateState({ personalTasks: (personalTasks || []).filter(t => t.id !== id) });
+        try { await db.deletePersonalTask(id); } catch {}
+    };
+
+    const handleTogglePersonalCompleted = (id) => {
+        const updated = (personalTasks || []).map(t =>
+            t.id === id ? { ...t, completed: !t.completed } : t
+        );
+        updateState({ personalTasks: updated });
+        const task = updated.find(t => t.id === id);
+        if (task) try { db.updatePersonalTask(id, { completed: task.completed }); } catch {}
+    };
+
     // ── Task/leave/attendance data ──────────────────────────────────────────
     const myTasks = useMemo(
         () => (state.tasks || []).filter(t =>
@@ -188,7 +259,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
     const dayIndex = useMemo(() => {
         const idx = {};
         const ensure = (date) => {
-            if (!idx[date]) idx[date] = { tasks: [], leaves: [], attendance: null };
+            if (!idx[date]) idx[date] = { tasks: [], leaves: [], attendance: null, personal: [] };
             return idx[date];
         };
         filteredTasks.forEach(t => {
@@ -197,6 +268,9 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                 ensure(t.scheduledDate).tasks.push(t);
             }
         });
+        (personalTasks || []).forEach(t => {
+            if (t.date) ensure(t.date).personal.push(t);
+        });
         myLeaves.forEach(l => {
             expandLeaveDays(l).forEach(date => ensure(date).leaves.push(l));
         });
@@ -204,7 +278,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
             if (a.logDate) ensure(a.logDate).attendance = a;
         });
         return idx;
-    }, [filteredTasks, myLeaves, myAttendance]);
+    }, [filteredTasks, personalTasks, myLeaves, myAttendance]);
 
     // ── Compact "upcoming" widget for the Dashboard ─────────────────────────
     if (compact) {
@@ -252,6 +326,11 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                     {day.leaves.map(l => (
                                         <div key={l.id} className="flex items-center gap-1.5 text-amber-400">
                                             <Plane className="w-3 h-3" /> {l.type} Leave
+                                        </div>
+                                    ))}
+                                    {(day.personal || []).map(t => (
+                                        <div key={t.id} className="flex items-center gap-1.5 text-fuchsia-400">
+                                            📌 {t.title}
                                         </div>
                                     ))}
                                 </div>
@@ -420,6 +499,13 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                     {renderNavButtons()}
                     <div className="flex items-center gap-2">
                         <button
+                            onClick={() => setShowPersonalForm(true)}
+                            className="p-2 rounded-xl bg-violet-600/20 text-violet-400 hover:bg-violet-600/30 transition cursor-pointer"
+                            title="Add personal task"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                        <button
                             onClick={() => setShowFilters(f => !f)}
                             className={`p-2 rounded-xl transition cursor-pointer ${
                                 showFilters || activeFilterCount > 0 ? 'bg-violet-600/20 text-violet-400' : 'hover:bg-slate-800 text-slate-400'
@@ -504,6 +590,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                 <div className="flex flex-wrap items-center gap-4 text-3xs text-slate-400 px-1">
                     <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> High priority</span>
                     <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> Medium priority</span>
+                    <span className="flex items-center gap-1.5 text-fuchsia-400">📌 Personal task</span>
                     <span className="flex items-center gap-1.5"><Plane className="w-3 h-3 text-amber-400" /> Leave</span>
                     {ALL_DEPARTMENTS.slice(0, 4).map(d => (
                         <span key={d} className={`flex items-center gap-1.5 ${DEPT_CALENDAR_COLORS[d]?.text || 'text-slate-400'}`}>
@@ -529,7 +616,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                             const dateStr = toDateStr(year, month, day);
                             const isToday = dateStr === today;
                             const cell = dayIndex[dateStr];
-                            const hasContent = cell && (cell.tasks.length > 0 || cell.leaves.length > 0 || cell.attendance);
+                            const hasContent = cell && (cell.tasks.length > 0 || cell.leaves.length > 0 || cell.attendance || (cell.personal || []).length > 0);
 
                             return (
                                 <button
@@ -545,6 +632,12 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                         )}
                                     </div>
                                     <div className="space-y-1">
+                                        {(cell?.personal || []).slice(0, 1).map(t => (
+                                            <div key={t.id} className="flex items-center gap-1 text-3xs truncate">
+                                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] || 'bg-slate-500'}`} />
+                                                <span className="truncate text-fuchsia-300">📌 {t.title}</span>
+                                            </div>
+                                        ))}
                                         {(cell?.tasks || []).slice(0, 2).map(t => (
                                             <div key={t.id} className="flex items-center gap-1 text-3xs truncate">
                                                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] || 'bg-slate-500'}`} />
@@ -552,7 +645,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                             </div>
                                         ))}
                                         {cell?.tasks?.length > 2 && (
-                                            <div className="text-3xs text-slate-500">+{cell.tasks.length - 2} more</div>
+                                            <div className="text-3xs text-slate-500">+{cell.tasks.length - 2 + (cell.personal || []).length} more</div>
                                         )}
                                         {(cell?.leaves || []).slice(0, 1).map(l => (
                                             <div key={l.id} className="flex items-center gap-1 text-3xs text-amber-400 truncate">
@@ -592,13 +685,23 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                         {weekDates.map(dateStr => {
                             const isToday = dateStr === today;
                             const cell = dayIndex[dateStr];
-                            const hasContent = cell && (cell.tasks.length > 0 || cell.leaves.length > 0);
+                            const hasContent = cell && (cell.tasks.length > 0 || cell.leaves.length > 0 || (cell.personal || []).length > 0);
                             return (
                                 <div
                                     key={dateStr}
                                     className={`min-h-[180px] rounded-xl border p-2 ${isToday ? 'border-violet-500/50 bg-violet-500/5' : 'border-slate-800 bg-slate-950/40'}`}
                                 >
                                     <div className="space-y-1">
+                                        {(cell?.personal || []).slice(0, 2).map(t => (
+                                            <div key={t.id}
+                                                onClick={() => handleEditPersonalTask(t)}
+                                                className="flex items-center gap-1 text-3xs truncate p-1 rounded-lg hover:bg-fuchsia-800/30 cursor-pointer"
+                                                title={t.title}
+                                            >
+                                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] || 'bg-slate-500'}`} />
+                                                <span className="truncate text-fuchsia-300">📌 {t.title}</span>
+                                            </div>
+                                        ))}
                                         {(cell?.tasks || []).slice(0, 5).map(t => (
                                             <div key={t.id}
                                                 onClick={() => setSelectedTask(t)}
@@ -610,7 +713,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                             </div>
                                         ))}
                                         {cell?.tasks?.length > 5 && (
-                                            <div className="text-3xs text-slate-500 pl-1">+{cell.tasks.length - 5} more</div>
+                                            <div className="text-3xs text-slate-500 pl-1">+{cell.tasks.length - 5 + (cell.personal || []).length} more</div>
                                         )}
                                         {(cell?.leaves || []).slice(0, 1).map(l => (
                                             <div key={l.id} className="flex items-center gap-1 text-3xs text-amber-400 truncate">
@@ -647,8 +750,34 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                 {l.reason && <p className="text-xs mt-1 opacity-80">{l.reason}</p>}
                             </div>
                         ))}
+                        {/* Personal tasks */}
+                        {(dayIndex[dayCursor]?.personal || []).map(t => (
+                            <div key={t.id} className="glass-card p-3 rounded-xl flex items-center justify-between border-l-4 border-l-fuchsia-500">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <input type="checkbox" checked={!!t.completed} onChange={() => handleTogglePersonalCompleted(t.id)}
+                                        className="w-4 h-4 rounded accent-fuchsia-600 cursor-pointer shrink-0" />
+                                    <div className="min-w-0">
+                                        <span className={`text-sm font-semibold ${t.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                                            {t.title}
+                                        </span>
+                                        {t.description && <p className="text-3xs text-slate-500 truncate">{t.description}</p>}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                    <span className={`text-3xs px-1.5 py-0.5 rounded-full ${PRIORITY_BG[t.priority] || 'bg-slate-700 text-slate-400'}`}>
+                                        {t.priority}
+                                    </span>
+                                    <button onClick={() => handleEditPersonalTask(t)} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-violet-400 transition cursor-pointer" title="Edit">
+                                        <Edit3 className="w-3 h-3" />
+                                    </button>
+                                    <button onClick={() => handleDeletePersonalTask(t.id)} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-rose-400 transition cursor-pointer" title="Delete">
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                         {/* Tasks */}
-                        {(dayIndex[dayCursor]?.tasks || []).length === 0 && !dayIndex[dayCursor]?.leaves?.length && !dayIndex[dayCursor]?.attendance && (
+                        {(dayIndex[dayCursor]?.tasks || []).length === 0 && !dayIndex[dayCursor]?.leaves?.length && !dayIndex[dayCursor]?.attendance && !(dayIndex[dayCursor]?.personal || []).length && (
                             <p className="text-sm text-slate-500 text-center py-8">No events for this day.</p>
                         )}
                         {(dayIndex[dayCursor]?.tasks || []).map(t => renderTaskItem(t))}
@@ -684,8 +813,23 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                                     <div className="flex items-center gap-2 font-semibold"><Plane className="w-4 h-4" /> {l.type} Leave</div>
                                                 </div>
                                             ))}
+                                            {(day.personal || []).map(t => (
+                                                <div key={t.id} className="glass-card p-3 rounded-xl flex items-center justify-between border-l-4 border-l-fuchsia-500">
+                                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                        <input type="checkbox" checked={!!t.completed} onChange={() => handleTogglePersonalCompleted(t.id)}
+                                                            className="w-4 h-4 rounded accent-fuchsia-600 cursor-pointer shrink-0" />
+                                                        <div className="min-w-0">
+                                                            <span className={`text-sm font-semibold ${t.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>{t.title}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button onClick={() => handleEditPersonalTask(t)} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-violet-400 transition cursor-pointer"><Edit3 className="w-3 h-3" /></button>
+                                                        <button onClick={() => handleDeletePersonalTask(t.id)} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-rose-400 transition cursor-pointer"><Trash2 className="w-3 h-3" /></button>
+                                                    </div>
+                                                </div>
+                                            ))}
                                             {day.tasks.map(t => renderTaskItem(t))}
-                                            {day.leaves.length === 0 && day.tasks.length === 0 && (
+                                            {day.leaves.length === 0 && day.tasks.length === 0 && (day.personal || []).length === 0 && (
                                                 <p className="text-xs text-slate-600 py-2">Nothing scheduled.</p>
                                             )}
                                         </div>
@@ -727,9 +871,32 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                 </div>
                             ))}
 
+                            {(dayIndex[dayDetail]?.personal || []).map(t => (
+                                <div key={t.id} className="glass-card p-3 rounded-xl flex items-center justify-between border-l-4 border-l-fuchsia-500">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <input type="checkbox" checked={!!t.completed} onChange={() => handleTogglePersonalCompleted(t.id)}
+                                            className="w-4 h-4 rounded accent-fuchsia-600 cursor-pointer shrink-0" />
+                                        <div className="min-w-0">
+                                            <span className={`text-sm font-semibold ${t.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                                                {t.title}
+                                            </span>
+                                            {t.description && <p className="text-3xs text-slate-500 truncate">{t.description}</p>}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                                        <button onClick={() => { setDayDetail(null); handleEditPersonalTask(t); }} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-violet-400 transition cursor-pointer" title="Edit">
+                                            <Edit3 className="w-3 h-3" />
+                                        </button>
+                                        <button onClick={() => handleDeletePersonalTask(t.id)} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-rose-400 transition cursor-pointer" title="Delete">
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
                             {(dayIndex[dayDetail]?.tasks || []).map(t => renderTaskItem(t))}
 
-                            {!dayIndex[dayDetail]?.tasks?.length && !dayIndex[dayDetail]?.leaves?.length && !dayIndex[dayDetail]?.attendance && (
+                            {!dayIndex[dayDetail]?.tasks?.length && !dayIndex[dayDetail]?.leaves?.length && !dayIndex[dayDetail]?.attendance && !(dayIndex[dayDetail]?.personal || []).length && (
                                 <p className="text-sm text-slate-500">Nothing logged for this day.</p>
                             )}
                         </div>
@@ -745,6 +912,62 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                     currentUser={user}
                     onClose={() => setSelectedTask(null)}
                 />
+            )}
+
+            {/* ── Personal task form modal ── */}
+            {showPersonalForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => { setShowPersonalForm(false); resetPersonalForm(); }}>
+                    <div className="glass-panel border border-fuchsia-500/20 rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-5 border-b border-slate-800">
+                            <h3 className="font-bold text-slate-100 text-base">
+                                {editingPersonalId ? 'Edit Personal Task' : 'New Personal Task'}
+                            </h3>
+                            <button onClick={() => { setShowPersonalForm(false); resetPersonalForm(); }}
+                                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSavePersonalTask} className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Title</label>
+                                <input type="text" value={personalTitle} onChange={e => setPersonalTitle(e.target.value)}
+                                    className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Buy groceries" required />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Date</label>
+                                    <input type="date" value={personalDate} onChange={e => setPersonalDate(e.target.value)}
+                                        className="w-full glass-input p-3 rounded-xl text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Priority</label>
+                                    <select value={personalPriority} onChange={e => setPersonalPriority(e.target.value)}
+                                        className="w-full glass-input p-3 rounded-xl text-sm">
+                                        <option value="Emergency">Emergency</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Description (optional)</label>
+                                <textarea value={personalDesc} onChange={e => setPersonalDesc(e.target.value)}
+                                    className="w-full glass-input p-3 rounded-xl text-sm h-24" placeholder="Details..." />
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button type="submit"
+                                    className="flex-1 bg-fuchsia-600 hover:bg-fuchsia-700 py-2.5 rounded-xl text-sm font-bold text-white transition cursor-pointer">
+                                    {editingPersonalId ? 'Save Changes' : 'Add Task'}
+                                </button>
+                                <button type="button" onClick={() => { setShowPersonalForm(false); resetPersonalForm(); }}
+                                    className="flex-1 bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl text-sm font-semibold text-slate-300 transition cursor-pointer">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -54,6 +54,7 @@ const DB_SAVE_MAP = {
   employeeInvites: db.saveEmployeeInvites,
   loginActivity:   db.saveLoginActivity,
   adCampaigns:     db.saveAdCampaigns,
+  personalTasks:   db.savePersonalTasks,
 };
 
 export default function App() {
@@ -74,7 +75,7 @@ export default function App() {
     devProjects: [], interviews: [], feedback: [], dailyOps: [], attendanceDocs: [], attendance: [],
     leaves: [], advances: [], moms: [], tasks: [], taskComments: [], timelogs: [],
     notifications: [], leads: [], proposals: [], invoices: [], projects: [],
-    auditLogs: [], employeeInvites: [], loginActivity: []
+    auditLogs: [], employeeInvites: [], loginActivity: [], personalTasks: []
   });
 
  // ── Fetch all data from Supabase ──────────────────────────────────────────
@@ -108,7 +109,8 @@ const fetchAllData = async () => {
       db.getEmployeeInvites(),
       db.getLoginActivity(),
       db.getAdCampaigns(),
-      db.getAttendanceDocs()
+      db.getAttendanceDocs(),
+      db.getPersonalTasks()
     ]);
 
     // Log failed requests so you know which tables have RLS issues
@@ -149,7 +151,8 @@ const fetchAllData = async () => {
       employeeInvites: getResult(22),
       loginActivity: getResult(23),
       adCampaigns: getResult(24),
-      attendanceDocs: getResult(25)
+      attendanceDocs: getResult(25),
+      personalTasks: getResult(26)
     };
 
     setState(newState);

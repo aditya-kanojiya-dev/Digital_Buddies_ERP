@@ -294,6 +294,15 @@ export const db = {
   saveAttendanceDocs: (data) => saveTable('attendance_docs', data),
   addAttendanceDoc: (doc) => addRow('attendance_docs', doc),
 
+  getPersonalTasks: () => getTable('personal_tasks'),
+  savePersonalTasks: (data) => saveTable('personal_tasks', data),
+  addPersonalTask: (task) => addRow('personal_tasks', task),
+  updatePersonalTask: (id, fields) => updateRow('personal_tasks', id, fields),
+  deletePersonalTask: async (id) => {
+    await deleteRow('personal_tasks', id);
+    return getTable('personal_tasks');
+  },
+
   getMoms: () => getTable('moms'),
   saveMoms: (data) => saveTable('moms', data),              // was missing
   addMom: (mom) => addRow('moms', mom),
