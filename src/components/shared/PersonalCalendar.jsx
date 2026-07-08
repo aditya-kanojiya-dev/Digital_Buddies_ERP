@@ -210,6 +210,12 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
         if (task) try { db.updatePersonalTask(id, { completed: task.completed }); } catch {}
     };
 
+    const openAddPersonalTask = (dateStr) => {
+        resetPersonalForm();
+        setPersonalDate(dateStr || today);
+        setShowPersonalForm(true);
+    };
+
     // ── Task/leave/attendance data ──────────────────────────────────────────
     const myTasks = useMemo(
         () => (state.tasks || []).filter(t =>
@@ -621,8 +627,8 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                             return (
                                 <button
                                     key={dateStr}
-                                    onClick={() => hasContent && setDayDetail(dateStr)}
-                                    className={`min-h-[88px] rounded-xl border p-2 text-left align-top transition cursor-pointer
+                                    onClick={() => setDayDetail(dateStr)}
+                                    className={`min-h-[88px] rounded-xl border p-2 text-left align-top transition cursor-pointer relative group
                                         ${isToday ? 'border-violet-500/50 bg-violet-500/5' : 'border-slate-800 bg-slate-950/40 hover:bg-slate-900/60'}`}
                                 >
                                     <div className="flex items-center justify-between mb-1.5">
@@ -653,6 +659,12 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                             </div>
                                         ))}
                                     </div>
+                                    <button
+                                        onClick={e => { e.stopPropagation(); openAddPersonalTask(dateStr); }}
+                                        className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition p-1 rounded-lg bg-fuchsia-600/80 text-white"
+                                        title="Add personal task">
+                                        <Plus className="w-3 h-3" />
+                                    </button>
                                 </button>
                             );
                         })}
@@ -856,6 +868,11 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                             </button>
                         </div>
                         <div className="p-5 space-y-4">
+                            <button onClick={() => { setDayDetail(null); openAddPersonalTask(dayDetail); }}
+                                className="w-full bg-fuchsia-600/20 hover:bg-fuchsia-600/30 text-fuchsia-400 border border-fuchsia-500/20 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2">
+                                <Plus className="w-3.5 h-3.5" /> Add personal task on this day
+                            </button>
+
                             {dayIndex[dayDetail]?.attendance && (
                                 <div className="flex items-center gap-2 text-sm text-slate-300">
                                     {dayIndex[dayDetail].attendance.type === 'WFH' ? <Home className="w-4 h-4 text-indigo-400" /> : <Briefcase className="w-4 h-4 text-emerald-400" />}
