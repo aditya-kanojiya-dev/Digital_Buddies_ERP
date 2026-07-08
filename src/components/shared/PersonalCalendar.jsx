@@ -7,6 +7,7 @@ import {
 import TaskDetailPanel from './TaskDetailPanel';
 import { linkifyText } from '../../lib/format';
 import { db } from '../../data/db';
+import { DatePicker } from '../ui';
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -953,8 +954,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Date</label>
-                                    <input type="date" value={personalDate} onChange={e => setPersonalDate(e.target.value)}
-                                        className="w-full glass-input p-3 rounded-xl text-sm" />
+                                    <DatePicker value={personalDate} onChange={setPersonalDate} />
                                 </div>
                                 <div>
                                     <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Priority</label>
