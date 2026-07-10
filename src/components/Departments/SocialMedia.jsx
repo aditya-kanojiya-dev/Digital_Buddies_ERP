@@ -171,8 +171,7 @@ export default function SocialMedia({ user, state, updateState }) {
   const tasksOnDay = (d) => {
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     return tasks.filter(t =>
-      (t.dueDate === dateStr || t.scheduledDate === dateStr) &&
-      (t.department === 'Social Media' || t.sourceDept === 'Social Media')
+      t.dueDate === dateStr || t.scheduledDate === dateStr
     );
   };
 
