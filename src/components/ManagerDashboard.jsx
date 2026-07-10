@@ -651,6 +651,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   viewMode="manager"
                   onOpenDetail={(t) => setSelectedTaskId(t.id)}
                   renderActions={renderPingReassign}
+                  currentUser={user}
                 />
               ))
             )}

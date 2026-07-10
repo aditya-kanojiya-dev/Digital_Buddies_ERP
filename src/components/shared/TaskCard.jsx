@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, User } from 'lucide-react';
+import { Clock, User, Send, Download } from 'lucide-react';
 import DeadlineBadge from './DeadlineBadge';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -11,6 +11,7 @@ export default function TaskCard({
     onStatusChange,
     onOpenDetail,
     renderActions,
+    currentUser,
 }) {
     const isCompleted = task.status === 'Completed';
     const isOverdue   = !isCompleted && task.status !== 'Blocked' && task.dueDate && task.dueDate < todayStr();
@@ -132,6 +133,34 @@ export default function TaskCard({
                     </span>
                 )}
             </div>
+
+            {/* WhatsApp asset buttons */}
+            {currentUser && (
+                <div className="flex gap-2 pt-1">
+                    {currentUser.id === task.assignedBy && (
+                        <a
+                            href={`https://wa.me/?text=${encodeURIComponent(
+                                `📎 *Share Assets - Task ${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease find the required deliverables/assets for this task.`
+                            )}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-3xs font-semibold py-2 rounded-lg border border-emerald-500/15 transition-colors flex items-center justify-center gap-1.5"
+                        >
+                            <Download className="w-3.5 h-3.5" /> Share Assets
+                        </a>
+                    )}
+                    {currentUser.id === task.assignedTo && (
+                        <a
+                            href={`https://wa.me/?text=${encodeURIComponent(
+                                `📎 *Request Assets - Task ${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease share the required assets/content for this task.`
+                            )}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex-1 bg-green-600/10 hover:bg-green-600/20 text-green-400 text-3xs font-semibold py-2 rounded-lg border border-green-500/15 transition-colors flex items-center justify-center gap-1.5"
+                        >
+                            <Send className="w-3.5 h-3.5" /> Request Assets
+                        </a>
+                    )}
+                </div>
+            )}
 
             {renderActions && renderActions(task)}
 
