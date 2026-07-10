@@ -3,6 +3,7 @@ import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2,
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
 import { genId } from '../lib/format';
+import { db } from '../data/db';
 import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
 import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
@@ -301,17 +302,23 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const [editPriority, setEditPriority] = useState('Medium');
   const [editDue, setEditDue] = useState('');
 
-  const handleDeleteTask = (taskId) => {
+  const handleDeleteTask = async (taskId) => {
     if (!window.confirm('Delete this task permanently?')) return;
+    const taskTitle = tasks.find(t => t.id === taskId)?.title;
     updateState({ tasks: tasks.filter(t => t.id !== taskId) });
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     updateState({ auditLogs: [{
       id: `AUD${Date.now()}`,
       userId: user.id,
       action: 'Task Deleted',
-      details: `${user.name} deleted task "${tasks.find(t => t.id === taskId)?.title}".`,
+      details: `${user.name} deleted task "${taskTitle}".`,
       timestamp: now,
     }, ...state.auditLogs] });
+    try {
+      await db.deleteTask(taskId);
+    } catch (err) {
+      console.error('Failed to delete task from database:', err);
+    }
     toast.success('Task deleted.');
   };
 

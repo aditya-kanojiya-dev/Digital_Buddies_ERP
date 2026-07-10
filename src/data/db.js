@@ -176,6 +176,10 @@ export const db = {
   saveTasks: (data) => saveTable('tasks', data),
   addTask: (task) => addRow('tasks', task),
   updateTask: (taskId, fields) => updateRow('tasks', taskId, fields),
+  deleteTask: async (taskId) => {
+    await deleteRow('tasks', taskId);
+    return getTable('tasks');
+  },
 
   // ── Timelogs ──────────────────────────────────────────────────────────────
   getTimelogs: () => getTable('timelogs'),
