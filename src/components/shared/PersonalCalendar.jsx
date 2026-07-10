@@ -5,7 +5,6 @@ import {
     Search, Filter, Plus, Edit3, Trash2,
 } from 'lucide-react';
 import TaskDetailPanel from './TaskDetailPanel';
-import { linkifyText } from '../../lib/format';
 import { db } from '../../data/db';
 import { DatePicker } from '../ui';
 
@@ -248,7 +247,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
         }
         if (filters.search) {
             const q = filters.search.toLowerCase();
-            result = result.filter(t => t.title.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q));
+            result = result.filter(t => t.title.toLowerCase().includes(q));
         }
         return result;
     }, [myTasks, filters]);
@@ -459,9 +458,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                     </span>
                     <span className={`text-3xs font-bold uppercase shrink-0 ${STATUS_TEXT[t.status] || 'text-slate-400'}`}>{t.status}</span>
                 </div>
-                {!compact && t.description && (
-                    <p className="text-3xs text-slate-500 mt-1 line-clamp-1">{linkifyText(t.description)}</p>
-                )}
+
                 <div className="flex items-center gap-2 mt-1.5 text-3xs text-slate-500">
                     <span className={`text-3xs px-1.5 py-0.5 rounded-full ${PRIORITY_BG[t.priority] || 'bg-slate-700 text-slate-400'}`}>
                         {t.priority}
@@ -773,7 +770,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                         <span className={`text-sm font-semibold ${t.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
                                             {t.title}
                                         </span>
-                                        {t.description && <p className="text-3xs text-slate-500 truncate">{t.description}</p>}
+
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -898,7 +895,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                             <span className={`text-sm font-semibold ${t.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
                                                 {t.title}
                                             </span>
-                                            {t.description && <p className="text-3xs text-slate-500 truncate">{t.description}</p>}
+
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0 ml-2">

@@ -43,7 +43,6 @@ const DB_SAVE_MAP = {
   advances:        db.saveAdvances,
   moms:            db.saveMoms,
   tasks:           db.saveTasks,
-  taskComments:    db.saveTaskComments,
   timelogs:        db.saveTimelogs,
   notifications:   db.saveNotifications,
   leads:           db.saveLeads,
@@ -73,7 +72,7 @@ export default function App() {
   const [state, setState] = useState({
     employees: [], clients: [], adStats: [], adCampaigns: [], smmCalendar: [], smmQuotes: [],
     devProjects: [], interviews: [], feedback: [], dailyOps: [], attendanceDocs: [], attendance: [],
-    leaves: [], advances: [], moms: [], tasks: [], taskComments: [], timelogs: [],
+    leaves: [], advances: [], moms: [], tasks: [], timelogs: [],
     notifications: [], leads: [], proposals: [], invoices: [], projects: [],
     auditLogs: [], employeeInvites: [], loginActivity: [], personalTasks: []
   });
@@ -98,7 +97,6 @@ const fetchAllData = async () => {
       db.getAdvances(),
       db.getMoms(),
       db.getTasks(),
-      db.getComments(),
       db.getTimelogs(),
       db.getNotifications(),
       db.getLeads(),
@@ -140,19 +138,18 @@ const fetchAllData = async () => {
       advances: getResult(11),
       moms: getResult(12),
       tasks: getResult(13),
-      taskComments: getResult(14),
-      timelogs: getResult(15),
-      notifications: getResult(16),
-      leads: getResult(17),
-      proposals: getResult(18),
-      invoices: getResult(19),
-      projects: getResult(20),
-      auditLogs: getResult(21),
-      employeeInvites: getResult(22),
-      loginActivity: getResult(23),
-      adCampaigns: getResult(24),
-      attendanceDocs: getResult(25),
-      personalTasks: getResult(26)
+      timelogs: getResult(14),
+      notifications: getResult(15),
+      leads: getResult(16),
+      proposals: getResult(17),
+      invoices: getResult(18),
+      projects: getResult(19),
+      auditLogs: getResult(20),
+      employeeInvites: getResult(21),
+      loginActivity: getResult(22),
+      adCampaigns: getResult(23),
+      attendanceDocs: getResult(24),
+      personalTasks: getResult(25)
     };
 
     setState(newState);
@@ -231,10 +228,6 @@ useEffect(() => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_campaigns' }, () => {
       db.getAdCampaigns().then(data => setState(prev => ({ ...prev, adCampaigns: data })));
     })
-    // ── Missing subscriptions that users interact with ──
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, () => {
-      db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data })));
-    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
       db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data })));
     })
@@ -259,7 +252,6 @@ useEffect(() => {
         Promise.allSettled([
           db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
           db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data }))),
-          db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data }))),
           db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
           db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data }))),
         ]);
@@ -277,7 +269,6 @@ useEffect(() => {
         Promise.allSettled([
           db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
           db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
-          db.getComments().then(data => setState(prev => ({ ...prev, taskComments: data }))),
         ]);
       });
     };
@@ -381,12 +372,6 @@ useEffect(() => {
 
     // Deadline engine notifications carry the originating task id
     if (n.deadlineTaskId) return { tab: 'manager', focus: { taskId: n.deadlineTaskId } };
-
-    // Comment pings — surface in the same manager view, focused on the task
-    if (n.type === 'comment') {
-      const c = (state.taskComments || []).find(c => c.id === n.commentId);
-      if (c?.taskId) return { tab: 'manager', focus: { taskId: c.taskId } };
-    }
 
     // Assignment / ping / generic — manager tab is the right home
     if (n.type === 'assignment' || n.type === 'ping') {

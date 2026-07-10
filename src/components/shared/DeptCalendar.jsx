@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-    Calendar as CalendarIcon, Plus, X, Edit3, Trash2, Send, ChevronLeft, ChevronRight, MessageSquare,
+    Calendar as CalendarIcon, Plus, X, Edit3, Trash2, Send, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useToast } from './Toast';
 import TaskDetailPanel from './TaskDetailPanel';
@@ -94,7 +94,7 @@ export default function DeptCalendar({
     allowCrossDeptAssign = false,
 }) {
     const toast = useToast();
-    const { smmCalendar, tasks, employees, notifications, taskComments } = state;
+    const { smmCalendar, tasks, employees, notifications } = state;
 
     const isManager    = user.role === 'Super Admin' || user.role === 'Manager';
     const isDeptMember = user.department?.includes(deptName);
@@ -584,12 +584,6 @@ export default function DeptCalendar({
     };
     const goToday = () => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); };
 
-    // ── Pre-compute comment counts so we don't re-walk taskComments per cell
-    const commentCounts = useMemo(() => (taskComments || []).reduce((acc, c) => {
-        acc[c.taskId] = (acc[c.taskId] || 0) + 1;
-        return acc;
-    }, {}), [taskComments]);
-
     const daysInMonth = getDaysInMonth(calYear, calMonth);
     const firstDay    = getFirstDayOfMonth(calYear, calMonth);
 
@@ -709,12 +703,7 @@ export default function DeptCalendar({
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'currentColor' }} />
                                             <span className="truncate">{t.title}</span>
-                                            {(commentCounts[t.id] || 0) > 0 && (
-                                                <span className="ml-auto flex items-center gap-0.5 text-violet-400 flex-shrink-0">
-                                                    <MessageSquare className="w-2.5 h-2.5" />
-                                                    {commentCounts[t.id]}
-                                                </span>
-                                            )}
+
                                         </div>
                                     ))}
 

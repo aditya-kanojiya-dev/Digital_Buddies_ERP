@@ -1,14 +1,12 @@
 import React from 'react';
-import { MessageSquare, Clock, User, Send } from 'lucide-react';
+import { Clock, User } from 'lucide-react';
 import DeadlineBadge from './DeadlineBadge';
-import { linkifyText } from '../../lib/format';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 export default function TaskCard({
     task,
     assignee,
-    commentsCount = 0,
     viewMode = 'employee',
     onStatusChange,
     onOpenDetail,
@@ -69,21 +67,13 @@ export default function TaskCard({
                         <h4 className="font-bold text-xs sm:text-sm text-slate-100 hover:text-violet-300 transition-colors">{task.title}</h4>
                     </button>
 
-                    {task.description && (
-                        <p className="text-xs text-slate-400 line-clamp-2">{linkifyText(task.description)}</p>
-                    )}
-
                     <div className="text-3xs text-slate-500 flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-violet-400 font-semibold">{task.id}</span>
                         <span className="flex items-center gap-1">
                             <User className="w-3.5 h-3.5" /> {assignee ? assignee.name : 'Unassigned'}
                         </span>
                         {task.department && (
                             <span className="text-slate-600">· {task.department}</span>
-                        )}
-                        {commentsCount > 0 && (
-                            <span className="flex items-center gap-1 text-violet-400 font-semibold">
-                                <MessageSquare className="w-3 h-3" /> {commentsCount}c
-                            </span>
                         )}
                         {task.pinged > 0 && (
                             <span className="text-amber-400 font-bold">
@@ -145,28 +135,6 @@ export default function TaskCard({
 
             {renderActions && renderActions(task)}
 
-            <div className="flex gap-2 pt-1">
-                <a
-                    href={`https://wa.me/?text=${encodeURIComponent(
-                        `📎 *Asset Request - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease share the required assets/content for this task.`
-                    )}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex-1 bg-green-600/10 hover:bg-green-600/20 text-green-400 text-3xs font-semibold py-2 rounded-lg border border-green-500/15 transition-colors flex items-center justify-center gap-1.5"
-                >
-                    <Send className="w-3.5 h-3.5" /> Share Assets
-                </a>
-                {(task.status === 'Review' || task.status === 'Completed') && (
-                    <a
-                        href={`https://wa.me/?text=${encodeURIComponent(
-                            `✅ *Submission - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nWork has been completed. Please find the deliverables attached.`
-                        )}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-3xs font-semibold py-2 rounded-lg border border-emerald-500/15 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                        Submit via WhatsApp
-                    </a>
-                )}
-            </div>
         </div>
     );
 }

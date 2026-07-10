@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle, MessageSquare, Eye, Send } from 'lucide-react';
+import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle, Eye } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import PersonalCalendar from './shared/PersonalCalendar';
-import { linkifyText } from '../lib/format';
 
 export default function Dashboard({ user, state, updateState, onNavigate }) {
   const toast = useToast();
@@ -188,9 +187,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     setManualDesc('');
   };
 
-  const [commentingTaskId, setCommentingTaskId] = useState(null);
-  const [quickComment, setQuickComment] = useState('');
-
   const todayStr2 = todayStr;
   const todoTasks = useMemo(() => {
     const active = myTasks.filter(t => t.status !== 'Completed' && t.status !== 'Blocked');
@@ -207,12 +203,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       return 0;
     });
   }, [myTasks, todayStr2]);
-
-  const commentCounts = useMemo(() => {
-    const counts = {};
-    (state.taskComments || []).forEach(c => counts[c.taskId] = (counts[c.taskId] || 0) + 1);
-    return counts;
-  }, [state.taskComments]);
 
   const empName = (id) => state.employees?.find(e => e.id === id)?.name || 'Unknown';
 
@@ -272,44 +262,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     }
     updateState({ tasks: updated, ...notifUpdates });
     toast.success(mode === 'working' ? 'Marked as In Progress' : 'Acknowledged');
-  };
-
-  const handleQuickComment = (taskId) => {
-    if (!quickComment.trim()) return;
-    const now = new Date().toISOString();
-    const displayTime = now.replace('T', ' ').substring(0, 16);
-    const comment = {
-      id: `CMT${Date.now()}`,
-      taskId,
-      userId: user.id,
-      comment: quickComment.trim(),
-      createdAt: now,
-    };
-    const found = tasks.find(x => x.id === taskId);
-    const notifUpdates = {};
-    if (found) {
-      const targets = [];
-      if (found.assignedTo && found.assignedTo !== user.id) targets.push(found.assignedTo);
-      if (found.assignedBy && found.assignedBy !== user.id && !targets.includes(found.assignedBy)) targets.push(found.assignedBy);
-      notifUpdates.notifications = targets.map(uid => ({
-        id: `NTF${Date.now()}_${uid}`,
-        userId: uid,
-        message: `${user.name} commented on "${found.title}": "${quickComment.trim()}"`,
-        type: 'comment',
-        timestamp: displayTime,
-        read: false,
-      }));
-      if (notifUpdates.notifications.length > 0) {
-        notifUpdates.notifications = [...notifUpdates.notifications, ...state.notifications];
-      }
-    }
-    updateState({
-      taskComments: [...(state.taskComments || []), comment],
-      ...notifUpdates,
-    });
-    setQuickComment('');
-    setCommentingTaskId(null);
-    toast.success('Comment posted');
   };
 
   const calendarReady = useMemo(() => {
@@ -595,8 +547,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
             {todoTasks.map((t, i) => {
               const isOverdue = t.dueDate && t.dueDate < todayStr;
               const isDueToday = t.dueDate === todayStr;
-              const commentsCount = commentCounts[t.id] || 0;
-              const isCommenting = commentingTaskId === t.id;
               return (
                 <div key={t.id}
                   className={`glass-card p-3 sm:p-4 rounded-xl border-l-4 transition-all duration-200 animate-fade-in stagger-${Math.min(i + 1, 8)} ${
@@ -627,8 +577,8 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                         {isDueToday && <span className="text-3xs text-amber-400 font-bold">DUE TODAY</span>}
                       </div>
                       <h5 className="font-bold text-xs sm:text-sm text-slate-200">{t.title}</h5>
-                      {t.description && <p className="text-xs text-slate-400 line-clamp-1">{linkifyText(t.description)}</p>}
                       <div className="flex items-center gap-3 text-3xs text-slate-500 flex-wrap">
+                        <span className="font-mono text-violet-400 font-semibold">{t.id}</span>
                         <span>Due: {t.dueDate || '—'}</span>
                         {t.assignedBy && <span>From: {empName(t.assignedBy)}</span>}
                         {t.acknowledgedAt && <span className="text-emerald-400">✓ Seen</span>}
@@ -636,15 +586,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                     </div>
 
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button onClick={() => setCommentingTaskId(isCommenting ? null : t.id)}
-                        className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-violet-300 transition-colors relative cursor-pointer"
-                        title="Quick comment">
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        {commentsCount > 0 && (
-                          <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-2xs rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold">{commentsCount}</span>
-                        )}
-                      </button>
-
                       {t.status === 'New' && !t.acknowledgedAt && (
                         <button onClick={() => handleAcknowledge(t.id, 'seen')}
                           className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-emerald-300 transition-colors cursor-pointer" title="Mark as seen">
@@ -678,24 +619,6 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                       )}
                     </div>
                   </div>
-
-                  {isCommenting && (
-                    <div className="mt-3 pt-3 border-t border-slate-800/60 flex gap-2 animate-fade-in">
-                      <input
-                        type="text"
-                        value={quickComment}
-                        onChange={e => setQuickComment(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleQuickComment(t.id); }}
-                        placeholder="Type a note..."
-                        className="flex-1 glass-input p-2 rounded-xl text-xs"
-                        autoFocus
-                      />
-                      <button onClick={() => handleQuickComment(t.id)}
-                        className="bg-violet-600 hover:bg-violet-700 text-white p-2 rounded-xl transition-colors cursor-pointer" title="Send">
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })}

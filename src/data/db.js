@@ -177,11 +177,6 @@ export const db = {
   addTask: (task) => addRow('tasks', task),
   updateTask: (taskId, fields) => updateRow('tasks', taskId, fields),
 
-  // ── Task Comments ─────────────────────────────────────────────────────────
-  getComments: () => getTable('task_comments'),
-  saveTaskComments: (data) => saveTable('task_comments', data), // was missing
-  addComment: (comment) => addRow('task_comments', comment),
-
   // ── Timelogs ──────────────────────────────────────────────────────────────
   getTimelogs: () => getTable('timelogs'),
   saveTimelogs: (data) => saveTable('timelogs', data),

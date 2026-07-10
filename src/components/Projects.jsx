@@ -20,7 +20,7 @@ const COLUMN_STYLES = {
 
 export default function Projects({ user, state, updateState }) {
   const toast = useToast();
-  const { projects, clients, employees, tasks, taskComments } = state;
+  const { projects, clients, employees, tasks } = state;
 
   // ── Filters ─────────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -141,14 +141,6 @@ export default function Projects({ user, state, updateState }) {
 
   const clientName = (id) => clients.find(c => c.id === id)?.name || 'Unknown';
   const empName = (id) => employees.find(e => e.id === id)?.name || 'Unassigned';
-
-  const commentCounts = useMemo(() => {
-    const counts = {};
-    (taskComments || []).forEach(c => {
-      counts[c.taskId] = (counts[c.taskId] || 0) + 1;
-    });
-    return counts;
-  }, [taskComments]);
 
   // ════════════════════════════════════════════════════════════════════════
   //  HANDLERS
@@ -539,13 +531,11 @@ export default function Projects({ user, state, updateState }) {
                   ) : (
                     projectMilestones(selectedProject.id).map(task => {
                       const assignee = employees.find(e => e.id === task.assignedTo);
-                      const cCount = commentCounts[task.id] || 0;
                       return (
                         <div key={task.id} className="scale-[0.97] origin-left">
                           <TaskCard
                             task={task}
                             assignee={assignee}
-                            commentsCount={cCount}
                             currentUser={user}
                             viewMode="employee"
                             onStatusChange={(id, status) => {

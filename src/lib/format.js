@@ -9,7 +9,7 @@
 
 import { createElement } from 'react';
 
-let __seq = 0;
+let __seq = parseInt(localStorage.getItem('__id_seq') || '0', 10);
 
 const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<.]+(?:\.[^\s<.]+)+)/gi;
 
@@ -52,13 +52,13 @@ export function linkifyText(text) {
 }
 
 /**
- * Generate a collision-resistant id with a domain prefix, matching the
- * existing convention (e.g. `PRP1719663...`). A short rolling sequence is
- * appended so two ids minted in the same millisecond don't collide.
+ * Generate a short, simple task ID (e.g. T-001, T-002).
+ * Uses localStorage to persist the counter across sessions.
  */
-export const genId = (prefix = 'ID') => {
-  __seq = (__seq + 1) % 1000;
-  return `${prefix}${Date.now()}${__seq.toString().padStart(3, '0')}`;
+export const genId = (prefix = 'T') => {
+  __seq = (__seq % 9999) + 1;
+  localStorage.setItem('__id_seq', String(__seq));
+  return `${prefix}-${String(__seq).padStart(3, '0')}`;
 };
 
 /** Full ISO timestamp — for DB storage. e.g. 2026-06-29T14:32:45.123Z */

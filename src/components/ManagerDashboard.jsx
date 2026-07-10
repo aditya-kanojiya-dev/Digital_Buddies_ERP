@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2 } from 'lucide-react';
+import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2, Trash2, Save, X } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
+import { genId } from '../lib/format';
 import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
 import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
@@ -41,7 +42,6 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   // ── Task creation form ────────────────────────────────────────────────────
   const [targetDept,   setTargetDept]   = useState('');
   const [taskTitle,    setTaskTitle]    = useState('');
-  const [taskDesc,     setTaskDesc]     = useState('');
   const [assigneeId,   setAssigneeId]   = useState('');
   const [taskProject,  setTaskProject]  = useState('');
   const [taskPriority, setTaskPriority] = useState('Medium');
@@ -99,9 +99,8 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
     const newTask = {
-      id:            `TSK${Date.now()}`,
+      id:            genId('T'),
       title:         taskTitle,
-      description:   taskDesc,
       assignedTo:    assigneeId,
       assigneeName:  staffMember?.name || '',
       assignedBy:    user.id,
@@ -135,7 +134,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     }, ...state.auditLogs] });
 
     toast.success(`Task assigned to ${staffMember?.name}.`, `"${taskTitle}"`);
-    setTaskTitle(''); setTaskDesc(''); setAssigneeId(''); setTaskDue(''); setTaskScheduledDate(''); setTargetDept(''); setTimelineDays('3');
+    setTaskTitle(''); setAssigneeId(''); setTaskDue(''); setTaskScheduledDate(''); setTargetDept(''); setTimelineDays('3');
   };
 
   const handleReassignSubmit = (e, taskId) => {
@@ -289,29 +288,63 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       }, ...(state.auditLogs || [])],
     });
 
-    // Also add a comment so it shows in the task detail panel
-    updateState({
-      taskComments: [{
-        id: `CMT${Date.now()}`,
-        taskId: task.id,
-        userId: user.id,
-        comment: `🔄 Changes requested (revision ${revisionCount}): ${notes}`,
-        createdAt: now,
-      }, ...(state.taskComments || [])],
-    });
-
     setChangeRequestTaskId('');
     setChangeRequestText('');
     toast.success('Change request sent to assignee.', `"${task.title}"`);
   };
 
-  // ── Helper: pre-compute comment counts per task ─────────────────────────
-  const commentCounts = (state.taskComments || []).reduce((acc, c) => {
-    acc[c.taskId] = (acc[c.taskId] || 0) + 1;
-    return acc;
-  }, {});
+  // ── Task Edit state ────────────────────────────────────────────────────
+  const [editTaskId, setEditTaskId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDept, setEditDept] = useState('');
+  const [editAssignee, setEditAssignee] = useState('');
+  const [editPriority, setEditPriority] = useState('Medium');
+  const [editDue, setEditDue] = useState('');
 
-  // ── renderActions: ping + reassign compose boxes, passed to TaskCard ───
+  const handleDeleteTask = (taskId) => {
+    if (!window.confirm('Delete this task permanently?')) return;
+    updateState({ tasks: tasks.filter(t => t.id !== taskId) });
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    updateState({ auditLogs: [{
+      id: `AUD${Date.now()}`,
+      userId: user.id,
+      action: 'Task Deleted',
+      details: `${user.name} deleted task "${tasks.find(t => t.id === taskId)?.title}".`,
+      timestamp: now,
+    }, ...state.auditLogs] });
+    toast.success('Task deleted.');
+  };
+
+  const handleEditTask = (task) => {
+    setEditTaskId(task.id);
+    setEditTitle(task.title);
+    setEditDept(task.department);
+    setEditAssignee(task.assignedTo);
+    setEditPriority(task.priority);
+    setEditDue(task.dueDate || '');
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editTitle.trim() || !editAssignee) return;
+    updateState({
+      tasks: tasks.map(t =>
+        t.id === editTaskId ? {
+          ...t,
+          title: editTitle,
+          department: editDept,
+          assignedTo: editAssignee,
+          assigneeName: employees.find(e => e.id === editAssignee)?.name || '',
+          priority: editPriority,
+          dueDate: editDue,
+        } : t
+      ),
+    });
+    toast.success('Task updated.');
+    setEditTaskId(null);
+  };
+
+  // ── renderActions: ping + reassign + edit/delete, passed to TaskCard ───
   const renderPingReassign = (task) => {
     const assignee       = employees.find(e => e.id === task.assignedTo);
     const isReassigning  = reassignTaskId === task.id;
@@ -325,6 +358,12 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       if (task.status === 'Review') {
         return (
           <div className="flex flex-wrap gap-2 justify-end border-t border-slate-800/40 pt-2.5">
+            <button
+              onClick={() => handleEditTask(task)}
+              className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
+            >
+              <Edit2 className="w-3 h-3 text-blue-400" /> Edit
+            </button>
             <button
               onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); setChangeRequestTaskId(''); }}
               className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
@@ -343,12 +382,24 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
             >
               <Edit2 className="w-3.5 h-3.5" /> Request Changes
             </button>
+            <button
+              onClick={() => handleDeleteTask(task.id)}
+              className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 px-3 py-1.5 rounded-xl border border-rose-500/20 text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+            >
+              <Trash2 className="w-3 h-3" /> Delete
+            </button>
           </div>
         );
       }
 
       return (
         <div className="flex flex-wrap gap-2 justify-end border-t border-slate-800/40 pt-2.5">
+          <button
+            onClick={() => handleEditTask(task)}
+            className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
+          >
+            <Edit2 className="w-3 h-3 text-blue-400" /> Edit
+          </button>
           <button
             onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); }}
             className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
@@ -372,6 +423,12 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               <Bell className="w-3 h-3" /> Ping
             </button>
           )}
+          <button
+            onClick={() => handleDeleteTask(task.id)}
+            className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 px-3 py-1.5 rounded-xl border border-rose-500/20 text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+          >
+            <Trash2 className="w-3 h-3" /> Delete
+          </button>
         </div>
       );
     }
@@ -487,11 +544,6 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Design Summer Banner" required />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Description / Brief</label>
-                <textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm h-16" placeholder="Details of deliverables..." required />
-              </div>
-              <div>
                 <label className="block text-xs text-slate-400 mb-1">Target Department</label>
                 <select value={targetDept} onChange={e => { setTargetDept(e.target.value); setAssigneeId(''); }}
                   className="w-full glass-input p-3 rounded-xl text-xs" required>
@@ -596,7 +648,6 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   key={task.id}
                   task={task}
                   assignee={employees.find(e => e.id === task.assignedTo)}
-                  commentsCount={commentCounts[task.id] || 0}
                   viewMode="manager"
                   onOpenDetail={(t) => setSelectedTaskId(t.id)}
                   renderActions={renderPingReassign}
@@ -673,6 +724,77 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
           </div>
         </div>
       </div>
+
+      {/* ── Edit Task Modal ── */}
+      {editTaskId && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditTaskId(null)}>
+          <div className="glass-panel border border-violet-500/20 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-100 flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-violet-400" /> Edit Task
+              </h3>
+              <button onClick={() => setEditTaskId(null)} className="text-slate-500 hover:text-slate-200 transition p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Task ID</label>
+                <p className="text-xs font-mono text-violet-400 font-semibold">{editTaskId}</p>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Task Title</label>
+                <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-sm" required />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Department</label>
+                <select value={editDept} onChange={e => setEditDept(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-xs">
+                  {ALLOWED_TARGET_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Assignee</label>
+                <select value={editAssignee} onChange={e => setEditAssignee(e.target.value)}
+                  className="w-full glass-input p-3 rounded-xl text-xs" required>
+                  <option value="">-- Select --</option>
+                  {employees.filter(emp => emp.department?.includes(editDept)).map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Priority</label>
+                  <select value={editPriority} onChange={e => setEditPriority(e.target.value)}
+                    className="w-full glass-input p-3 rounded-xl text-xs">
+                    <option value="Emergency">Emergency</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Due Date</label>
+                  <input type="date" value={editDue} onChange={e => setEditDue(e.target.value)}
+                    className="w-full glass-input p-3 rounded-xl text-xs" />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button type="button" onClick={() => setEditTaskId(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer transition">
+                  Cancel
+                </button>
+                <button type="submit"
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition">
+                  <Save className="w-3.5 h-3.5" /> Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Task detail slide-in ── */}
       {selectedTask && (

@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
-  GitBranch, X, Filter, UserPlus, Send, Edit3, GripVertical,
+  GitBranch, X, Filter, UserPlus, Edit3, GripVertical,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
-import { linkifyText } from '../../lib/format';
+import { genId } from '../../lib/format';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
 import { DatePicker } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
@@ -36,7 +36,7 @@ const addDays = (dateStr, n) => {
 };
 
 export default function Creative({ user, state, updateState, activeDepartment }) {
-  const { tasks, employees, taskComments } = state;
+  const { tasks, employees } = state;
   const toast = useToast();
 
   const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department?.includes('Social Media');
@@ -44,7 +44,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
   // ── Form state ──────────────────────────────────────────────────────────
   const [taskTitle, setTaskTitle] = useState('');
-  const [taskDescription, setTaskDescription] = useState('');
   const [daysPrior, setDaysPrior] = useState('3');
   const [assigneeId, setAssigneeId] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
@@ -148,12 +147,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
     return grouped;
   }, [deptTasks]);
 
-  const commentCounts = useMemo(() => {
-    const counts = {};
-    (taskComments || []).forEach(c => { counts[c.taskId] = (counts[c.taskId] || 0) + 1; });
-    return counts;
-  }, [taskComments]);
-
   const overdueCount = (colTasks) =>
     colTasks.filter(t => t.dueDate && t.dueDate < todayStr() && t.status !== 'Completed').length;
 
@@ -174,9 +167,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
     const assignee = employees.find(e => e.id === assigneeId);
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     const newTask = {
-      id:                `CT${Date.now()}`,
+      id:                genId('T'),
       title:             taskTitle.trim(),
-      description:       taskDescription.trim(),
       department:        activeDepartment,
       deadlineDaysPrior: parseInt(daysPrior),
       assignedTo:        assigneeId,
@@ -203,7 +195,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
       }, ...(state.notifications || [])] });
     }
     toast.success(`"${taskTitle}" added to ${activeDepartment} queue.`);
-    setTaskTitle(''); setTaskDescription(''); setAssigneeId('');
+    setTaskTitle(''); setAssigneeId('');
     setScheduledDate(''); setPriority('Medium'); setAttachmentUrl('');
   };
 
@@ -247,15 +239,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
       tasks: updatedTasks,
       ...(statusNotifs.length ? { notifications: [...statusNotifs, ...(state.notifications || [])] } : {}),
     };
-
-    if (revisionReason) {
-      updates.taskComments = [{
-        id: `CMT${Date.now()}`,
-        taskId, userId: user.id,
-        comment: `Revision note: ${revisionReason}`,
-        createdAt: new Date().toISOString(),
-      }, ...(taskComments || [])];
-    }
 
     updateState(updates);
     toast.success(`Task moved to ${nextStatus}.`);
@@ -460,9 +443,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
                     <p className="text-3xs text-slate-600">Drop tasks here</p>
                   </div>
                 ) : (
-                  colTasks.map((task, idx) => {
+                    colTasks.map((task, idx) => {
                     const assignee = employees.find(e => e.id === task.assignedTo);
-                    const cCount = commentCounts[task.id] || 0;
                     const isOverdue = task.dueDate && task.dueDate < todayStr() && task.status !== 'Completed';
                     const isDueToday = task.dueDate === todayStr() && task.status !== 'Completed';
                     const isTaskFocused = focusedCol === col && focusedTaskIdx === idx;
@@ -494,10 +476,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
                             {task.revisionCount > 0 && <span className="text-3xs text-amber-400 font-bold flex-shrink-0">R{task.revisionCount}</span>}
                           </div>
 
-                          {task.description && (
-                            <p className="text-3xs text-slate-500 line-clamp-1 mb-1.5">{linkifyText(task.description)}</p>
-                          )}
-
                           {/* Compact change request banner */}
                           {task.changeRequest && (
                             <div className="bg-amber-500/8 border border-amber-500/15 rounded-lg px-2 py-1.5 mb-1.5">
@@ -517,7 +495,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
                                 {task.dueDate}
                               </span>
                             )}
-                            {cCount > 0 && <span className="text-fuchsia-400 font-semibold">{cCount}c</span>}
                             {task.attachmentUrl && <LinkIcon className="w-2.5 h-2.5 text-fuchsia-400" />}
                             {task.approvedAt && <span className="text-emerald-400">✓ done</span>}
                           </div>
@@ -530,26 +507,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
                                 className="p-1.5 sm:p-1 rounded-md bg-fuchsia-600/10 hover:bg-fuchsia-600/20 text-fuchsia-400 transition border border-fuchsia-500/15 min-w-[28px] min-h-[28px] flex items-center justify-center">
                                 <UserPlus className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
                               </button>
-                            )}
-                            <a title="Request assets via WhatsApp"
-                              href={`https://wa.me/?text=${encodeURIComponent(
-                                `📎 *Asset Request - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease share the required assets/content for this task.`
-                              )}`}
-                              target="_blank" rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-1.5 sm:p-1 rounded-md bg-green-600/10 hover:bg-green-600/20 text-green-400 transition border border-green-500/15 min-w-[28px] min-h-[28px] flex items-center justify-center">
-                              <Send className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
-                            </a>
-                            {(task.status === 'Review' || task.status === 'Completed') && (
-                              <a title="Submit via WhatsApp"
-                                href={`https://wa.me/?text=${encodeURIComponent(
-                                  `✅ *Submission - Task #${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nWork has been completed. Please find the deliverables attached.`
-                                )}`}
-                                target="_blank" rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 sm:p-1 rounded-md bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 transition border border-emerald-500/15 min-w-[28px] min-h-[28px] flex items-center justify-center">
-                                <Send className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
-                              </a>
                             )}
                           </div>
                         </div>
@@ -583,11 +540,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
                   <label className="block text-xs text-slate-400 mb-1.5">Task Name</label>
                   <input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
                     className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="e.g. Aura Serum Instagram Ad V1" required />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1.5">Description</label>
-                  <textarea value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm h-20" placeholder="Brief / notes / creative direction..." />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1.5">Timeline Milestone</label>
