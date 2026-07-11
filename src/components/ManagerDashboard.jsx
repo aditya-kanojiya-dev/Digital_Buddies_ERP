@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2, Trash2, Save, X } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2, Trash2, Save, X, Search, Filter, ChevronDown } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
 import { genId } from '../lib/format';
@@ -65,6 +65,34 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   // ── TaskDetailPanel state ─────────────────────────────────────────────────
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+
+  // ── Task filters ─────────────────────────────────────────────────────────
+  const [taskFilterStatus, setTaskFilterStatus] = useState('');
+  const [taskFilterPriority, setTaskFilterPriority] = useState('');
+  const [taskFilterAssignee, setTaskFilterAssignee] = useState('');
+  const [taskFilterDept, setTaskFilterDept] = useState('');
+  const [taskFilterSearch, setTaskFilterSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const filteredTasks = useMemo(() => {
+    let result = deptTasks;
+    if (taskFilterStatus)   result = result.filter(t => t.status === taskFilterStatus);
+    if (taskFilterPriority) result = result.filter(t => t.priority === taskFilterPriority);
+    if (taskFilterAssignee) result = result.filter(t => t.assignedTo === taskFilterAssignee);
+    if (taskFilterDept)     result = result.filter(t => t.department === taskFilterDept);
+    if (taskFilterSearch) {
+      const q = taskFilterSearch.toLowerCase();
+      result = result.filter(t =>
+        t.title.toLowerCase().includes(q) ||
+        t.id.toLowerCase().includes(q) ||
+        (t.description || '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [deptTasks, taskFilterStatus, taskFilterPriority, taskFilterAssignee, taskFilterDept, taskFilterSearch]);
+
+  const activeFilterCount = [taskFilterStatus, taskFilterPriority, taskFilterAssignee, taskFilterDept, taskFilterSearch].filter(Boolean).length;
+  const clearFilters = () => { setTaskFilterStatus(''); setTaskFilterPriority(''); setTaskFilterAssignee(''); setTaskFilterDept(''); setTaskFilterSearch(''); };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -641,16 +669,120 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         )}
 
         {/* ── Task List with enhanced Ping ── */}
-        <div className={`glass-panel p-6 rounded-2xl ${canAssignTasks ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6`}>
-          <h3 className="text-lg font-bold text-slate-100">
-            Team Tasks {!isSuperAdmin && `— ${managerDept}`}
-          </h3>
+        <div className={`glass-panel p-6 rounded-2xl ${canAssignTasks ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-4`}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-100">
+              Team Tasks {!isSuperAdmin && `— ${managerDept}`}
+            </h3>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                showFilters ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-slate-700/50'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-violet-500 text-white text-3xs font-bold">{activeFilterCount}</span>
+              )}
+            </button>
+          </div>
+
+          {showFilters && (
+            <div className="bg-slate-950/50 border border-slate-800/50 rounded-xl p-3 space-y-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  value={taskFilterSearch}
+                  onChange={e => setTaskFilterSearch(e.target.value)}
+                  className="w-full glass-input pl-8 pr-3 py-1.5 rounded-lg text-xs"
+                  placeholder="Search by title, ID, or description..."
+                />
+              </div>
+
+              {/* Filter dropdowns */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {/* Status */}
+                <div className="relative">
+                  <select
+                    value={taskFilterStatus}
+                    onChange={e => setTaskFilterStatus(e.target.value)}
+                    className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
+                  >
+                    <option value="">All Status</option>
+                    <option value="New">New</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Review">Review</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Blocked">Blocked</option>
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                </div>
+
+                {/* Priority */}
+                <div className="relative">
+                  <select
+                    value={taskFilterPriority}
+                    onChange={e => setTaskFilterPriority(e.target.value)}
+                    className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
+                  >
+                    <option value="">All Priority</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                </div>
+
+                {/* Assignee */}
+                <div className="relative">
+                  <select
+                    value={taskFilterAssignee}
+                    onChange={e => setTaskFilterAssignee(e.target.value)}
+                    className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
+                  >
+                    <option value="">All Members</option>
+                    {deptStaff.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                </div>
+
+                {/* Department */}
+                <div className="relative">
+                  <select
+                    value={taskFilterDept}
+                    onChange={e => setTaskFilterDept(e.target.value)}
+                    className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
+                  >
+                    <option value="">All Depts</option>
+                    {ALLOWED_TARGET_DEPTS.map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {activeFilterCount > 0 && (
+                <button onClick={clearFilters} className="text-3xs text-violet-400 hover:text-violet-300 font-medium transition cursor-pointer">
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
-            {deptTasks.length === 0 ? (
-              <p className="text-slate-400 text-center py-12 text-sm">No tasks in queue.</p>
+            {filteredTasks.length === 0 ? (
+              <p className="text-slate-400 text-center py-12 text-sm">
+                {activeFilterCount > 0 ? 'No tasks match your filters.' : 'No tasks in queue.'}
+              </p>
             ) : (
-              deptTasks.map(task => (
+              filteredTasks.map(task => (
                 <TaskCard
                   key={task.id}
                   task={task}
