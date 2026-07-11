@@ -530,6 +530,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
                 ) : (
                     colTasks.map((task, idx) => {
                     const assignee = employees.find(e => e.id === task.assignedTo);
+                    const assigner = employees.find(e => e.id === task.assignedBy);
                     const isOverdue = task.dueDate && task.dueDate < todayStr() && task.status !== 'Completed';
                     const isDueToday = task.dueDate === todayStr() && task.status !== 'Completed';
                     const isTaskFocused = focusedCol === col && focusedTaskIdx === idx;
@@ -537,6 +538,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
                       : task.priority === 'High' ? 'bg-rose-500'
                       : task.priority === 'Medium' ? 'bg-amber-500'
                       : 'bg-slate-500';
+                    const sourceDeptColor = DEPT_DOT[task.sourceDept] || 'bg-slate-500';
                     return (
                       <div key={task.id}
                         draggable
@@ -552,13 +554,13 @@ export default function Creative({ user, state, updateState, activeDepartment })
                           } ${isTaskFocused ? 'ring-2 ring-fuchsia-400/70 shadow-lg shadow-fuchsia-500/20 border-fuchsia-400/60' : ''}`}
                         >
                           {/* Drag handle + Title row */}
-                          <div className="flex items-center gap-1 mb-1">
+                          <div className="flex items-center gap-1 mb-1.5">
                             <span className="text-slate-600 hover:text-slate-400 flex-shrink-0 mr-0.5" title="Drag to reorder">
                               <GripVertical className="w-3 h-3" />
                             </span>
-                            {task.priority && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityDot}`} />}
-                            <span className="text-xs font-semibold text-slate-100 truncate leading-tight">{task.title}</span>
-                            {task.revisionCount > 0 && <span className="text-3xs text-amber-400 font-bold flex-shrink-0">R{task.revisionCount}</span>}
+                            {task.priority && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityDot}`} title={task.priority} />}
+                            <span className="text-xs font-semibold text-slate-100 truncate leading-tight flex-1">{task.title}</span>
+                            {task.revisionCount > 0 && <span className="text-3xs text-amber-400 font-bold flex-shrink-0 bg-amber-500/10 px-1 rounded" title={`Revision ${task.revisionCount}`}>R{task.revisionCount}</span>}
                           </div>
 
                           {/* Compact change request banner */}
@@ -568,38 +570,86 @@ export default function Creative({ user, state, updateState, activeDepartment })
                             </div>
                           )}
 
-                          {/* Metadata row */}
-                          <div className="flex items-center gap-2 text-3xs text-slate-500">
-                            {assignee && (
+                          {/* Reschedule request preview */}
+                          {task.rescheduleRequest && (
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1.5 mb-1.5">
+                              <p className="text-3xs text-amber-300 font-semibold">Reschedule → {task.rescheduleRequest.proposedDate}</p>
+                              <p className="text-3xs text-slate-500 line-clamp-1">{task.rescheduleRequest.reason}</p>
+                            </div>
+                          )}
+
+                          {/* Source department badge */}
+                          {task.sourceDept && task.sourceDept !== activeDepartment && (
+                            <div className="flex items-center gap-1 mb-1.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${sourceDeptColor}`} />
+                              <span className="text-3xs text-slate-500 font-medium">from {task.sourceDept}</span>
+                            </div>
+                          )}
+
+                          {/* Assigned by / Assigned to row */}
+                          <div className="flex items-center justify-between text-3xs text-slate-500 mb-1">
+                            {assigner ? (
+                              <span className="flex items-center gap-1" title={`Assigned by ${assigner.name}`}>
+                                <User className="w-2.5 h-2.5 text-slate-600" /> {assigner.name.split(' ')[0]}
+                              </span>
+                            ) : (
                               <span className="flex items-center gap-1">
-                                <User className="w-2.5 h-2.5" /> {assignee.name.split(' ')[0]}
+                                <User className="w-2.5 h-2.5 text-slate-600" /> —
                               </span>
                             )}
+                            <span className="text-slate-700">→</span>
+                            {assignee ? (
+                              <span className="flex items-center gap-1 font-medium text-slate-400" title={`Assigned to ${assignee.name}`}>
+                                <User className="w-2.5 h-2.5 text-teal-500" /> {assignee.name.split(' ')[0]}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-slate-600 italic">Unassigned</span>
+                            )}
+                          </div>
+
+                          {/* Date + attachment row */}
+                          <div className="flex items-center gap-2 text-3xs text-slate-500">
                             {task.dueDate && (
-                              <span className={isOverdue ? 'text-rose-400 font-medium' : isDueToday ? 'text-amber-400 font-medium' : ''}>
+                              <span className={`flex items-center gap-0.5 ${isOverdue ? 'text-rose-400 font-medium' : isDueToday ? 'text-amber-400 font-medium' : ''}`}>
+                                {isOverdue && <AlertCircle className="w-2.5 h-2.5" />}
                                 {task.dueDate}
                               </span>
                             )}
-                            {task.attachmentUrl && <LinkIcon className="w-2.5 h-2.5 text-fuchsia-400" />}
-                            {task.approvedAt && <span className="text-emerald-400">✓ done</span>}
+                            {task.scheduledDate && task.scheduledDate !== task.dueDate && (
+                              <span className="text-slate-600" title={`Post date: ${task.scheduledDate}`}>
+                                📅 {task.scheduledDate}
+                              </span>
+                            )}
+                            {task.attachmentUrl && (
+                              <a href={task.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                className="text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-0.5" title="Open attachment">
+                                <LinkIcon className="w-2.5 h-2.5" /> Link
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Status badges row */}
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            {task.approvedAt && <span className="text-3xs text-emerald-400 font-semibold">✓ done</span>}
                             {task.shootApprovalStatus === 'approved' && (
-                              <span className="text-teal-400 font-semibold flex items-center gap-0.5">
+                              <span className="text-3xs text-teal-400 font-semibold flex items-center gap-0.5">
                                 <CalendarCheck className="w-2.5 h-2.5" /> Approved
                               </span>
                             )}
                             {task.shootApprovalStatus === 'reschedule_requested' && (
-                              <span className="text-amber-400 font-semibold flex items-center gap-0.5">
+                              <span className="text-3xs text-amber-400 font-semibold flex items-center gap-0.5">
                                 <CalendarClock className="w-2.5 h-2.5" /> Reschedule
                               </span>
                             )}
                             {task.shootApprovalStatus === 'pending' && task.sourceDept === 'Social Media' && (
-                              <span className="text-orange-400 font-semibold flex items-center gap-0.5">
+                              <span className="text-3xs text-orange-400 font-semibold flex items-center gap-0.5">
                                 <CalendarClock className="w-2.5 h-2.5" /> Pending
                               </span>
                             )}
                           </div>
 
-                          {/* Compact action row — icon-only */}
+                          {/* Action row */}
                           <div className="flex gap-1.5 mt-1.5">
                             {canApproveShoot(task) && (
                               <>
