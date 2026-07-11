@@ -123,7 +123,7 @@ export default function DeptCalendar({
 
     // ── Post form state ────────────────────────────────────────────────────
     const blankPost = () => ({
-        title: '', date: todayStr(), time: '12:00', platform: 'Instagram',
+        title: '', postDate: todayStr(), postTime: '12:00', platform: 'Instagram',
         caption: '', status: 'Draft',
         client_id: '', needs_videography: false, needs_video_editing: false, needs_graphic_design: false,
         assignedVideo: '', assignedGraphic: '', assignedPhoto: '',
@@ -178,7 +178,7 @@ export default function DeptCalendar({
     /** Posts visible on a given day cell — only when showPosts is on. */
     const postsOnDay = (dateStr) => {
         if (!showPosts) return [];
-        return smmCalendar.filter(p => p.date === dateStr);
+        return smmCalendar.filter(p => p.postDate === dateStr);
     };
 
     // ── Permission helpers ────────────────────────────────────────────────
@@ -213,7 +213,7 @@ export default function DeptCalendar({
     // ── Post CRUD ──────────────────────────────────────────────────────────
     const openAddPost = (dateStr) => {
         setEditingPost(null);
-        setPostForm({ ...blankPost(), date: dateStr || today });
+        setPostForm({ ...blankPost(), postDate: dateStr || today });
         setShowPostModal(true);
     };
 
@@ -242,12 +242,12 @@ export default function DeptCalendar({
 
     const createLinkedTask = (postId, form, dept, assigneeId, userName) => {
         const window = DEPT_LEAD_WINDOWS[dept];
-        const dueDate = addDays(form.date, -window.lower);
+        const dueDate = addDays(form.postDate, -window.lower);
         const isVideography = dept === 'Videography/Photography';
         return {
             id: `TASK${Date.now()}_${dept.replace(/[^a-z]/gi,'')}`,
             title: `[${dept}] ${form.title}`,
-            description: `${form.caption || ''}\n\nClient: ${form.client_id || 'N/A'}\nPlatform: ${form.platform}\nPost date: ${form.date}`,
+            description: `${form.caption || ''}\n\nClient: ${form.client_id || 'N/A'}\nPlatform: ${form.platform}\nPost date: ${form.postDate}`,
             assignedTo: assigneeId || null,
             department: dept,
             sourceDept: deptName,
@@ -302,7 +302,7 @@ export default function DeptCalendar({
         for (const dept of newSelected) {
             const assigneeId = getAssigneeForForm(newForm, dept);
             const window = DEPT_LEAD_WINDOWS[dept];
-            const newDueDate = addDays(newForm.date, -window.lower);
+            const newDueDate = addDays(newForm.postDate, -window.lower);
             const existing = tasks.find(t => t.calendar_id === postId && t.department === dept);
 
             if (!existing) {
@@ -422,7 +422,7 @@ export default function DeptCalendar({
                 const assigneeId = getAssigneeForForm(postForm, dept);
                 if (!assigneeId) continue;
                 const window = DEPT_LEAD_WINDOWS[dept];
-                const dueDate = addDays(postForm.date, -window.lower);
+                const dueDate = addDays(postForm.postDate, -window.lower);
                 const info = getWorkloadInfo(tasks, assigneeId, dueDate, dept, 'Medium');
                 if (!info.canAssign) {
                     toast.error(`${dept}: ${info.reason}`);
@@ -490,7 +490,7 @@ export default function DeptCalendar({
                         newNotifs.push({
                             id: `NTF${Date.now()}_${emp.id}_${dept}`,
                             userId: emp.id,
-                            message: `📅 New draft content from ${deptName}: "${postForm.title}" on ${postForm.date} (${dept})`,
+                            message: `📅 New draft content from ${deptName}: "${postForm.title}" on ${postForm.postDate} (${dept})`,
                             type: 'info',
                             timestamp: now,
                             read: false,
@@ -772,7 +772,7 @@ export default function DeptCalendar({
                                             <h4 className={`font-bold text-sm ${isDraft ? 'text-slate-500' : 'text-slate-200'}`}>{post.title}</h4>
                                             {isDraft && <p className="text-3xs text-slate-600 italic">Not confirmed — no tasks assigned yet</p>}
                                             {post.caption && <p className="text-xs text-slate-400 italic">{post.caption}</p>}
-                                            <p className="text-3xs text-slate-500">@ {post.time} · by {post.addedBy}</p>
+                                            <p className="text-3xs text-slate-500">@ {post.postTime} · by {post.addedBy}</p>
                                         </div>
                                         {canAddPost && (
                                             <div className="flex gap-1">
@@ -883,11 +883,11 @@ export default function DeptCalendar({
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <DatePicker label="Date" value={postForm.date} onChange={v => setPostForm(f => ({ ...f, date: v }))} />
+                                <DatePicker label="Date" value={postForm.postDate} onChange={v => setPostForm(f => ({ ...f, postDate: v }))} />
                             </div>
                             <div>
                                 <label className="block text-xs text-slate-400 mb-1">Time</label>
-                                <input type="time" value={postForm.time} onChange={e => setPostForm(f => ({ ...f, time: e.target.value }))}
+                                <input type="time" value={postForm.postTime} onChange={e => setPostForm(f => ({ ...f, postTime: e.target.value }))}
                                     className="w-full glass-input p-3 rounded-xl text-sm" />
                             </div>
                         </div>
@@ -916,7 +916,7 @@ export default function DeptCalendar({
                                     const isChecked = postForm[key];
                                     const deptEmployees = employees.filter(e => e.department?.includes(deptName));
                                     const window = DEPT_LEAD_WINDOWS[deptName];
-                                    const dueDate = postForm.date ? addDays(postForm.date, -window.lower) : '';
+                                    const dueDate = postForm.postDate ? addDays(postForm.postDate, -window.lower) : '';
                                     return (
                                         <div key={key} className="flex items-center gap-3">
                                             <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer min-w-0 shrink-0">
