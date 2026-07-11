@@ -21,6 +21,7 @@ const ACTIVE_STATUSES = new Set(['New', 'In Progress', 'Review']);
 
 /**
  * Count how many active tasks a person already has on a given due date.
+ * Excludes tasks with shootApprovalStatus === 'pending' (not yet confirmed).
  */
 export function countDayLoad(tasks, personId, dateStr) {
   if (!tasks || !personId || !dateStr) return 0;
@@ -28,6 +29,7 @@ export function countDayLoad(tasks, personId, dateStr) {
     t.assignedTo === personId
     && t.dueDate === dateStr
     && ACTIVE_STATUSES.has(t.status)
+    && t.shootApprovalStatus !== 'pending'
   ).length;
 }
 

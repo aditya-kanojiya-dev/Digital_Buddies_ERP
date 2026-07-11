@@ -243,6 +243,7 @@ export default function DeptCalendar({
     const createLinkedTask = (postId, form, dept, assigneeId, userName) => {
         const window = DEPT_LEAD_WINDOWS[dept];
         const dueDate = addDays(form.date, -window.lower);
+        const isVideography = dept === 'Videography/Photography';
         return {
             id: `TASK${Date.now()}_${dept.replace(/[^a-z]/gi,'')}`,
             title: `[${dept}] ${form.title}`,
@@ -257,6 +258,8 @@ export default function DeptCalendar({
             status: 'New',
             calendar_id: postId,
             createdAt: new Date().toISOString().split('T')[0],
+            shootApprovalStatus: isVideography ? 'pending' : null,
+            rescheduleRequest: null,
         };
     };
 
@@ -550,6 +553,8 @@ export default function DeptCalendar({
             scheduledDate: null,
             status: 'New',
             createdAt: new Date().toISOString().split('T')[0],
+            shootApprovalStatus: taskForm.targetDept === 'Videography/Photography' ? 'pending' : null,
+            rescheduleRequest: null,
         };
         updateState({ tasks: [...tasks, newTask] });
 

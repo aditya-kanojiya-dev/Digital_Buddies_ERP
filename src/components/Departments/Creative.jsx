@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
   GitBranch, X, Filter, UserPlus, Edit3, GripVertical,
+  CalendarCheck, CalendarClock,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { genId } from '../../lib/format';
@@ -64,6 +65,11 @@ export default function Creative({ user, state, updateState, activeDepartment })
   // ── Delegation (Social Media → Manager → Staff) ────────────────────────
   const [delegateTaskId, setDelegateTaskId] = useState(null);
   const [delegateEmpId, setDelegateEmpId] = useState('');
+
+  // ── Shoot approval / reschedule (Videography only) ────────────────────
+  const [rescheduleTaskId, setRescheduleTaskId] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
 
   // ── Drag ────────────────────────────────────────────────────────────────
   const [dragOverCol, setDragOverCol] = useState(null);
@@ -313,6 +319,85 @@ export default function Creative({ user, state, updateState, activeDepartment })
     : activeDepartment === 'Graphic Designers' ? Image
     : Camera;
 
+  // ── Shoot approval handlers (Videography only) ─────────────────────────
+  const canApproveShoot = (task) =>
+    activeDepartment === 'Videography/Photography'
+    && task.sourceDept === 'Social Media'
+    && task.shootApprovalStatus === 'pending'
+    && task.assignedTo === user.id
+    && task.status === 'New';
+
+  const handleApproveShoot = (taskId) => {
+    const t = (tasks || []).find(x => x.id === taskId);
+    if (!t) return;
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+
+    const updatedTasks = (tasks || []).map(x =>
+      x.id === taskId ? { ...x, shootApprovalStatus: 'approved' } : x
+    );
+
+    const notifs = [];
+    if (t.assignedBy && t.assignedBy !== user.id) {
+      notifs.push({
+        id: `NTF${Date.now()}`,
+        userId: t.assignedBy,
+        message: `✅ ${user.name} approved the shoot date for "${t.title}" (due ${t.dueDate}).`,
+        type: 'info',
+        timestamp: now,
+        read: false,
+      });
+    }
+
+    updateState({
+      tasks: updatedTasks,
+      ...(notifs.length ? { notifications: [...notifs, ...(state.notifications || [])] } : {}),
+    });
+    toast.success(`Shoot date approved for "${t.title}".`);
+  };
+
+  const handleReschedule = (e) => {
+    e.preventDefault();
+    if (!rescheduleTaskId || !rescheduleDate || !rescheduleReason.trim()) return;
+    const t = (tasks || []).find(x => x.id === rescheduleTaskId);
+    if (!t) return;
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+
+    const updatedTasks = (tasks || []).map(x =>
+      x.id === rescheduleTaskId ? {
+        ...x,
+        shootApprovalStatus: 'reschedule_requested',
+        rescheduleRequest: {
+          proposedDate: rescheduleDate,
+          reason: rescheduleReason.trim(),
+          requestedBy: user.id,
+          requestedByName: user.name,
+          requestedAt: now,
+        },
+      } : x
+    );
+
+    const notifs = [];
+    if (t.assignedBy && t.assignedBy !== user.id) {
+      notifs.push({
+        id: `NTF${Date.now()}`,
+        userId: t.assignedBy,
+        message: `📅 ${user.name} requested reschedule for "${t.title}": new date ${rescheduleDate} — "${rescheduleReason.trim().substring(0, 80)}"`,
+        type: 'info',
+        timestamp: now,
+        read: false,
+      });
+    }
+
+    updateState({
+      tasks: updatedTasks,
+      ...(notifs.length ? { notifications: [...notifs, ...(state.notifications || [])] } : {}),
+    });
+    toast.success(`Reschedule requested for "${t.title}".`);
+    setRescheduleTaskId(null);
+    setRescheduleDate('');
+    setRescheduleReason('');
+  };
+
   /* ═══════════════════════════════════════════════════════════════════════
      RENDER — Full-width Kanban
   ════════════════════════════════════════════════════════════════════════ */
@@ -497,10 +582,39 @@ export default function Creative({ user, state, updateState, activeDepartment })
                             )}
                             {task.attachmentUrl && <LinkIcon className="w-2.5 h-2.5 text-fuchsia-400" />}
                             {task.approvedAt && <span className="text-emerald-400">✓ done</span>}
+                            {task.shootApprovalStatus === 'approved' && (
+                              <span className="text-teal-400 font-semibold flex items-center gap-0.5">
+                                <CalendarCheck className="w-2.5 h-2.5" /> Approved
+                              </span>
+                            )}
+                            {task.shootApprovalStatus === 'reschedule_requested' && (
+                              <span className="text-amber-400 font-semibold flex items-center gap-0.5">
+                                <CalendarClock className="w-2.5 h-2.5" /> Reschedule
+                              </span>
+                            )}
+                            {task.shootApprovalStatus === 'pending' && task.sourceDept === 'Social Media' && (
+                              <span className="text-orange-400 font-semibold flex items-center gap-0.5">
+                                <CalendarClock className="w-2.5 h-2.5" /> Pending
+                              </span>
+                            )}
                           </div>
 
                           {/* Compact action row — icon-only */}
                           <div className="flex gap-1.5 mt-1.5">
+                            {canApproveShoot(task) && (
+                              <>
+                                <button title="Approve shoot date"
+                                  onClick={(e) => { e.stopPropagation(); handleApproveShoot(task.id); }}
+                                  className="p-1.5 sm:p-1 rounded-md bg-teal-600/15 hover:bg-teal-600/30 text-teal-400 transition border border-teal-500/20 min-w-[28px] min-h-[28px] flex items-center justify-center">
+                                  <CalendarCheck className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
+                                </button>
+                                <button title="Request reschedule"
+                                  onClick={(e) => { e.stopPropagation(); setRescheduleTaskId(task.id); setRescheduleDate(task.scheduledDate || task.dueDate || ''); setRescheduleReason(''); }}
+                                  className="p-1.5 sm:p-1 rounded-md bg-amber-600/15 hover:bg-amber-600/30 text-amber-400 transition border border-amber-500/20 min-w-[28px] min-h-[28px] flex items-center justify-center">
+                                  <CalendarClock className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
+                                </button>
+                              </>
+                            )}
                             {canDelegate(task) && (
                               <button title="Delegate"
                                 onClick={(e) => { e.stopPropagation(); setDelegateTaskId(task.id); setDelegateEmpId(task.assignedTo || ''); }}
@@ -669,6 +783,55 @@ export default function Creative({ user, state, updateState, activeDepartment })
                     </button>
                     <button type="button"
                       onClick={() => { setDelegateTaskId(null); setDelegateEmpId(''); }}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── Reschedule modal ── */}
+      {rescheduleTaskId && (() => {
+        const task = tasks.find(t => t.id === rescheduleTaskId);
+        return (
+          <>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => { setRescheduleTaskId(null); setRescheduleDate(''); setRescheduleReason(''); }} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="glass-panel border border-amber-500/20 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4"
+                onClick={e => e.stopPropagation()}>
+                <h3 className="font-bold text-slate-100 flex items-center gap-2">
+                  <CalendarClock className="w-5 h-5 text-amber-400" />
+                  Request Reschedule
+                </h3>
+                <p className="text-sm text-slate-400">
+                  Propose a new date for <span className="text-slate-200 font-semibold">"{task?.title}"</span>.
+                  The Social Media team will be notified.
+                </p>
+                <form onSubmit={handleReschedule} className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5">Proposed New Date</label>
+                    <input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5">Reason for Reschedule</label>
+                    <textarea value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)}
+                      className="w-full glass-input p-3 rounded-xl text-sm h-24 resize-none"
+                      placeholder="e.g. Venue not available, conflicting shoot, weather issue..."
+                      maxLength={300} required />
+                    <p className="text-3xs text-slate-500 text-right mt-1">{rescheduleReason.length}/300</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="submit"
+                      className="flex-1 bg-amber-600 hover:bg-amber-500 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-amber-500/20 transition-all duration-150 flex items-center justify-center gap-2">
+                      <CalendarClock className="w-4 h-4" /> Send Reschedule
+                    </button>
+                    <button type="button"
+                      onClick={() => { setRescheduleTaskId(null); setRescheduleDate(''); setRescheduleReason(''); }}
                       className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
                       Cancel
                     </button>
