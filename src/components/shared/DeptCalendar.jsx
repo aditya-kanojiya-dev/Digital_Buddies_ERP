@@ -260,6 +260,9 @@ export default function DeptCalendar({
             createdAt: new Date().toISOString().split('T')[0],
             shootApprovalStatus: isVideography ? 'pending' : null,
             rescheduleRequest: null,
+            isDelayed: false,
+            delayCount: 0,
+            delayHistory: [],
         };
     };
 
@@ -555,6 +558,9 @@ export default function DeptCalendar({
             createdAt: new Date().toISOString().split('T')[0],
             shootApprovalStatus: taskForm.targetDept === 'Videography/Photography' ? 'pending' : null,
             rescheduleRequest: null,
+            isDelayed: false,
+            delayCount: 0,
+            delayHistory: [],
         };
         updateState({ tasks: [...tasks, newTask] });
 

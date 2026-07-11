@@ -230,6 +230,9 @@ export default function SocialMedia({ user, state, updateState }) {
       lastPingedAt: null,
       shootApprovalStatus: isVideography ? 'pending' : null,
       rescheduleRequest: null,
+      isDelayed: false,
+      delayCount: 0,
+      delayHistory: [],
     };
   };
 
@@ -648,6 +651,9 @@ export default function SocialMedia({ user, state, updateState }) {
       lastPingedAt: null,
       shootApprovalStatus: isVideography ? 'pending' : null,
       rescheduleRequest: null,
+      isDelayed: false,
+      delayCount: 0,
+      delayHistory: [],
     };
     updateState({ tasks: [...tasks, newTask] });
 

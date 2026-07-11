@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
     X, Clock, User, CheckCircle2, CheckCircle, Edit2,
     Calendar, CalendarCheck, CalendarClock, Link as LinkIcon,
-    AlertCircle, GitBranch,
+    AlertCircle, GitBranch, ClockAlert,
 } from 'lucide-react';
 import { useToast } from './Toast';
 import DeadlineBadge from './DeadlineBadge';
@@ -334,6 +334,37 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                                     <span className="text-slate-500 font-normal ml-1">— "{task.changeRequest.substring(0, 60)}{task.changeRequest.length > 60 ? '…' : ''}"</span>
                                 )}
                             </span>
+                        </div>
+                    )}
+
+                    {/* ── Delay history ── */}
+                    {task.isDelayed && task.delayHistory && task.delayHistory.length > 0 && (
+                        <div>
+                            <h4 className="text-3xs uppercase tracking-wider text-slate-500 mb-2 font-semibold flex items-center gap-1.5">
+                                <ClockAlert className="w-3 h-3 text-rose-400" />
+                                Delay History ({task.delayCount} time{task.delayCount !== 1 ? 's' : ''})
+                            </h4>
+                            <div className="space-y-2">
+                                {[...task.delayHistory].reverse().map((d, i) => (
+                                    <div key={i} className="glass-card rounded-xl p-3 border border-rose-500/15 bg-rose-500/5">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-xs font-semibold text-rose-300">
+                                                Delay #{task.delayHistory.length - i}
+                                            </span>
+                                            <span className="text-3xs text-slate-500">
+                                                {d.reportedAt?.split(' ')[0] || 'Unknown date'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                                            <span className="line-through text-slate-500">{d.previousDueDate}</span>
+                                            <span className="text-rose-400">→</span>
+                                            <span className="font-semibold text-slate-200">{d.newDueDate}</span>
+                                        </div>
+                                        <p className="text-xs text-slate-300 italic leading-relaxed">"{d.reason}"</p>
+                                        <p className="text-3xs text-slate-500 mt-1">by {d.reportedByName}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 

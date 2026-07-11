@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
   GitBranch, X, Filter, UserPlus, Edit3, GripVertical,
-  CalendarCheck, CalendarClock,
+  CalendarCheck, CalendarClock, ClockAlert,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { genId } from '../../lib/format';
@@ -70,6 +70,11 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const [rescheduleTaskId, setRescheduleTaskId] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleReason, setRescheduleReason] = useState('');
+
+  // ── Delay reporting ───────────────────────────────────────────────────
+  const [delayTaskId, setDelayTaskId] = useState(null);
+  const [delayReason, setDelayReason] = useState('');
+  const [delayNewDueDate, setDelayNewDueDate] = useState('');
 
   // ── Drag ────────────────────────────────────────────────────────────────
   const [dragOverCol, setDragOverCol] = useState(null);
@@ -398,6 +403,68 @@ export default function Creative({ user, state, updateState, activeDepartment })
     setRescheduleReason('');
   };
 
+  // ── Delay reporting handler ─────────────────────────────────────────────
+  const canReportDelay = (task) =>
+    task.status !== 'Completed'
+    && task.assignedTo === user.id
+    && task.dueDate
+    && task.dueDate <= todayStr();
+
+  const handleReportDelay = (e) => {
+    e.preventDefault();
+    if (!delayTaskId || !delayReason.trim() || !delayNewDueDate) return;
+    const t = (tasks || []).find(x => x.id === delayTaskId);
+    if (!t) return;
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+
+    const delayEntry = {
+      reason: delayReason.trim(),
+      previousDueDate: t.dueDate,
+      newDueDate: delayNewDueDate,
+      reportedBy: user.id,
+      reportedByName: user.name,
+      reportedAt: now,
+    };
+
+    const updatedTasks = (tasks || []).map(x =>
+      x.id === delayTaskId ? {
+        ...x,
+        isDelayed: true,
+        delayCount: (x.delayCount || 0) + 1,
+        delayHistory: [...(x.delayHistory || []), delayEntry],
+        dueDate: delayNewDueDate,
+      } : x
+    );
+
+    const notifs = [];
+    if (t.assignedBy && t.assignedBy !== user.id) {
+      notifs.push({
+        id: `NTF${Date.now()}`,
+        userId: t.assignedBy,
+        message: `⏰ ${user.name} reported a delay on "${t.title}": "${delayReason.trim().substring(0, 100)}" — new due date: ${delayNewDueDate}`,
+        type: 'info',
+        timestamp: now,
+        read: false,
+      });
+    }
+
+    updateState({
+      tasks: updatedTasks,
+      ...(notifs.length ? { notifications: [...notifs, ...(state.notifications || [])] } : {}),
+      auditLogs: [{
+        id: `AUD${Date.now()}`,
+        userId: user.id,
+        action: 'Task Delayed',
+        details: `${user.name} delayed "${t.title}" from ${t.dueDate} to ${delayNewDueDate}. Reason: ${delayReason.trim()}`,
+        timestamp: now,
+      }, ...(state.auditLogs || [])],
+    });
+    toast.success(`Delay reported for "${t.title}". New due date: ${delayNewDueDate}.`);
+    setDelayTaskId(null);
+    setDelayReason('');
+    setDelayNewDueDate('');
+  };
+
   /* ═══════════════════════════════════════════════════════════════════════
      RENDER — Full-width Kanban
   ════════════════════════════════════════════════════════════════════════ */
@@ -632,6 +699,11 @@ export default function Creative({ user, state, updateState, activeDepartment })
                           {/* Status badges row */}
                           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                             {task.approvedAt && <span className="text-3xs text-emerald-400 font-semibold">✓ done</span>}
+                            {task.isDelayed && (
+                              <span className="text-3xs text-rose-400 font-semibold flex items-center gap-0.5 bg-rose-500/10 px-1.5 py-0.5 rounded" title={`Delayed ${task.delayCount} time(s)`}>
+                                <ClockAlert className="w-2.5 h-2.5" /> Delayed{task.delayCount > 1 ? ` x${task.delayCount}` : ''}
+                              </span>
+                            )}
                             {task.shootApprovalStatus === 'approved' && (
                               <span className="text-3xs text-teal-400 font-semibold flex items-center gap-0.5">
                                 <CalendarCheck className="w-2.5 h-2.5" /> Approved
@@ -651,6 +723,18 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
                           {/* Action row */}
                           <div className="flex gap-1.5 mt-1.5">
+                            {canReportDelay(task) && (
+                              <button title="Report delay"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDelayTaskId(task.id);
+                                  setDelayNewDueDate(addDays(task.dueDate, 1));
+                                  setDelayReason('');
+                                }}
+                                className="p-1.5 sm:p-1 rounded-md bg-rose-600/15 hover:bg-rose-600/30 text-rose-400 transition border border-rose-500/20 min-w-[28px] min-h-[28px] flex items-center justify-center">
+                                <ClockAlert className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
+                              </button>
+                            )}
                             {canApproveShoot(task) && (
                               <>
                                 <button title="Approve shoot date"
@@ -882,6 +966,60 @@ export default function Creative({ user, state, updateState, activeDepartment })
                     </button>
                     <button type="button"
                       onClick={() => { setRescheduleTaskId(null); setRescheduleDate(''); setRescheduleReason(''); }}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── Delay report modal ── */}
+      {delayTaskId && (() => {
+        const task = tasks.find(t => t.id === delayTaskId);
+        return (
+          <>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => { setDelayTaskId(null); setDelayReason(''); setDelayNewDueDate(''); }} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="glass-panel border border-rose-500/20 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4"
+                onClick={e => e.stopPropagation()}>
+                <h3 className="font-bold text-slate-100 flex items-center gap-2">
+                  <ClockAlert className="w-5 h-5 text-rose-400" />
+                  Report Delay
+                </h3>
+                <p className="text-sm text-slate-400">
+                  Task <span className="text-slate-200 font-semibold">"{task?.title}"</span> was due on{' '}
+                  <span className="text-rose-400 font-semibold">{task?.dueDate}</span>. Provide a reason and a new due date.
+                </p>
+                <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-3">
+                  <p className="text-3xs text-rose-300/80 leading-relaxed">
+                    The assigner will be notified and this delay will be recorded in the audit log.
+                  </p>
+                </div>
+                <form onSubmit={handleReportDelay} className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5">New Due Date</label>
+                    <input type="date" value={delayNewDueDate} onChange={e => setDelayNewDueDate(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5">Reason for Delay *</label>
+                    <textarea value={delayReason} onChange={e => setDelayReason(e.target.value)}
+                      className="w-full glass-input p-3 rounded-xl text-sm h-28 resize-none"
+                      placeholder="e.g. Client feedback delayed revision approval, additional shoot required due to weather, scope creep from client changes..."
+                      maxLength={500} required autoFocus />
+                    <p className="text-3xs text-slate-500 text-right mt-1">{delayReason.length}/500</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="submit"
+                      className="flex-1 bg-rose-600 hover:bg-rose-500 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-rose-500/20 transition-all duration-150 flex items-center justify-center gap-2">
+                      <ClockAlert className="w-4 h-4" /> Submit Delay Report
+                    </button>
+                    <button type="button"
+                      onClick={() => { setDelayTaskId(null); setDelayReason(''); setDelayNewDueDate(''); }}
                       className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
                       Cancel
                     </button>
