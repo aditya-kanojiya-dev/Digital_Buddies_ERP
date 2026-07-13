@@ -80,7 +80,14 @@ export default function App() {
  // ── Fetch all data from Supabase ──────────────────────────────────────────
 const fetchAllData = async () => {
   try {
-    await supabase.auth.getSession();
+    const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+
+    if (sessionErr || !session) {
+      console.error('[fetchAllData] No valid Supabase Auth session:', sessionErr?.message || 'session is null');
+      auth.logout();
+      setUser(null);
+      return;
+    }
 
     const results = await Promise.allSettled([
       db.getEmployees(),
@@ -112,11 +119,23 @@ const fetchAllData = async () => {
     ]);
 
     // Log failed requests so you know which tables have RLS issues
+    let authFailed = false;
     results.forEach((r, i) => {
       if (r.status === 'rejected') {
+        const msg = r.reason?.message || String(r.reason);
         console.error(`Fetch ${i} failed:`, r.reason);
+        if (msg.includes('401') || msg.includes('Unauthorized') || msg.includes('Invalid API key')) {
+          authFailed = true;
+        }
       }
     });
+
+    if (authFailed && results.every(r => r.status === 'rejected')) {
+      console.error('[fetchAllData] All fetches failed with auth errors — session is invalid. Signing out.');
+      auth.logout();
+      setUser(null);
+      return;
+    }
 
     const getResult = (i) =>
       results[i].status === 'fulfilled'
@@ -187,13 +206,36 @@ const fetchAllData = async () => {
 
 useEffect(() => {
   const init = async () => {
-    await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      // No Supabase Auth session — clear stale app session
+      auth.logout();
+      setUser(null);
+      setLoading(false);
+      return;
+    }
 
     await fetchAllData();
   };
 
   init();
 }, [user]);
+
+// ── Auth state listener: auto-logout on Supabase session expiry ────────────
+useEffect(() => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      if (event === 'SIGNED_OUT' || (!session && user)) {
+        console.warn('[Auth] Supabase session lost/expired — signing out.');
+        sessionStorage.removeItem('neomax_session');
+        setUser(null);
+      }
+    }
+  );
+
+  return () => subscription.unsubscribe();
+}, []);
 
 // ── Global Realtime subscription ───────────────────────────────────────────
 useEffect(() => {
