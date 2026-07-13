@@ -9,7 +9,7 @@
 
 import { createElement } from 'react';
 
-let __seq = parseInt(localStorage.getItem('__id_seq') || '0', 10);
+let __seq = Date.now();
 
 const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<.]+(?:\.[^\s<.]+)+)/gi;
 
@@ -52,13 +52,13 @@ export function linkifyText(text) {
 }
 
 /**
- * Generate a short, simple task ID (e.g. T-001, T-002).
- * Uses localStorage to persist the counter across sessions.
+ * Generate a unique ID using timestamp + random suffix.
+ * Format: T-1720912345678-a3f (no collisions across browsers).
  */
 export const genId = (prefix = 'T') => {
-  __seq = (__seq % 9999) + 1;
-  localStorage.setItem('__id_seq', String(__seq));
-  return `${prefix}-${String(__seq).padStart(3, '0')}`;
+  __seq++;
+  const rand = Math.random().toString(36).substring(2, 6);
+  return `${prefix}-${__seq}-${rand}`;
 };
 
 /** Full ISO timestamp — for DB storage. e.g. 2026-06-29T14:32:45.123Z */
