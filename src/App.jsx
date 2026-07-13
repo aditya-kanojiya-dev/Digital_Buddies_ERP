@@ -84,7 +84,7 @@ const fetchAllData = async () => {
 
     if (sessionErr || !session) {
       console.error('[fetchAllData] No valid Supabase Auth session:', sessionErr?.message || 'session is null');
-      auth.logout();
+      sessionStorage.removeItem('neomax_session');
       setUser(null);
       return;
     }
@@ -132,7 +132,7 @@ const fetchAllData = async () => {
 
     if (authFailed && results.every(r => r.status === 'rejected')) {
       console.error('[fetchAllData] All fetches failed with auth errors — session is invalid. Signing out.');
-      auth.logout();
+      sessionStorage.removeItem('neomax_session');
       setUser(null);
       return;
     }
@@ -210,7 +210,7 @@ useEffect(() => {
 
     if (!session) {
       // No Supabase Auth session — clear stale app session
-      auth.logout();
+      sessionStorage.removeItem('neomax_session');
       setUser(null);
       setLoading(false);
       return;
