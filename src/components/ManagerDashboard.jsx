@@ -18,7 +18,7 @@ const addDays = (dateStr, days) => {
   return d.toISOString().split('T')[0];
 };
 
-const ALLOWED_TARGET_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography', 'Paid Ads'];
+const ALLOWED_TARGET_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography', 'Paid Ads', 'Social Media'];
 const CREATIVE_DEPTS = ['Video Editors', 'Graphic Designers', 'Videography/Photography'];
 
 const DEPT_TIMELINE_RULES = {
@@ -39,6 +39,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const managerDept  = user.department;
 
   const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department?.includes('Social Media');
+  const isManager = user.role === 'Super Admin' || user.role === 'Manager';
 
   // ── Task creation form ────────────────────────────────────────────────────
   const [targetDept,   setTargetDept]   = useState('');
@@ -52,7 +53,12 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   const rule = DEPT_TIMELINE_RULES[targetDept] || {};
   const deptStaff = targetDept ? employees.filter(emp => emp.department?.includes(targetDept)) : [];
-  const deptTasks = tasks.filter(task => isSuperAdmin ? true : ALLOWED_TARGET_DEPTS.includes(task.department));
+  const deptTasks = tasks.filter(task => {
+    if (isSuperAdmin) return true;
+    if (ALLOWED_TARGET_DEPTS.includes(task.department)) return true;
+    if (task.assignedBy === user.id || task.assignedTo === user.id) return true;
+    return false;
+  });
   const isCreativeDept = CREATIVE_DEPTS.includes(targetDept);
 
   // ── Reassignment ──────────────────────────────────────────────────────────
@@ -169,7 +175,11 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const handleReassignSubmit = (e, taskId) => {
     e.preventDefault();
     if (!reassignEmpId) return;
-    const task      = tasks.find(t => t.id === taskId);
+    const task = tasks.find(t => t.id === taskId);
+    if (!canManageTask(task)) {
+      toast.error('You do not have permission to reassign this task.');
+      return;
+    }
     const staffMember = employees.find(emp => emp.id === reassignEmpId);
     const origTitle = task?.title;
     const now       = new Date().toISOString().replace('T', ' ').substring(0, 16);
@@ -332,7 +342,12 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   const handleDeleteTask = async (taskId) => {
     if (!window.confirm('Delete this task permanently?')) return;
-    const taskTitle = tasks.find(t => t.id === taskId)?.title;
+    const task = tasks.find(t => t.id === taskId);
+    if (!canManageTask(task)) {
+      toast.error('You do not have permission to delete this task.');
+      return;
+    }
+    const taskTitle = task?.title;
     updateState({ tasks: tasks.filter(t => t.id !== taskId) });
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     updateState({ auditLogs: [{
@@ -362,6 +377,11 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const handleSaveEdit = (e) => {
     e.preventDefault();
     if (!editTitle.trim() || !editAssignee) return;
+    const task = tasks.find(t => t.id === editTaskId);
+    if (!canManageTask(task)) {
+      toast.error('You do not have permission to edit this task.');
+      return;
+    }
     updateState({
       tasks: tasks.map(t =>
         t.id === editTaskId ? {
@@ -380,12 +400,17 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   };
 
   // ── renderActions: ping + reassign + edit/delete, passed to TaskCard ───
+  const canManageTask = (task) =>
+    isManager || task.assignedBy === user.id || task.assignedTo === user.id;
+
   const renderPingReassign = (task) => {
     const assignee       = employees.find(e => e.id === task.assignedTo);
     const isReassigning  = reassignTaskId === task.id;
     const isPingOpen     = activePingTaskId === task.id;
     const cooldown       = formatCooldown(task);
     const isCompleted    = task.status === 'Completed';
+    const canManage      = canManageTask(task);
+    const taskDeptStaff  = employees.filter(e => e.department?.includes(task.department));
 
     // Top row: action buttons (rendered above the compose boxes)
     if (!isReassigning && !isPingOpen && changeRequestTaskId !== task.id) {
@@ -393,54 +418,68 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       if (task.status === 'Review') {
         return (
           <div className="flex flex-wrap gap-2 justify-end border-t border-slate-800/40 pt-2.5">
-            <button
-              onClick={() => handleEditTask(task)}
-              className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
-            >
-              <Edit2 className="w-3 h-3 text-blue-400" /> Edit
-            </button>
-            <button
-              onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); setChangeRequestTaskId(''); }}
-              className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3 text-fuchsia-400" /> Reassign
-            </button>
-            <button
-              onClick={() => handleApproveTask(task)}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
-            >
-              <CheckCircle className="w-3.5 h-3.5" /> Approve
-            </button>
-            <button
-              onClick={() => { setChangeRequestTaskId(task.id); setChangeRequestText(''); setActivePingTaskId(''); setReassignTaskId(''); }}
-              className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-xl text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
-            >
-              <Edit2 className="w-3.5 h-3.5" /> Request Changes
-            </button>
-            <button
-              onClick={() => handleDeleteTask(task.id)}
-              className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 px-3 py-1.5 rounded-xl border border-rose-500/20 text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
-            >
-              <Trash2 className="w-3 h-3" /> Delete
-            </button>
+            {canManage && (
+              <>
+                <button
+                  onClick={() => handleEditTask(task)}
+                  className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
+                >
+                  <Edit2 className="w-3 h-3 text-blue-400" /> Edit
+                </button>
+                <button
+                  onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); setChangeRequestTaskId(''); }}
+                  className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3 text-fuchsia-400" /> Reassign
+                </button>
+              </>
+            )}
+            {canManage && (
+              <button
+                onClick={() => handleApproveTask(task)}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+              >
+                <CheckCircle className="w-3.5 h-3.5" /> Approve
+              </button>
+            )}
+            {canManage && (
+              <button
+                onClick={() => { setChangeRequestTaskId(task.id); setChangeRequestText(''); setActivePingTaskId(''); setReassignTaskId(''); }}
+                className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-xl text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> Request Changes
+              </button>
+            )}
+            {canManage && (
+              <button
+                onClick={() => handleDeleteTask(task.id)}
+                className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 px-3 py-1.5 rounded-xl border border-rose-500/20 text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3" /> Delete
+              </button>
+            )}
           </div>
         );
       }
 
       return (
         <div className="flex flex-wrap gap-2 justify-end border-t border-slate-800/40 pt-2.5">
-          <button
-            onClick={() => handleEditTask(task)}
-            className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
-          >
-            <Edit2 className="w-3 h-3 text-blue-400" /> Edit
-          </button>
-          <button
-            onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); }}
-            className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
-          >
-            <RefreshCw className="w-3 h-3 text-fuchsia-400" /> Reassign
-          </button>
+          {canManage && (
+            <>
+              <button
+                onClick={() => handleEditTask(task)}
+                className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
+              >
+                <Edit2 className="w-3 h-3 text-blue-400" /> Edit
+              </button>
+              <button
+                onClick={() => { setReassignTaskId(task.id); setActivePingTaskId(''); }}
+                className="bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-2xs text-slate-300 font-semibold flex items-center gap-1 transition cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3 text-fuchsia-400" /> Reassign
+              </button>
+            </>
+          )}
           {isCompleted ? (
             <span className="px-3 py-1.5 rounded-xl text-2xs font-bold text-slate-600 border border-slate-800">
               Done
@@ -458,12 +497,14 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               <Bell className="w-3 h-3" /> Ping
             </button>
           )}
-          <button
-            onClick={() => handleDeleteTask(task.id)}
-            className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 px-3 py-1.5 rounded-xl border border-rose-500/20 text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
-          >
-            <Trash2 className="w-3 h-3" /> Delete
-          </button>
+          {canManage && (
+            <button
+              onClick={() => handleDeleteTask(task.id)}
+              className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 px-3 py-1.5 rounded-xl border border-rose-500/20 text-2xs font-bold flex items-center gap-1 transition cursor-pointer"
+            >
+              <Trash2 className="w-3 h-3" /> Delete
+            </button>
+          )}
         </div>
       );
     }
@@ -505,7 +546,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
             <select value={reassignEmpId} onChange={e => setReassignEmpId(e.target.value)}
               className="glass-input p-2 rounded text-2xs cursor-pointer flex-1" required>
               <option value="">-- Select new assignee --</option>
-              {deptStaff.filter(e => e.id !== task.assignedTo).map(emp => (
+              {taskDeptStaff.filter(e => e.id !== task.assignedTo).map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name}</option>
               ))}
             </select>
