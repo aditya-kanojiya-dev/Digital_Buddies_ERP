@@ -226,8 +226,14 @@ useEffect(() => {
 useEffect(() => {
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     (event, session) => {
-      if (event === 'SIGNED_OUT' || (!session && user)) {
-        console.warn('[Auth] Supabase session lost/expired — signing out.');
+      if (event === 'SIGNED_OUT') {
+        console.warn('[Auth] Supabase signed out — clearing app session.');
+        sessionStorage.removeItem('neomax_session');
+        setUser(null);
+      } else if (event === 'SIGNED_IN' && session) {
+        console.log('[Auth] Supabase session established/refreshed.');
+      } else if (event === 'TOKEN_REFRESHED' && !session) {
+        console.warn('[Auth] Token refresh produced no session — signing out.');
         sessionStorage.removeItem('neomax_session');
         setUser(null);
       }
