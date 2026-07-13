@@ -223,24 +223,30 @@ useEffect(() => {
 }, [user]);
 
 // ── Auth state listener: auto-logout on Supabase session expiry ────────────
+// NOTE: During token refresh, Supabase fires SIGNED_OUT then SIGNED_IN in
+// quick succession. We must NOT clear the app session on SIGNED_OUT alone
+// because that causes a race: the session is nulled, fetchAllData runs with
+// no JWT (403s), then SIGNED_IN fires and re-establishes the session.
+// Instead, we only clear on explicit SIGNED_OUT with no subsequent SIGNED_IN.
 useEffect(() => {
+  let signOutTimer = null;
+
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     (event, session) => {
       if (event === 'SIGNED_OUT') {
-        console.warn('[Auth] Supabase signed out — clearing app session.');
-        sessionStorage.removeItem('neomax_session');
-        setUser(null);
-      } else if (event === 'SIGNED_IN' && session) {
-        console.log('[Auth] Supabase session established/refreshed.');
-      } else if (event === 'TOKEN_REFRESHED' && !session) {
-        console.warn('[Auth] Token refresh produced no session — signing out.');
-        sessionStorage.removeItem('neomax_session');
-        setUser(null);
+        // Defer — if SIGNED_IN follows within 2s, cancel the logout
+        signOutTimer = setTimeout(() => {
+          console.warn('[Auth] Supabase signed out (confirmed) — clearing app session.');
+          sessionStorage.removeItem('neomax_session');
+          setUser(null);
+        }, 2000);
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (signOutTimer) { clearTimeout(signOutTimer); signOutTimer = null; }
       }
     }
   );
 
-  return () => subscription.unsubscribe();
+  return () => { if (signOutTimer) clearTimeout(signOutTimer); subscription.unsubscribe(); };
 }, []);
 
 // ── Global Realtime subscription ───────────────────────────────────────────
