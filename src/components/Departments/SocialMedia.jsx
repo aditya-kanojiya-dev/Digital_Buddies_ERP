@@ -328,6 +328,7 @@ export default function SocialMedia({ user, state, updateState }) {
         const oldAssignee = getAssigneeForDept(oldForm || newForm, dept);
         if (assigneeId && assigneeId !== existing.assignedTo) {
           updates.assignedTo = assigneeId;
+          updates.assigneeName = employees.find(e => e.id === assigneeId)?.name || '';
           // Notify new assignee
           const newEmp = employees.find(e => e.id === assigneeId);
           if (newEmp) {
@@ -444,6 +445,18 @@ export default function SocialMedia({ user, state, updateState }) {
         tasks: reconcile.tasks,
         notifications: [...notifications, ...reconcile.notifications],
       });
+
+      // ── Persist task changes individually to bypass RLS bulk-upsert issue ──
+      //     (non-manager employees can't bulk-upsert tasks they don't own)
+      reconcile.tasks.forEach(t => {
+        const ot = tasks.find(x => x.id === t.id);
+        if (!ot) {
+          db.addTask(t).catch(() => {});
+        } else if (JSON.stringify(ot) !== JSON.stringify(t)) {
+          db.updateTask(t.id, t).catch(() => {});
+        }
+      });
+
       toast.success('Post updated on calendar.');
     } else {
       const newPost = {
@@ -484,6 +497,8 @@ export default function SocialMedia({ user, state, updateState }) {
 
         stateUpdates.tasks = [...tasks, ...newTasks];
         stateUpdates.notifications = [...notifications, ...newNotifs];
+        // Persist new tasks individually (bypasses RLS bulk-upsert issue)
+        newTasks.forEach(t => db.addTask(t).catch(() => {}));
       }
 
       // ── Simple notification for non-finalized posts ──
@@ -656,6 +671,7 @@ export default function SocialMedia({ user, state, updateState }) {
       delayHistory: [],
     };
     updateState({ tasks: [...tasks, newTask] });
+    db.addTask(newTask).catch(() => {});
 
     // Notify assignee or whole dept
     const toNotify = taskForm.assignedTo
