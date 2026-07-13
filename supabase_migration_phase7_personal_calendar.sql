@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS attendance_docs (
   uploaded_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD'))
 );
 
+-- Grant permissions to authenticated role
+GRANT ALL ON personal_tasks TO authenticated;
+GRANT ALL ON attendance_docs TO authenticated;
+
 -- Enable RLS
 ALTER TABLE personal_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance_docs ENABLE ROW LEVEL SECURITY;
