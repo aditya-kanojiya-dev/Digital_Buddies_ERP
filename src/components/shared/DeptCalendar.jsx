@@ -183,7 +183,7 @@ export default function DeptCalendar({
 
     // ── Permission helpers ────────────────────────────────────────────────
     const canChangeStatus = (task) =>
-        isManager || task.assignedTo === user.id;
+        isManager || task.assignedTo === user.id || task.assignedBy === user.id;
 
     // ── Status change handler ─────────────────────────────────────────────
     const handleStatusChange = (taskId, nextStatus) => {
@@ -409,10 +409,11 @@ export default function DeptCalendar({
         const isFinalizing = postForm.status === 'Scheduled';
         const isEdit = !!editingPost;
         const isManager = user.role === 'Super Admin' || user.role === 'Manager';
+        const isDeptMember = user.department?.includes(deptName);
 
-        // ── Permission check: only managers can finalize ──
-        if (isFinalizing && !isManager) {
-            toast.error('Only managers can finalize calendar entries.');
+        // ── Permission check: department members or managers can finalize ──
+        if (isFinalizing && !isDeptMember && !isManager) {
+            toast.error('Only department members or managers can finalize calendar entries.');
             return;
         }
 
