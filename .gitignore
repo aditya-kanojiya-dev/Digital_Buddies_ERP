@@ -16,6 +16,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .opencode/*
+.supabase/*
 .idea
 .DS_Store
 *.suo
