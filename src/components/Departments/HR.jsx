@@ -6,7 +6,7 @@ import {
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
-import { DatePicker } from '../ui';
+import { DatePicker, Modal } from '../ui';
 import { today as todayStr } from '../../lib/format';
 
 export default function HR({ state, updateState, user = { role: 'Super Admin', id: 'EMP01' } }) {
@@ -38,6 +38,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   const [empSearch, setEmpSearch] = useState('');
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [selectedActivityEmp, setSelectedActivityEmp] = useState(null);
+  const [selectedEmp, setSelectedEmp] = useState(null);
 
   // Form states for Interview
   const [candName, setCandName] = useState('');
@@ -893,8 +894,8 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
               ))}
             </div>
 
-            {/* Employee list — mobile cards */}
-            <div className="space-y-3 lg:hidden">
+            {/* Employee cards — responsive grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[55vh] overflow-y-auto pr-1">
               {employees.filter(emp => {
                 const q = empSearch.toLowerCase();
                 return !q || emp.name.toLowerCase().includes(q) || emp.email.toLowerCase().includes(q) || emp.id.toLowerCase().includes(q) || (emp.designation || '').toLowerCase().includes(q);
@@ -907,156 +908,32 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                 };
                 const statusVal = emp.status || (emp.mustChangePassword ? 'Invited' : 'Active');
                 const deptStr = Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department;
+                const empTasks = (tasks || []).filter(t => t.assignedTo === emp.id);
+                const pendingTasks = empTasks.filter(t => ['New', 'In Progress', 'Review'].includes(t.status)).length;
+                const empHours = (timelogs || []).filter(l => l.employeeId === emp.id).reduce((s, l) => s + (l.hours || 0), 0);
                 return (
-                  <div key={emp.id} className="glass-card p-4 rounded-xl border border-slate-800/40 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
+                  <button key={emp.id} onClick={() => setSelectedEmp(emp)}
+                    className="glass-card p-4 rounded-xl border border-slate-800/40 text-left hover:border-violet-500/30 hover:bg-slate-800/20 transition group cursor-pointer">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center font-bold text-white text-xs shrink-0 group-hover:scale-105 transition">
                         {emp.name.charAt(0)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold text-slate-100 text-sm truncate">{emp.name}</div>
-                        <div className="text-3xs text-slate-500 font-mono truncate">{emp.email}</div>
+                        <div className="text-3xs text-slate-500 truncate">{emp.designation || deptStr || 'Staff'}</div>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-3xs font-medium shrink-0 ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
                         {statusVal}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="text-slate-400 truncate">
-                        <span className="text-slate-200 font-medium">{emp.designation || `${deptStr || 'Staff'}`}</span>
-                        {emp.role !== 'Employee' && <span className="text-3xs text-slate-600 ml-1">· {emp.role}</span>}
-                      </div>
-                      {emp.salary > 0 && <span className="text-slate-400 font-mono shrink-0">₹{emp.salary.toLocaleString()}</span>}
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span>{pendingTasks} active task{pendingTasks !== 1 ? 's' : ''}</span>
+                      <span>{empHours.toFixed(1)}h logged</span>
+                      {emp.salary > 0 && <span className="font-mono">₹{emp.salary.toLocaleString()}</span>}
                     </div>
-                    <div className="flex items-center gap-1 pt-1 border-t border-slate-800/40">
-                      <button onClick={() => handleViewActivity(emp)} className="p-1.5 hover:bg-slate-800/60 rounded-lg text-slate-400 hover:text-slate-200 transition" title="Activity">
-                        <Activity className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleEditEmployee(emp)} className="p-1.5 hover:bg-violet-600/20 rounded-lg text-violet-400 transition" title="Edit">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      {statusVal === 'Invited' && (
-                        <button onClick={() => handleResendInvite(emp)} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 transition" title="Resend invite">
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      {user.role === 'Super Admin' && (
-                        <>
-                          <button onClick={() => handleToggleSuspend(emp)}
-                            className={`p-1.5 rounded-lg transition ${statusVal === 'Suspended' ? 'hover:bg-emerald-600/20 text-emerald-400' : 'hover:bg-rose-600/20 text-rose-400'}`}
-                            title={statusVal === 'Suspended' ? 'Activate' : 'Suspend'}>
-                            {statusVal === 'Suspended' ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
-                          </button>
-                          <button onClick={() => handleResetPassword(emp)} className="p-1.5 hover:bg-violet-600/20 rounded-lg text-violet-400 transition" title="Reset password">
-                            <Key className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => handleDeleteEmployee(emp.id)} className="p-1.5 hover:bg-rose-600/20 rounded-lg text-rose-400 transition" title="Terminate">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  </button>
                 );
               })}
-            </div>
-
-            {/* Employee table — desktop */}
-            <div className="hidden lg:block overflow-x-auto max-h-[55vh] overflow-y-auto rounded-xl border border-slate-800/40">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm">
-                  <tr className="border-b border-slate-800 text-slate-400 text-3xs font-semibold uppercase tracking-wider">
-                    <th className="py-2.5 px-4">Employee</th>
-                    <th className="py-2.5 px-4">Role / Dept</th>
-                    <th className="py-2.5 px-4">Status</th>
-                    <th className="py-2.5 px-4 hidden xl:table-cell">Salary</th>
-                    <th className="py-2.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/30">
-                  {employees.filter(emp => {
-                    const q = empSearch.toLowerCase();
-                    return !q || emp.name.toLowerCase().includes(q) || emp.email.toLowerCase().includes(q) || emp.id.toLowerCase().includes(q) || (emp.designation || '').toLowerCase().includes(q);
-                  }).map(emp => {
-                    const statusColors = {
-                      Invited: 'bg-amber-500/10 text-amber-400 border border-amber-500/15',
-                      Active: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15',
-                      Suspended: 'bg-rose-500/10 text-rose-400 border border-rose-500/15',
-                      Terminated: 'bg-slate-800 text-slate-500 border border-slate-800'
-                    };
-                    const statusVal = emp.status || (emp.mustChangePassword ? 'Invited' : 'Active');
-                    return (
-                      <tr key={emp.id} className="text-slate-300 hover:bg-slate-900/30 transition-colors">
-                        <td className="py-2.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center font-bold text-white text-3xs shrink-0">
-                              {emp.name.charAt(0)}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-semibold text-slate-100 text-xs truncate">{emp.name}</div>
-                              <div className="text-3xs text-slate-500 font-mono truncate">{emp.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <div className="text-xs font-medium text-slate-200">{emp.designation || `${Array.isArray(emp.department) ? emp.department[0] : emp.department} Staff`}</div>
-                          <div className="text-3xs text-slate-500 uppercase tracking-wider">{emp.role} · {Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department}</div>
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-3xs font-medium ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
-                            {statusVal}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-4 text-xs font-mono hidden xl:table-cell">₹{(emp.salary || 0).toLocaleString()}</td>
-                        <td className="py-2.5 px-4 text-right">
-                          <div className="flex gap-1 justify-end">
-                            <button onClick={() => handleViewActivity(emp)}
-                              className="p-1.5 hover:bg-slate-800/60 rounded-lg text-slate-400 hover:text-slate-200 transition cursor-pointer"
-                              title="View Activity Logs">
-                              <Activity className="w-3.5 h-3.5" />
-                            </button>
-                            {statusVal === 'Invited' && (
-                              <button onClick={() => handleResendInvite(emp)}
-                                className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 transition cursor-pointer"
-                                title="Resend Welcome Invitation">
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin-hover" />
-                              </button>
-                            )}
-                            <button onClick={() => handleEditEmployee(emp)}
-                              className="p-1.5 hover:bg-violet-600/20 rounded-lg text-violet-400 transition cursor-pointer"
-                              title="Edit Profile">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            {user.role === 'Super Admin' && (
-                              <>
-                                <button onClick={() => handleToggleSuspend(emp)}
-                                  className={`p-1.5 rounded-lg transition cursor-pointer ${
-                                    statusVal === 'Suspended' 
-                                      ? 'hover:bg-emerald-600/20 text-emerald-400' 
-                                      : 'hover:bg-rose-600/20 text-rose-400'
-                                  }`}
-                                  title={statusVal === 'Suspended' ? 'Unsuspend / Activate' : 'Suspend Account'}>
-                                  {statusVal === 'Suspended' ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => handleResetPassword(emp)}
-                                  className="p-1.5 hover:bg-violet-600/20 rounded-lg text-violet-400 transition cursor-pointer"
-                                  title="Reset Password">
-                                  <Key className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => handleDeleteEmployee(emp.id)}
-                                  className="p-1.5 hover:bg-rose-600/20 rounded-lg text-rose-400 transition cursor-pointer"
-                                  title="Terminate">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
             </div>
           </div>
 
@@ -1220,6 +1097,117 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           </div>
         </div>
       )}
+
+      {/* Employee detail modal */}
+      {selectedEmp && (() => {
+        const statusColors = {
+          Invited: 'bg-amber-500/10 text-amber-400 border border-amber-500/15',
+          Active: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15',
+          Suspended: 'bg-rose-500/10 text-rose-400 border border-rose-500/15',
+          Terminated: 'bg-slate-800 text-slate-500 border border-slate-800'
+        };
+        const statusVal = selectedEmp.status || (selectedEmp.mustChangePassword ? 'Invited' : 'Active');
+        const deptStr = Array.isArray(selectedEmp.department) ? selectedEmp.department.join(' + ') : selectedEmp.department;
+        const empTasks = (tasks || []).filter(t => t.assignedTo === selectedEmp.id);
+        const completedTasks = empTasks.filter(t => t.status === 'Completed').length;
+        const pendingTasks = empTasks.filter(t => ['New', 'In Progress', 'Review'].includes(t.status)).length;
+        const overdueTasks = empTasks.filter(t => t.status !== 'Completed' && t.dueDate && t.dueDate < todayStr()).length;
+        const empHours = (timelogs || []).filter(l => l.employeeId === selectedEmp.id).reduce((s, l) => s + (l.hours || 0), 0);
+        const reportManager = employees.find(e => e.id === selectedEmp.managerId);
+        return (
+          <Modal open={!!selectedEmp} title="Employee Profile" onClose={() => setSelectedEmp(null)} size="lg">
+            <div className="space-y-5">
+              {/* Header */}
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-violet-600 flex items-center justify-center font-bold text-white text-lg shrink-0">
+                  {selectedEmp.name.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-lg font-extrabold text-slate-100 truncate">{selectedEmp.name}</h3>
+                  <p className="text-sm text-slate-400">{selectedEmp.designation || deptStr || 'Staff'}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-3xs font-medium ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
+                      {statusVal}
+                    </span>
+                    <span className="text-3xs text-slate-500">{selectedEmp.role}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  ['Email', selectedEmp.email, 'font-mono text-xs'],
+                  ['Phone', selectedEmp.phone || '—', 'font-mono text-xs'],
+                  ['Department', deptStr || '—', ''],
+                  ['Salary', selectedEmp.salary ? `₹${selectedEmp.salary.toLocaleString()}` : '—', 'font-mono text-xs'],
+                  ['Join Date', selectedEmp.hireDate || '—', ''],
+                  ['Report Manager', reportManager?.name || '—', ''],
+                ].map(([label, value, cls]) => (
+                  <div key={label} className="bg-slate-900/40 rounded-lg p-3">
+                    <p className="text-3xs text-slate-500 uppercase tracking-wider mb-0.5">{label}</p>
+                    <p className={`text-xs text-slate-200 font-medium truncate ${cls}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Quick stats */}
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  [empTasks.length, 'Total Tasks', 'text-violet-400'],
+                  [completedTasks, 'Completed', 'text-emerald-400'],
+                  [pendingTasks, 'Pending', 'text-amber-400'],
+                  [overdueTasks, 'Overdue', 'text-rose-400'],
+                ].map(([val, lbl, tone]) => (
+                  <div key={lbl} className="text-center p-2 rounded-lg bg-slate-900/40">
+                    <p className={`text-sm font-bold ${tone}`}>{val}</p>
+                    <p className="text-3xs text-slate-500">{lbl}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-center gap-2 text-sm text-fuchsia-400 font-bold">
+                <Clock className="w-4 h-4" /> {empHours.toFixed(1)} total hours logged
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800/40">
+                <button onClick={() => { setSelectedEmp(null); handleEditEmployee(selectedEmp); }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600/15 text-violet-400 text-xs font-semibold hover:bg-violet-600/25 transition">
+                  <Edit2 className="w-3.5 h-3.5" /> Edit Profile
+                </button>
+                <button onClick={() => { setSelectedEmp(null); handleViewActivity(selectedEmp); }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800/60 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition">
+                  <Activity className="w-3.5 h-3.5" /> Activity Logs
+                </button>
+                {statusVal === 'Invited' && (
+                  <button onClick={() => { handleResendInvite(selectedEmp); }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition">
+                    <RefreshCw className="w-3.5 h-3.5" /> Resend Invite
+                  </button>
+                )}
+                {user.role === 'Super Admin' && (
+                  <>
+                    <button onClick={() => { handleToggleSuspend(selectedEmp); }}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                        statusVal === 'Suspended' ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
+                      }`}>
+                      {statusVal === 'Suspended' ? <><Check className="w-3.5 h-3.5" /> Activate</> : <><X className="w-3.5 h-3.5" /> Suspend</>}
+                    </button>
+                    <button onClick={() => { handleResetPassword(selectedEmp); }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600/15 text-violet-400 text-xs font-semibold hover:bg-violet-600/25 transition">
+                      <Key className="w-3.5 h-3.5" /> Reset Password
+                    </button>
+                    <button onClick={() => { handleDeleteEmployee(selectedEmp.id); setSelectedEmp(null); }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-600/15 text-rose-400 text-xs font-semibold hover:bg-rose-600/25 transition">
+                      <Trash2 className="w-3.5 h-3.5" /> Terminate
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* -------------------------
           SUBTAB: ATTENDANCE & LEAVES
