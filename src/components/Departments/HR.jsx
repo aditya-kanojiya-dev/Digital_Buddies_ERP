@@ -858,46 +858,119 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           SUBTAB: EMPLOYEES
           ------------------------- */}
       {activeSubTab === 'employees' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 print:hidden">
-          <div className="glass-panel p-4 sm:p-5 rounded-2xl xl:col-span-2 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+          <div className="glass-panel p-4 sm:p-6 rounded-2xl lg:col-span-2 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="text-base font-semibold text-slate-100">Registered Team Directory</h3>
               <div className="flex items-center gap-3">
                 <div className="relative flex-1 sm:flex-initial">
                   <input type="text" value={empSearch} onChange={e => setEmpSearch(e.target.value)}
-                    className="w-full sm:w-44 glass-input pl-8 pr-3 py-1.5 rounded-xl text-xs"
-                    placeholder="Search members..." />
-                  <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    className="w-full sm:w-52 glass-input pl-9 pr-3 py-2 rounded-xl text-xs"
+                    placeholder="Search by name, email..." />
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
                 <span className="text-2xs text-slate-400 font-mono font-medium whitespace-nowrap">{employees.length} total</span>
               </div>
             </div>
 
             {/* Stats row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { label: 'Active', count: employees.filter(e => (e.status || 'Active') === 'Active').length, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-                { label: 'Invited', count: employees.filter(e => (e.status || 'Active') === 'Invited').length, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-                { label: 'Suspended', count: employees.filter(e => (e.status || 'Active') === 'Suspended').length, color: 'text-rose-400', bg: 'bg-rose-500/10' },
-                { label: 'Payroll', count: `₹${employees.reduce((s, e) => s + (e.salary || 0), 0).toLocaleString()}`, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+                { label: 'Active', count: employees.filter(e => (e.status || 'Active') === 'Active').length, color: 'text-emerald-400', icon: Check, bg: 'bg-emerald-500/10', ring: 'ring-emerald-500/20' },
+                { label: 'Invited', count: employees.filter(e => (e.status || 'Active') === 'Invited').length, color: 'text-amber-400', icon: Send, bg: 'bg-amber-500/10', ring: 'ring-amber-500/20' },
+                { label: 'Suspended', count: employees.filter(e => (e.status || 'Active') === 'Suspended').length, color: 'text-rose-400', icon: X, bg: 'bg-rose-500/10', ring: 'ring-rose-500/20' },
+                { label: 'Payroll', count: `₹${employees.reduce((s, e) => s + (e.salary || 0), 0).toLocaleString()}`, color: 'text-violet-400', icon: DollarSign, bg: 'bg-violet-500/10', ring: 'ring-violet-500/20' },
               ].map(s => (
-                <div key={s.label} className={`${s.bg} rounded-lg px-3 py-2 border border-slate-800/40`}>
-                  <p className="text-3xs text-slate-500 uppercase tracking-wider">{s.label}</p>
-                  <p className={`text-xs font-bold ${s.color} mt-0.5`}>{s.count}</p>
+                <div key={s.label} className={`${s.bg} ring-1 ${s.ring} rounded-xl px-4 py-3 flex items-center gap-3`}>
+                  <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
+                    <s.icon className={`w-4 h-4 ${s.color}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-3xs text-slate-500 uppercase tracking-wider font-medium">{s.label}</p>
+                    <p className={`text-sm font-extrabold ${s.color} leading-tight`}>{s.count}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Employee table with scrollbar */}
-            <div className="overflow-x-auto max-h-[55vh] overflow-y-auto rounded-xl border border-slate-800/40">
+            {/* Employee list — mobile cards */}
+            <div className="space-y-3 lg:hidden">
+              {employees.filter(emp => {
+                const q = empSearch.toLowerCase();
+                return !q || emp.name.toLowerCase().includes(q) || emp.email.toLowerCase().includes(q) || emp.id.toLowerCase().includes(q) || (emp.designation || '').toLowerCase().includes(q);
+              }).map(emp => {
+                const statusColors = {
+                  Invited: 'bg-amber-500/10 text-amber-400 border border-amber-500/15',
+                  Active: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15',
+                  Suspended: 'bg-rose-500/10 text-rose-400 border border-rose-500/15',
+                  Terminated: 'bg-slate-800 text-slate-500 border border-slate-800'
+                };
+                const statusVal = emp.status || (emp.mustChangePassword ? 'Invited' : 'Active');
+                const deptStr = Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department;
+                return (
+                  <div key={emp.id} className="glass-card p-4 rounded-xl border border-slate-800/40 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
+                        {emp.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-slate-100 text-sm truncate">{emp.name}</div>
+                        <div className="text-3xs text-slate-500 font-mono truncate">{emp.email}</div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-3xs font-medium shrink-0 ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
+                        {statusVal}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="text-slate-400 truncate">
+                        <span className="text-slate-200 font-medium">{emp.designation || `${deptStr || 'Staff'}`}</span>
+                        {emp.role !== 'Employee' && <span className="text-3xs text-slate-600 ml-1">· {emp.role}</span>}
+                      </div>
+                      {emp.salary > 0 && <span className="text-slate-400 font-mono shrink-0">₹{emp.salary.toLocaleString()}</span>}
+                    </div>
+                    <div className="flex items-center gap-1 pt-1 border-t border-slate-800/40">
+                      <button onClick={() => handleViewActivity(emp)} className="p-1.5 hover:bg-slate-800/60 rounded-lg text-slate-400 hover:text-slate-200 transition" title="Activity">
+                        <Activity className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleEditEmployee(emp)} className="p-1.5 hover:bg-violet-600/20 rounded-lg text-violet-400 transition" title="Edit">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      {statusVal === 'Invited' && (
+                        <button onClick={() => handleResendInvite(emp)} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 transition" title="Resend invite">
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {user.role === 'Super Admin' && (
+                        <>
+                          <button onClick={() => handleToggleSuspend(emp)}
+                            className={`p-1.5 rounded-lg transition ${statusVal === 'Suspended' ? 'hover:bg-emerald-600/20 text-emerald-400' : 'hover:bg-rose-600/20 text-rose-400'}`}
+                            title={statusVal === 'Suspended' ? 'Activate' : 'Suspend'}>
+                            {statusVal === 'Suspended' ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => handleResetPassword(emp)} className="p-1.5 hover:bg-violet-600/20 rounded-lg text-violet-400 transition" title="Reset password">
+                            <Key className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleDeleteEmployee(emp.id)} className="p-1.5 hover:bg-rose-600/20 rounded-lg text-rose-400 transition" title="Terminate">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Employee table — desktop */}
+            <div className="hidden lg:block overflow-x-auto max-h-[55vh] overflow-y-auto rounded-xl border border-slate-800/40">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm">
                   <tr className="border-b border-slate-800 text-slate-400 text-3xs font-semibold uppercase tracking-wider">
-                    <th className="py-2 px-3">Employee</th>
-                    <th className="py-2 px-3 hidden sm:table-cell">Role / Dept</th>
-                    <th className="py-2 px-3">Status</th>
-                    <th className="py-2 px-3 hidden md:table-cell">Salary</th>
-                    <th className="py-2 px-3 text-right">Actions</th>
+                    <th className="py-2.5 px-4">Employee</th>
+                    <th className="py-2.5 px-4">Role / Dept</th>
+                    <th className="py-2.5 px-4">Status</th>
+                    <th className="py-2.5 px-4 hidden xl:table-cell">Salary</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/30">
@@ -912,56 +985,52 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                       Terminated: 'bg-slate-800 text-slate-500 border border-slate-800'
                     };
                     const statusVal = emp.status || (emp.mustChangePassword ? 'Invited' : 'Active');
-                    
                     return (
                       <tr key={emp.id} className="text-slate-300 hover:bg-slate-900/30 transition-colors">
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center font-bold text-white text-3xs flex-shrink-0">
+                        <td className="py-2.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center font-bold text-white text-3xs shrink-0">
                               {emp.name.charAt(0)}
                             </div>
                             <div className="min-w-0">
-                              <div className="font-semibold text-slate-100 text-xs flex items-center gap-1.5 truncate">
-                                {emp.name}
-                              </div>
+                              <div className="font-semibold text-slate-100 text-xs truncate">{emp.name}</div>
                               <div className="text-3xs text-slate-500 font-mono truncate">{emp.email}</div>
-                              <div className="text-3xs text-slate-600 sm:hidden">{emp.designation || (Array.isArray(emp.department) ? emp.department[0] : emp.department)}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="py-2 px-3 hidden sm:table-cell">
+                        <td className="py-2.5 px-4">
                           <div className="text-xs font-medium text-slate-200">{emp.designation || `${Array.isArray(emp.department) ? emp.department[0] : emp.department} Staff`}</div>
-                          <div className="text-3xs text-slate-500 uppercase tracking-wider">{emp.role} • {Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department}</div>
+                          <div className="text-3xs text-slate-500 uppercase tracking-wider">{emp.role} · {Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department}</div>
                         </td>
-                        <td className="py-2 px-3">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-3xs font-medium ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
+                        <td className="py-2.5 px-4">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-3xs font-medium ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
                             {statusVal}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-xs font-mono hidden md:table-cell">₹{(emp.salary || 0).toLocaleString()}</td>
-                        <td className="py-2 px-3 text-right">
+                        <td className="py-2.5 px-4 text-xs font-mono hidden xl:table-cell">₹{(emp.salary || 0).toLocaleString()}</td>
+                        <td className="py-2.5 px-4 text-right">
                           <div className="flex gap-1 justify-end">
                             <button onClick={() => handleViewActivity(emp)}
-                              className="p-1.5 hover:bg-slate-800/60 rounded text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                              className="p-1.5 hover:bg-slate-800/60 rounded-lg text-slate-400 hover:text-slate-200 transition cursor-pointer"
                               title="View Activity Logs">
                               <Activity className="w-3.5 h-3.5" />
                             </button>
                             {statusVal === 'Invited' && (
                               <button onClick={() => handleResendInvite(emp)}
-                                className="p-1.5 hover:bg-amber-500/10 rounded text-amber-400 transition cursor-pointer"
+                                className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 transition cursor-pointer"
                                 title="Resend Welcome Invitation">
                                 <RefreshCw className="w-3.5 h-3.5 animate-spin-hover" />
                               </button>
                             )}
                             <button onClick={() => handleEditEmployee(emp)}
-                              className="p-1.5 hover:bg-violet-600/20 rounded text-violet-400 transition cursor-pointer"
+                              className="p-1.5 hover:bg-violet-600/20 rounded-lg text-violet-400 transition cursor-pointer"
                               title="Edit Profile">
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             {user.role === 'Super Admin' && (
                               <>
                                 <button onClick={() => handleToggleSuspend(emp)}
-                                  className={`p-1.5 rounded transition cursor-pointer ${
+                                  className={`p-1.5 rounded-lg transition cursor-pointer ${
                                     statusVal === 'Suspended' 
                                       ? 'hover:bg-emerald-600/20 text-emerald-400' 
                                       : 'hover:bg-rose-600/20 text-rose-400'
@@ -970,12 +1039,12 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                                   {statusVal === 'Suspended' ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
                                 </button>
                                 <button onClick={() => handleResetPassword(emp)}
-                                  className="p-1.5 hover:bg-violet-600/20 rounded text-violet-400 transition cursor-pointer"
+                                  className="p-1.5 hover:bg-violet-600/20 rounded-lg text-violet-400 transition cursor-pointer"
                                   title="Reset Password">
                                   <Key className="w-3.5 h-3.5" />
                                 </button>
                                 <button onClick={() => handleDeleteEmployee(emp.id)}
-                                  className="p-1.5 hover:bg-rose-600/20 rounded text-rose-400 transition cursor-pointer"
+                                  className="p-1.5 hover:bg-rose-600/20 rounded-lg text-rose-400 transition cursor-pointer"
                                   title="Terminate">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -991,7 +1060,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
             </div>
           </div>
 
-          <div className="glass-panel p-4 sm:p-5 rounded-2xl space-y-4 xl:col-span-1">
+          <div className="glass-panel p-4 sm:p-6 rounded-2xl space-y-4 lg:col-span-1">
             <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
               {editingEmpId ? <Edit2 className="w-5 h-5 text-violet-400" /> : <Plus className="w-5 h-5 text-violet-400" />}
               {editingEmpId ? 'Modify Staff Details' : 'Invite New Employee'}
