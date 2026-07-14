@@ -1,8 +1,7 @@
 import React from 'react';
 import { Clock, User, Send, Download } from 'lucide-react';
 import DeadlineBadge from './DeadlineBadge';
-
-const todayStr = () => new Date().toISOString().split('T')[0];
+import { today as todayStr } from '../../lib/format';
 
 export default function TaskCard({
     task,

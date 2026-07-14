@@ -7,8 +7,7 @@ import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
 import { DatePicker } from '../ui';
-
-const todayStr = () => new Date().toISOString().split('T')[0];
+import { today as todayStr } from '../../lib/format';
 
 export default function HR({ state, updateState, user = { role: 'Super Admin', id: 'EMP01' } }) {
   const toast = useToast();

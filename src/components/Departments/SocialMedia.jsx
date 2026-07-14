@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Calendar, Plus, Download, FileText, Share2,
   Lock, ChevronLeft, ChevronRight, X, Check, Edit3,
@@ -7,32 +7,15 @@ import {
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
-import { DatePicker } from '../ui';
+import { DatePicker, Modal } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
+import { today, addDays } from '../../lib/format';
+import { CREATIVE_DEPTS, DEPT_TIMELINE_RULES } from '../ManagerDashboard';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
   'July','August','September','October','November','December'];
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-const todayStr = () => new Date().toISOString().split('T')[0];
-
-  const CREATIVE_DEPTS = ['Video Editors', 'Graphic Designers', 'Videography/Photography'];
-
-  const DEPT_TIMELINE_RULES = {
-    'Developers':              { mode: 'manual', label: 'Manual' },
-    'Paid Ads':                { mode: 'manual', label: 'Manual' },
-    'Video Editors':           { mode: 'select', options: [3, 5], label: 'Editors timeline' },
-    'Graphic Designers':       { mode: 'select', options: [3, 5], label: 'Designers timeline' },
-    'Videography/Photography': { mode: 'select', options: [3, 4, 5], label: 'Videography timeline' },
-  };
-
-  // ── Workload cap constants ───────────────────────────────────────────────
-  const WORKLOAD_CAPS = {
-    'Video Editors':          { softMax: 7, hardCap: 9 },
-    'Graphic Designers':      { softMax: 7, hardCap: 9 },
-    'Videography/Photography': { softMax: 2, hardCap: 2 },
-  };
 
 const PLATFORM_COLORS = {
   Instagram:  { bg: 'bg-pink-500/15',    text: 'text-pink-400',    border: 'border-pink-500/40' },
@@ -59,36 +42,10 @@ const DEPT_COLORS = {
   'HR':                     'bg-emerald-500/15 text-emerald-400',
 };
 
-const today = () => new Date().toISOString().split('T')[0];
-
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
 // ── Platform icon ───────────────────────────────────────────────────────────
-// ─── Modal wrapper ──────────────────────────────────────────────────────────
-function Modal({ title, onClose, children, wide }) {
-  useEffect(() => {
-    const esc = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', esc);
-    return () => document.removeEventListener('keydown', esc);
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className={`glass-panel border border-violet-500/20 rounded-2xl shadow-2xl w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} max-h-[90vh] overflow-y-auto`}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-5 border-b border-slate-800">
-          <h3 className="font-bold text-slate-100 text-base">{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function SocialMedia({ user, state, updateState }) {
@@ -119,12 +76,6 @@ export default function SocialMedia({ user, state, updateState }) {
     'Videography/Photography': { lower: 5, upper: 7 },
     'Video Editors':           { lower: 3, upper: 5 },
     'Graphic Designers':       { lower: 3, upper: 5 },
-  };
-
-  const addDays = (dateStr, days) => {
-    const d = new Date(dateStr + 'T00:00:00Z');
-    d.setUTCDate(d.getUTCDate() + days);
-    return d.toISOString().split('T')[0];
   };
 
   // ── Post form state ───────────────────────────────────────────────────────
@@ -639,13 +590,13 @@ export default function SocialMedia({ user, state, updateState }) {
 
   const computeDueDate = () => {
     if (taskForm.priority === 'Emergency') {
-      if (taskForm.timelineDays === '2') return addDays(todayStr(), 2);
-      if (taskForm.timelineDays === '1') return addDays(todayStr(), 1);
-      return todayStr();
+      if (taskForm.timelineDays === '2') return addDays(today(), 2);
+      if (taskForm.timelineDays === '1') return addDays(today(), 1);
+      return today();
     }
     if (rule.mode === 'manual') return taskForm.dueDate || '';
-    if (rule.mode === 'fixed') return addDays(todayStr(), rule.days);
-    if (rule.mode === 'select') return addDays(todayStr(), parseInt(taskForm.timelineDays || '3'));
+    if (rule.mode === 'fixed') return addDays(today(), rule.days);
+    if (rule.mode === 'select') return addDays(today(), parseInt(taskForm.timelineDays || '3'));
     return taskForm.dueDate || '';
   };
 
@@ -1257,12 +1208,12 @@ Generated by: ${user.name} — Social Media Department
       {/* ══ MODALS ════════════════════════════════════════════════════════════ */}
 
       {/* Day detail modal */}
-      {showDayModal && selectedDay && (
-        <Modal
-          title={`${MONTH_NAMES[calMonth]} ${selectedDay.day}, ${calYear}`}
-          onClose={() => setShowDayModal(false)}
-          wide
-        >
+      <Modal
+        open={showDayModal && !!selectedDay}
+        title={selectedDay ? `${MONTH_NAMES[calMonth]} ${selectedDay.day}, ${calYear}` : ''}
+        onClose={() => setShowDayModal(false)}
+        size="lg"
+      >
           <div className="space-y-4">
             {canEdit && (
               <button onClick={() => { setShowDayModal(false); openAddPost(selectedDay.dateStr); }}
@@ -1333,15 +1284,14 @@ Generated by: ${user.name} — Social Media Department
             ))}
           </div>
         </Modal>
-      )}
 
       {/* Post add/edit modal */}
-      {showPostModal && (
-        <Modal
-          title={editingPost ? 'Edit Calendar Entry' : 'Add to Content Calendar'}
-          onClose={() => { setShowPostModal(false); setEditingPost(null); setPostForm(blankPost()); }}
-          wide
-        >
+      <Modal
+        open={showPostModal}
+        title={editingPost ? 'Edit Calendar Entry' : 'Add to Content Calendar'}
+        onClose={() => { setShowPostModal(false); setEditingPost(null); setPostForm(blankPost()); }}
+        size="lg"
+      >
           <div className="space-y-4">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Post / Content Title *</label>
@@ -1482,11 +1432,14 @@ Generated by: ${user.name} — Social Media Department
             </div>
           </div>
         </Modal>
-      )}
 
       {/* Cross-dept task modal */}
-      {showTaskModal && (
-        <Modal title="Assign Task to Another Department" onClose={() => { setShowTaskModal(false); setTaskForm(blankTask()); setCrossDeptNeedsBoth(false); setCrossDeptCoAssignee(''); }} wide>
+      <Modal
+        open={showTaskModal}
+        title="Assign Task to Another Department"
+        onClose={() => { setShowTaskModal(false); setTaskForm(blankTask()); setCrossDeptNeedsBoth(false); setCrossDeptCoAssignee(''); }}
+        size="lg"
+      >
           <div className="space-y-4">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Task Title *</label>
@@ -1610,12 +1563,12 @@ Generated by: ${user.name} — Social Media Department
                       <option key={d} value={d}>{d} Days from today</option>
                     ))}
                   </select>
-                  <p className="text-3xs text-slate-500 mt-1">Due: {addDays(todayStr(), parseInt(taskForm.timelineDays || '3'))}</p>
+                  <p className="text-3xs text-slate-500 mt-1">Due: {addDays(today(), parseInt(taskForm.timelineDays || '3'))}</p>
                 </div>
               ) : rule.mode === 'fixed' ? (
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Due Date</label>
-                  <p className="text-xs text-slate-300 mt-2">Auto: {addDays(todayStr(), rule.days)} (fixed {rule.days} days)</p>
+                  <p className="text-xs text-slate-300 mt-2">Auto: {addDays(today(), rule.days)} (fixed {rule.days} days)</p>
                 </div>
               ) : (
                 <div>
@@ -1643,7 +1596,6 @@ Generated by: ${user.name} — Social Media Department
             )}
           </div>
         </Modal>
-      )}
     </div>
   );
 }

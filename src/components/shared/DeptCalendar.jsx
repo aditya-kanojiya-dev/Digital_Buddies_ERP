@@ -7,20 +7,15 @@ import TaskDetailPanel from './TaskDetailPanel';
 import { db } from '../../data/db';
 import { DatePicker } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
+import { today as todayStr, addDays } from '../../lib/format';
 
 // ─── Date / calendar helpers ────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
     'July','August','September','October','November','December'];
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-const todayStr = () => new Date().toISOString().split('T')[0];
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-const addDays = (yyyyMmDd, days) => {
-    const d = new Date(yyyyMmDd + 'T00:00:00Z');
-    d.setUTCDate(d.getUTCDate() + days);
-    return d.toISOString().split('T')[0];
-};
 
 const STATUS_STYLES = {
     Draft:     'bg-amber-500/15  text-amber-400',

@@ -7,10 +7,8 @@
     --surface-1: rgba(22, 16, 40, 0.75);
     --surface-2: rgba(28, 22, 48, 0.55);
     --surface-elevated: rgba(32, 26, 52, 0.85);
-    --surface-overlay: rgba(38, 32, 56, 0.92);
     --surface-input: rgba(15, 10, 30, 0.8);
     --surface-hover: rgba(40, 32, 64, 0.5);
-    --surface-soft: rgba(18, 15, 30, 0.6);
     --surface-kbd: rgba(30, 41, 59, 0.7);
     --surface-notif-item: rgba(20, 16, 35, 0.55);
 
@@ -39,9 +37,6 @@
 
     --glow: 0 0 20px rgba(139, 92, 246, 0.15);
     --glow-strong: 0 0 28px rgba(139, 92, 246, 0.28);
-    --elevation-1: 0 1px 3px rgba(0,0,0,0.3);
-    --elevation-2: 0 4px 12px rgba(0,0,0,0.4);
-    --elevation-3: 0 8px 24px rgba(0,0,0,0.5);
 
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -55,7 +50,6 @@
     --z-dropdown: 50;
     --z-sticky: 60;
     --z-drawer: 60;
-    --z-modal: 100;
     --z-toast: 9999;
 
     --nav-brand: #FFD60A;
@@ -122,15 +116,6 @@
 }
 .glass-card:active {
   transform: scale(0.98);
-}
-
-.glass-card-static {
-  background: var(--surface-2);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border-soft);
-  transition: background var(--duration-slow) var(--ease-smooth),
-              border-color var(--duration-slow) var(--ease-smooth);
 }
 
 .glass-input {
@@ -301,15 +286,6 @@
   animation: slide-in-left 0.25s var(--ease-out) both;
 }
 
-@keyframes slide-in-right {
-  from { opacity: 0; transform: translateX(16px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-.animate-slide-in-right {
-  animation: slide-in-right 0.25s var(--ease-out) both;
-}
-
 @keyframes shimmer {
    0%   { background-position: -468px 0; }
   100% { background-position: 468px 0; }
@@ -324,23 +300,6 @@
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
-@keyframes spin-slow {
-  to { transform: rotate(360deg); }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 2s linear infinite;
-}
-
-@keyframes drawer-slide {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(0); }
-}
-
-.animate-drawer-slide {
-  animation: drawer-slide 0.3s var(--ease-out) both;
-}
-
 @keyframes dropdown-pop {
   from { opacity: 0; transform: translateY(-4px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -349,25 +308,6 @@
 .animate-dropdown-pop {
   animation: dropdown-pop 0.15s var(--ease-spring) both;
 }
-
-@keyframes skeleton-pulse {
-  0%   { opacity: 0.6; }
-  50%  { opacity: 1; }
-  100% { opacity: 0.6; }
-}
-
-.animate-skeleton-pulse {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
-}
-
-.stagger-1 { animation-delay: 0ms; }
-.stagger-2 { animation-delay: 50ms; }
-.stagger-3 { animation-delay: 100ms; }
-.stagger-4 { animation-delay: 150ms; }
-.stagger-5 { animation-delay: 200ms; }
-.stagger-6 { animation-delay: 250ms; }
-.stagger-7 { animation-delay: 300ms; }
-.stagger-8 { animation-delay: 350ms; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

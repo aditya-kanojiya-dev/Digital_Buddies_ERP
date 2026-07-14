@@ -1,7 +1,6 @@
 import React from 'react';
 import { Clock, DollarSign, Calendar, BarChart2, ArrowRight } from 'lucide-react';
-
-const todayStr = () => new Date().toISOString().split('T')[0];
+import { today as todayStr } from '../../lib/format';
 
 /**
  * DepartmentKpiStrip — compact 4-card KPI bar for ManagerDashboard.

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle, Eye } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import PersonalCalendar from './shared/PersonalCalendar';
+import { today } from '../lib/format';
 
 export default function Dashboard({ user, state, updateState, onNavigate }) {
   const toast = useToast();
@@ -12,7 +13,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   const myAttendance = attendance.filter(a => a.employeeId === user.id);
   const myNotifications = notifications.filter(n => n.userId === user.id);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = today();
   const todayAttendance = myAttendance.find(a => (a.logDate || a.date) === todayStr);
 
   const parseBreaks = (att) => {

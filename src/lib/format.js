@@ -1,55 +1,13 @@
 // ============================================================================
-// format.js — shared formatting + id/timestamp helpers + linkify
+// format.js — shared formatting + id/timestamp helpers
 //
 // Centralizes patterns that were duplicated across components:
 //   - `${PREFIX}${Date.now()}` id generation  → genId('PRP')
-//   - new Date().toISOString() slicing         → isoNow / today / nowStamp
+//   - new Date().toISOString() slicing         → today / nowStamp
 //   - ad-hoc currency / date rendering          → fmtCurrency / fmtDate
 // ============================================================================
 
-import { createElement } from 'react';
-
 let __seq = Date.now();
-
-const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<.]+(?:\.[^\s<.]+)+)/gi;
-
-/**
- * Detect URLs in plain text and render them as clickable <a> tags.
- * Safe — only matches http/https/www patterns, no HTML passthrough.
- * Links open in a new tab with `rel="noopener noreferrer"`.
- * Returns a React node or the original string if no URLs found.
- */
-export function linkifyText(text) {
-  if (!text) return text;
-
-  const parts = text.split(URL_RE);
-  if (parts.length === 1) return text;
-
-  const result = [];
-  let key = 0;
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    if (!part) continue;
-
-    if (/^https?:\/\//i.test(part) || /^www\./i.test(part)) {
-      const href = /^www\./i.test(part) ? `https://${part}` : part;
-      result.push(
-        createElement('a', {
-          key: key++,
-          href,
-          target: '_blank',
-          rel: 'noopener noreferrer',
-          className: 'text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors',
-          onClick: (e) => e.stopPropagation(),
-        }, part)
-      );
-    } else {
-      result.push(part);
-    }
-  }
-
-  return result.length === 1 ? result[0] : result;
-}
 
 /**
  * Generate a unique ID using timestamp + random suffix.
@@ -61,11 +19,15 @@ export const genId = (prefix = 'T') => {
   return `${prefix}-${__seq}-${rand}`;
 };
 
-/** Full ISO timestamp — for DB storage. e.g. 2026-06-29T14:32:45.123Z */
-export const isoNow = () => new Date().toISOString();
-
 /** Date-only string, YYYY-MM-DD — for date fields/inputs. */
 export const today = () => new Date().toISOString().split('T')[0];
+
+/** Add N days to a YYYY-MM-DD date string (UTC-safe). */
+export const addDays = (dateStr, days) => {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split('T')[0];
+};
 
 /** Compact "YYYY-MM-DD HH:mm" stamp — used by audit logs / login activity. */
 export const nowStamp = () =>
@@ -115,12 +77,6 @@ export const fmtCurrency = (amount, currency = 'INR') => {
   } catch {
     return `₹${n.toLocaleString('en-IN')}`;
   }
-};
-
-/** Plain number with thousands separators. */
-export const fmtNumber = (n) => {
-  const v = Number(n);
-  return isFinite(v) ? v.toLocaleString('en-IN') : '—';
 };
 
 /**

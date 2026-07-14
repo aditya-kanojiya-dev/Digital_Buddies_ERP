@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect, startTransition } from 'react';
+import { Suspense, lazy, useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import Login from './components/Login';
@@ -33,7 +33,7 @@ const DB_SAVE_MAP = {
   adStats:         db.saveAdStats,
   smmCalendar:     db.saveSmmCalendar,
   smmQuotes:       db.saveSmmQuotes,
-  devProjects:     db.saveDevProjects,
+  devProjects:     db.saveProjects,
   interviews:      db.saveInterviews,
   feedback:        db.saveFeedback,
   dailyOps:        db.saveDailyOps,
@@ -95,7 +95,7 @@ const fetchAllData = async () => {
       db.getAdStats(),
       db.getSmmCalendar(),
       db.getSmmQuotes(),
-      db.getDevProjects(),
+      db.getProjects(),
       db.getInterviews(),
       db.getFeedback(),
       db.getDailyOps(),
@@ -205,21 +205,7 @@ const fetchAllData = async () => {
 };
 
 useEffect(() => {
-  const init = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
-      // No Supabase Auth session — clear stale app session
-      sessionStorage.removeItem('neomax_session');
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    await fetchAllData();
-  };
-
-  init();
+  fetchAllData();
 }, [user]);
 
 // ── Auth state listener: auto-logout on Supabase session expiry ────────────
@@ -297,22 +283,6 @@ useEffect(() => {
     supabase.removeChannel(channel);
   };
 }, [user]);
-
-// ── Fallback: periodic auto-refresh (every 15s) for changes real-time misses ─
-  useEffect(() => {
-    if (!user) return;
-    const interval = setInterval(() => {
-      startTransition(() => {
-        Promise.allSettled([
-          db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
-          db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data }))),
-          db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
-          db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data }))),
-        ]);
-      });
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [user]);
 
 // ── Tab-visibility refresh: re-fetch when user returns to the tab ──────────
   useEffect(() => {
@@ -422,31 +392,21 @@ useEffect(() => {
   // Maps a notification record to a { tab, focus } pair so the Layout's bell
   // dropdown can route the user to the source when clicked.
   const resolveNotifTarget = (n) => {
-    if (!n) return { tab: 'dashboard', focus: null };
+    if (!n) return 'dashboard';
 
-    // Deadline engine notifications carry the originating task id
-    if (n.deadlineTaskId) return { tab: 'manager', focus: { taskId: n.deadlineTaskId } };
+    if (n.deadlineTaskId) return 'manager';
+    if (n.type === 'assignment' || n.type === 'ping') return 'manager';
 
-    // Assignment / ping / generic — manager tab is the right home
-    if (n.type === 'assignment' || n.type === 'ping') {
-      return { tab: 'manager', focus: null };
-    }
-
-    // Lead / proposal / invoice — anything mentioning client-facing modules
     const lower = (n.message || '').toLowerCase();
     if (lower.includes('lead') || lower.includes('proposal') || lower.includes('invoice') || lower.includes('client')) {
-      return { tab: 'crm', focus: null };
+      return 'crm';
     }
 
-    return { tab: 'dashboard', focus: null };
+    return 'dashboard';
   };
 
   const handleNotifNavigate = (n) => {
-    const target = resolveNotifTarget(n);
-    setActiveTab(target.tab);
-    // `focus` is consumed by individual pages that mount a TaskDetailPanel
-    // (ManagerDashboard for now). Pages can read it from a context or via a
-    // module-level cache; for v1 the resolver just sets the active tab.
+    setActiveTab(resolveNotifTarget(n));
   };
 
   // ── Loading screen ────────────────────────────────────────────────────────

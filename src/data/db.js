@@ -184,8 +184,6 @@ export const db = {
   // ── Timelogs ──────────────────────────────────────────────────────────────
   getTimelogs: () => getTable('timelogs'),
   saveTimelogs: (data) => saveTable('timelogs', data),
-  addTimelog: (log) => addRow('timelogs', log),
-  updateTimelog: (logId, fields) => updateRow('timelogs', logId, fields),
 
   // ── Attendance ────────────────────────────────────────────────────────────
   getAttendance: () => getTable('attendance'),
@@ -208,7 +206,6 @@ export const db = {
   // ── Notifications & Pings ─────────────────────────────────────────────────
   getNotifications: () => getTable('notifications'),
   saveNotifications: (data) => saveTable('notifications', data),
-  addNotification: (notif) => addRow('notifications', notif),
 
   // ── CRM: Leads ────────────────────────────────────────────────────────────
   getLeads: () => getTable('leads'),
@@ -240,9 +237,7 @@ export const db = {
 
   // ── Projects (shared by Projects board and Dev department) ────────────────
   getProjects: () => getTable('projects'),
-  getDevProjects: () => getTable('projects'),       // alias used by App.jsx + HR.jsx
   saveProjects: (data) => saveTable('projects', data),
-  saveDevProjects: (data) => saveTable('projects', data), // alias
   addProject: (proj) => addRow('projects', proj),
   updateProject: (projId, fields) => updateRow('projects', projId, fields),
 
@@ -254,7 +249,6 @@ export const db = {
   // ── Department: Paid Ads — Stats ──────────────────────────────────────────
   getAdStats: () => getTable('ad_stats'),
   saveAdStats: (data) => saveTable('ad_stats', data),
-  addAdStat: (stat) => addRow('ad_stats', stat),
 
   // ── Department: Paid Ads — Campaigns ─────────────────────────────────────
   getAdCampaigns: () => getTable('ad_campaigns'),
@@ -273,25 +267,20 @@ export const db = {
   deleteCalendarPost: (postId) => deleteRow('smm_calendar', postId),
 
   getSmmQuotes: () => getTable('smm_quotes'),
-  saveSmmQuotes: (data) => saveTable('smm_quotes', data),   // was missing
-  addSmmQuote: (quote) => addRow('smm_quotes', quote),
+  saveSmmQuotes: (data) => saveTable('smm_quotes', data),
 
   // ── Department: HR ────────────────────────────────────────────────────────
   getInterviews: () => getTable('interviews'),
-  saveInterviews: (data) => saveTable('interviews', data),  // was missing
-  addInterview: (int) => addRow('interviews', int),
+  saveInterviews: (data) => saveTable('interviews', data),
 
   getFeedback: () => getTable('client_feedback'),
-  saveFeedback: (data) => saveTable('client_feedback', data), // was missing
-  addFeedback: (fb) => addRow('client_feedback', fb),
+  saveFeedback: (data) => saveTable('client_feedback', data),
 
   getDailyOps: () => getTable('daily_ops'),
-  saveDailyOps: (data) => saveTable('daily_ops', data),     // was missing (was updateDailyOps)
-  updateDailyOps: (ops) => saveTable('daily_ops', ops),     // keep old name for back-compat
+  saveDailyOps: (data) => saveTable('daily_ops', data),
 
   getAttendanceDocs: () => getTable('attendance_docs'),
   saveAttendanceDocs: (data) => saveTable('attendance_docs', data),
-  addAttendanceDoc: (doc) => addRow('attendance_docs', doc),
 
   getPersonalTasks: () => getTable('personal_tasks'),
   savePersonalTasks: (data) => saveTable('personal_tasks', data),
@@ -303,6 +292,5 @@ export const db = {
   },
 
   getMoms: () => getTable('moms'),
-  saveMoms: (data) => saveTable('moms', data),              // was missing
-  addMom: (mom) => addRow('moms', mom),
+  saveMoms: (data) => saveTable('moms', data),
 };

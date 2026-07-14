@@ -5,7 +5,7 @@ import {
   CalendarCheck, CalendarClock, ClockAlert,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
-import { genId } from '../../lib/format';
+import { genId, today as todayStr, addDays } from '../../lib/format';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
 import { DatePicker } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
@@ -27,13 +27,6 @@ const DEPT_DOT = {
   'Videography/Photography':'bg-teal-500',
   'Developers':             'bg-blue-500',
   'HR':                     'bg-emerald-500',
-};
-
-const todayStr = () => new Date().toISOString().split('T')[0];
-const addDays = (dateStr, n) => {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().split('T')[0];
 };
 
 export default function Creative({ user, state, updateState, activeDepartment }) {

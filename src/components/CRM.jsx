@@ -8,9 +8,8 @@ import { useToast } from './shared/Toast';
 import { Modal, ConfirmDialog, Button, DatePicker } from './ui';
 import { DonutChart, BarChart } from './ui';
 import { db } from '../data/db';
+import { today as todayStr } from '../lib/format';
 import * as XLSX from 'xlsx';
-
-const todayStr = () => new Date().toISOString().split('T')[0];
 
 const LEAD_SOURCES = ['Website Lead', 'Cold Outreach', 'Referral', 'Meta Ads', 'LinkedIn', 'Google Ads', 'Other'];
 const LEAD_STAGES = ['Lead', 'Qualified', 'Proposal Sent', 'Won', 'Lost'];

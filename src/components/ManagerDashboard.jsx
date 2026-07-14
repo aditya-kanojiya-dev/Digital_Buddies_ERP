@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2, Trash2, Save, X, Search, Filter, ChevronDown } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
-import { genId } from '../lib/format';
+import { genId, today as todayStr, addDays } from '../lib/format';
 import { db } from '../data/db';
 import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
@@ -10,18 +10,10 @@ import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
 import { DatePicker } from './ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../lib/workloadCaps';
 
-// ── Date helpers ────────────────────────────────────────────────────────────
-const todayStr = () => new Date().toISOString().split('T')[0];
-const addDays = (dateStr, days) => {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().split('T')[0];
-};
-
 const ALLOWED_TARGET_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography', 'Paid Ads', 'Social Media'];
-const CREATIVE_DEPTS = ['Video Editors', 'Graphic Designers', 'Videography/Photography'];
+export const CREATIVE_DEPTS = ['Video Editors', 'Graphic Designers', 'Videography/Photography'];
 
-const DEPT_TIMELINE_RULES = {
+export const DEPT_TIMELINE_RULES = {
   'Developers':              { mode: 'manual', label: 'Manual' },
   'Paid Ads':                { mode: 'manual', label: 'Manual' },
   'Video Editors':           { mode: 'select', options: [3, 5], label: 'Editors timeline' },

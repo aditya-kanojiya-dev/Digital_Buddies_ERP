@@ -1,18 +1,8 @@
 import React from 'react';
 import { AlertCircle, AlertTriangle, CalendarClock } from 'lucide-react';
+import { today as todayStr, addDays } from '../../lib/format';
 
-// ─── Date helpers (module-local; kept here so the badge is self-contained) ──
-
-const todayStr = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-const tomorrowStr = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const tomorrowStr = () => addDays(todayStr(), 1);
 
 /**
  * DeadlineBadge — renders an urgency pill for a task due date.

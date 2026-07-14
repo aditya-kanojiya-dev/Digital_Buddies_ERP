@@ -11,7 +11,7 @@
  * assigned to that person with dueDate on that day.
  */
 
-export const WORKLOAD_CAPS = {
+const WORKLOAD_CAPS = {
   'Video Editors':           { softMax: 7, hardCap: 9 },
   'Graphic Designers':       { softMax: 7, hardCap: 9 },
   'Videography/Photography': { softMax: 2, hardCap: 2 },
@@ -23,7 +23,7 @@ const ACTIVE_STATUSES = new Set(['New', 'In Progress', 'Review']);
  * Count how many active tasks a person already has on a given due date.
  * Excludes tasks with shootApprovalStatus === 'pending' (not yet confirmed).
  */
-export function countDayLoad(tasks, personId, dateStr) {
+function countDayLoad(tasks, personId, dateStr) {
   if (!tasks || !personId || !dateStr) return 0;
   return tasks.filter(t =>
     (t.assignedTo === personId || t.assignedTo2 === personId)

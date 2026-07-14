@@ -7,23 +7,17 @@ import {
 import TaskDetailPanel from './TaskDetailPanel';
 import { db } from '../../data/db';
 import { DatePicker } from '../ui';
+import { today as todayStr, addDays } from '../../lib/format';
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const todayStr = () => new Date().toISOString().split('T')[0];
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 const toDateStr = (year, month, day) =>
     `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-const addDays = (dateStr, n) => {
-    const d = new Date(dateStr + 'T00:00:00Z');
-    d.setUTCDate(d.getUTCDate() + n);
-    return d.toISOString().split('T')[0];
-};
 
 const getWeekStart = (dateStr) => {
     const d = new Date(dateStr + 'T00:00:00Z');

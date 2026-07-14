@@ -1,94 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Download, Plus, Check, BarChart2, DollarSign, Calendar, TrendingUp, Lock,
+  Download, Plus, Check, BarChart2, TrendingUp, Lock,
   Layers, PieChart, Target, Edit3, Trash2, X, Save, Filter
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
-import { DatePicker } from '../ui';
-
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const todayStr = () => new Date().toISOString().split('T')[0];
-const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
-
-function SimpleLineChart({ data, width = 400, height = 160, color = '#a78bfa' }) {
-  if (!data || data.length < 2) return <div className="text-slate-500 text-xs text-center py-8">Not enough data</div>;
-  const vals = data.map(d => d.value);
-  const max = Math.max(...vals, 1);
-  const min = Math.min(...vals, 0);
-  const range = max - min || 1;
-  const pad = 20;
-  const chartW = width - pad * 2;
-  const chartH = height - pad * 2;
-  const stepX = chartW / (data.length - 1);
-  const points = data.map((d, i) => {
-    const x = pad + i * stepX;
-    const y = pad + chartH - ((d.value - min) / range) * chartH;
-    return `${x},${y}`;
-  }).join(' ');
-  const labels = data.filter((_, i) => i % Math.max(1, Math.floor(data.length / 6)) === 0 || i === data.length - 1);
-  return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
-      <polyline fill="none" stroke={color} strokeWidth="2" points={points} />
-      {data.map((d, i) => {
-        const x = pad + i * stepX;
-        const y = pad + chartH - ((d.value - min) / range) * chartH;
-        return <circle key={i} cx={x} cy={y} r="3" fill={color} />;
-      })}
-      {labels.map((d, i) => {
-        const idx = data.indexOf(d);
-        const x = pad + idx * stepX;
-        return <text key={i} x={x} y={height - 4} textAnchor="middle" className="fill-slate-500 text-3xs">{d.label}</text>;
-      })}
-    </svg>
-  );
-}
-
-function SimpleBarChart({ data, width = 300, height = 140, color = '#a78bfa' }) {
-  if (!data || data.length === 0) return <div className="text-slate-500 text-xs text-center py-6">No data</div>;
-  const max = Math.max(...data.map(d => d.value), 1);
-  const pad = 4;
-  const barW = Math.max(4, (width - pad * 2) / data.length - 2);
-  return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
-      {data.map((d, i) => {
-        const barH = (d.value / max) * (height - 20);
-        const x = pad + i * ((width - pad * 2) / data.length);
-        const y = height - 16 - barH;
-        return (
-          <g key={i}>
-            <rect x={x} y={y} width={barW} height={barH} fill={color} rx="2" opacity="0.8" />
-            <text x={x + barW / 2} y={height - 2} textAnchor="middle" className="fill-slate-500 text-3xs">{d.label}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function SimpleDonutChart({ data, size = 120, thickness = 20 }) {
-  if (!data || data.length === 0) return <div className="text-slate-500 text-xs text-center py-6">No data</div>;
-  const total = data.reduce((s, d) => s + d.value, 0) || 1;
-  const cx = size / 2, cy = size / 2;
-  const r = size / 2 - thickness / 2;
-  const circum = 2 * Math.PI * r;
-  const COLORS = ['#a78bfa','#f472b6','#34d399','#fbbf24','#60a5fa','#f87171'];
-  let offset = 0;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {data.map((d, i) => {
-        const frac = d.value / total;
-        const len = frac * circum;
-        const seg = (
-          <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth={thickness}
-            strokeDasharray={`${len} ${circum - len}`} strokeDashoffset={-offset} transform={`rotate(-90 ${cx} ${cy})`} />
-        );
-        offset += len;
-        return seg;
-      })}
-    </svg>
-  );
-}
+import { DatePicker, LineChart, BarChart, DonutChart } from '../ui';
+import { today, addDays } from '../../lib/format';
 
 export default function PaidAds({ user, state, updateState }) {
   const toast = useToast();
@@ -110,7 +28,7 @@ export default function PaidAds({ user, state, updateState }) {
     { id: 'clients', label: 'Clients & Plans', icon: Layers },
   ];
 
-  const today = todayStr();
+  const todayDate = today();
 
   // ── Computed metrics for Overview ───────────────────────────────────────
   const thisMonthStats = useMemo(() => {
@@ -136,7 +54,7 @@ export default function PaidAds({ user, state, updateState }) {
   const spendTrend = useMemo(() => {
     const points = [];
     for (let i = 29; i >= 0; i--) {
-      const d = daysAgo(i);
+      const d = addDays(today(), -i);
       const dayStats = (selectedClientId ? clientStats : adStats).filter(s => s.logDate === d);
       const total = dayStats.reduce((s, r) => s + (r.spend || 0), 0);
       points.push({ label: `${new Date(d).getDate()}`, value: total || 0 });
@@ -176,7 +94,7 @@ export default function PaidAds({ user, state, updateState }) {
   }, [adsClients, adStats]);
 
   // ── Daily Log form ──────────────────────────────────────────────────────
-  const [statsDate, setStatsDate] = useState(today);
+  const [statsDate, setStatsDate] = useState(todayDate);
   const [activeAds, setActiveAds] = useState(0);
   const [lostAds, setLostAds] = useState(0);
   const [statsBudget, setStatsBudget] = useState(5000);
@@ -282,7 +200,7 @@ export default function PaidAds({ user, state, updateState }) {
         channel: campaignChannel,
         objective: campaignObjective,
         budgetAllocated: parseFloat(campaignBudget) || 0,
-        startDate: campaignStart || today,
+        startDate: campaignStart || todayDate,
         endDate: campaignEnd || null,
         status: 'Active',
         createdBy: user.name,
@@ -331,7 +249,7 @@ export default function PaidAds({ user, state, updateState }) {
       details: newClientDetails,
       department: 'Paid Ads',
       budget: parseFloat(newClientBudget) || 100000,
-      startDate: newClientStart || today,
+      startDate: newClientStart || todayDate,
       status: 'Active',
     };
     updateState({ clients: [...clients, newClient] });
@@ -440,17 +358,17 @@ Prepared by: ${user.name} — Paid Ads Team (NeoMax CMS)
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass-panel p-5 rounded-2xl">
               <h3 className="text-sm font-semibold text-slate-200 mb-3">Spend Trend (30 days)</h3>
-              <SimpleLineChart data={spendTrend} color="#f472b6" />
+              <LineChart data={spendTrend} color="#f472b6" />
             </div>
             <div className="glass-panel p-5 rounded-2xl">
               <h3 className="text-sm font-semibold text-slate-200 mb-3">Active vs Lost (weekly)</h3>
               <div className="flex gap-4 items-start">
                 <div className="flex-1">
-                  <SimpleBarChart data={weeklyChart.map(w => ({ label: w.label, value: w.active }))} color="#34d399" />
+                  <BarChart data={weeklyChart.map(w => ({ label: w.label, value: w.active }))} color="#34d399" />
                   <p className="text-3xs text-emerald-400 text-center mt-1">Active Ads</p>
                 </div>
                 <div className="flex-1">
-                  <SimpleBarChart data={weeklyChart.map(w => ({ label: w.label, value: w.lost }))} color="#f87171" />
+                  <BarChart data={weeklyChart.map(w => ({ label: w.label, value: w.lost }))} color="#f87171" />
                   <p className="text-3xs text-rose-400 text-center mt-1">Lost Ads</p>
                 </div>
               </div>
@@ -460,7 +378,7 @@ Prepared by: ${user.name} — Paid Ads Team (NeoMax CMS)
           {/* Donut + Budget Alerts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass-panel p-5 rounded-2xl flex items-center gap-6">
-              <SimpleDonutChart data={budgetDonut} size={140} thickness={24} />
+              <DonutChart data={budgetDonut} size={140} thickness={24} />
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-slate-200 mb-3">Budget Allocation</h3>
                 <div className="space-y-1.5 max-h-32 overflow-y-auto">
