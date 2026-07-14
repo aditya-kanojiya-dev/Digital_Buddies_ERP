@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Shield, CreditCard, Users, Briefcase, FileText, Download, Wallet } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { PageHeader, StatCard, Card, EmptyState, LineChart, Sparkline } from './ui';
+import DepartmentReports from './shared/DepartmentReports';
 import { exportCsv } from '../lib/exportCsv';
 import { fmtCurrency, fmtDateTime } from '../lib/format';
 
@@ -198,6 +199,11 @@ export default function FounderDashboard({ state }) {
           </div>
         </Card>
       </div>
+
+      {/* Department reports */}
+      <Card className="p-6">
+        <DepartmentReports state={state} />
+      </Card>
     </div>
   );
 }
