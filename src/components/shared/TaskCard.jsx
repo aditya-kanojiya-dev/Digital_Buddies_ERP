@@ -7,6 +7,7 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 export default function TaskCard({
     task,
     assignee,
+    assignee2,
     viewMode = 'employee',
     onStatusChange,
     onOpenDetail,
@@ -73,6 +74,11 @@ export default function TaskCard({
                         <span className="flex items-center gap-1">
                             <User className="w-3.5 h-3.5" /> {assignee ? assignee.name : 'Unassigned'}
                         </span>
+                        {assignee2 && (
+                            <span className="flex items-center gap-1 text-slate-400">
+                                & {assignee2.name}
+                            </span>
+                        )}
                         {task.department && (
                             <span className="text-slate-600">· {task.department}</span>
                         )}
@@ -148,7 +154,7 @@ export default function TaskCard({
                             <Download className="w-3.5 h-3.5" /> Share Assets
                         </a>
                     )}
-                    {currentUser.id === task.assignedTo && (
+                    {(currentUser.id === task.assignedTo || currentUser.id === task.assignedTo2) && (
                         <a
                             href={`https://wa.me/?text=${encodeURIComponent(
                                 `📎 *Request Assets - Task ${task.id}*\n*Task:* ${task.title}\n*Due:* ${task.dueDate || 'N/A'}\n\nPlease share the required assets/content for this task.`

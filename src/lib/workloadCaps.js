@@ -26,7 +26,7 @@ const ACTIVE_STATUSES = new Set(['New', 'In Progress', 'Review']);
 export function countDayLoad(tasks, personId, dateStr) {
   if (!tasks || !personId || !dateStr) return 0;
   return tasks.filter(t =>
-    t.assignedTo === personId
+    (t.assignedTo === personId || t.assignedTo2 === personId)
     && t.dueDate === dateStr
     && ACTIVE_STATUSES.has(t.status)
     && t.shootApprovalStatus !== 'pending'

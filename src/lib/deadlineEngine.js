@@ -132,6 +132,24 @@ export function runDeadlineEngine({ tasks, notifications }) {
             read: false,
         });
 
+        // Also notify co-assignee if present
+        if (task.assignedTo2 && task.assignedTo2 !== task.assignedTo) {
+            const coDedupKey = `${task.id}:${type}:${today}:co`;
+            if (!seen.has(coDedupKey)) {
+                fresh.push({
+                    id: `NTF_DL_${task.id}_${type}_${today}_co`,
+                    userId: task.assignedTo2,
+                    message,
+                    type,
+                    deadlineTaskId: task.id,
+                    deadlineDate: today,
+                    timestamp: now,
+                    read: false,
+                });
+                seen.add(coDedupKey);
+            }
+        }
+
         seen.add(dedupKey); // guard against the same task appearing twice in the array
     }
 

@@ -29,6 +29,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
     const [statusEdit, setStatusEdit] = useState(task.status || 'New');
 
     const assignee = state.employees.find(e => e.id === task.assignedTo);
+    const assignee2 = task.assignedTo2 ? state.employees.find(e => e.id === task.assignedTo2) : null;
     const assigner = state.employees.find(e => e.id === task.assignedBy);
 
     const STATUS_PIPELINE = ['New', 'In Progress', 'Review', 'Completed', 'Blocked'];
@@ -209,14 +210,27 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                         <div className="glass-card rounded-xl p-3 border border-slate-800/60">
                             <p className="text-3xs text-slate-500 uppercase tracking-wider font-semibold mb-1.5">Assigned To</p>
                             {assignee ? (
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-full bg-teal-500/20 flex items-center justify-center text-3xs font-bold text-teal-400">
-                                        {assignee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-full bg-teal-500/20 flex items-center justify-center text-3xs font-bold text-teal-400">
+                                            {assignee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-slate-200">{assignee.name}</p>
+                                            <p className="text-3xs text-slate-500">{assignee.department?.join(', ') || 'No department'}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-xs font-semibold text-slate-200">{assignee.name}</p>
-                                        <p className="text-3xs text-slate-500">{assignee.department?.join(', ') || 'No department'}</p>
-                                    </div>
+                                    {assignee2 && (
+                                        <div className="flex items-center gap-2 pt-1.5 border-t border-slate-800/40">
+                                            <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-3xs font-bold text-amber-400">
+                                                {assignee2.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-semibold text-slate-200">{assignee2.name} <span className="text-3xs text-amber-400">(Co-Assignee)</span></p>
+                                                <p className="text-3xs text-slate-500">{assignee2.department?.join(', ') || 'No department'}</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <p className="text-xs text-slate-500 italic">Unassigned</p>

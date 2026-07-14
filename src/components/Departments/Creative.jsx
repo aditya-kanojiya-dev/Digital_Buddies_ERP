@@ -47,6 +47,14 @@ export default function Creative({ user, state, updateState, activeDepartment })
     (!subTypeFilter || emp.subType === subTypeFilter)
   );
 
+  const coAssigneeStaff = (needsBothRoles && subTypeFilter)
+    ? employees.filter(emp =>
+        emp.department?.includes(activeDepartment) &&
+        emp.subType !== subTypeFilter &&
+        emp.id !== assigneeId
+      )
+    : [];
+
   // ── Form state ──────────────────────────────────────────────────────────
   const [taskTitle, setTaskTitle] = useState('');
   const [daysPrior, setDaysPrior] = useState('3');
@@ -54,6 +62,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const [scheduledDate, setScheduledDate] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [needsBothRoles, setNeedsBothRoles] = useState(false);
+  const [coAssigneeId, setCoAssigneeId] = useState('');
 
   // ── Quick filters, modals ──────────────────────────────────────────────
   const [quickFilter, setQuickFilter] = useState('all');
@@ -145,7 +155,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
       const matchesDept = task.department === activeDepartment;
       const matchesStatus = showCompleted || task.status !== 'Completed';
       if (!matchesDept || !matchesStatus) return false;
-      if (quickFilter === 'mine') return task.assignedTo === user.id;
+      if (quickFilter === 'mine') return task.assignedTo === user.id || task.assignedTo2 === user.id;
       if (quickFilter === 'overdue') return task.dueDate && task.dueDate < todayStr() && task.status !== 'Completed';
       if (quickFilter === 'today') return task.dueDate === todayStr() && task.status !== 'Completed';
       return true;
@@ -179,7 +189,13 @@ export default function Creative({ user, state, updateState, activeDepartment })
       if (!info.canAssign) { toast.error(info.reason); return; }
     }
 
+    if (needsBothRoles && coAssigneeId && effectiveDueDate) {
+      const coInfo = getWorkloadInfo(tasks, coAssigneeId, effectiveDueDate, activeDepartment, priority);
+      if (!coInfo.canAssign) { toast.error(`Co-assignee: ${coInfo.reason}`); return; }
+    }
+
     const assignee = employees.find(e => e.id === assigneeId);
+    const coAssignee = needsBothRoles && coAssigneeId ? employees.find(e => e.id === coAssigneeId) : null;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     const newTask = {
       id:                genId('T'),
@@ -188,6 +204,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
       deadlineDaysPrior: parseInt(daysPrior),
       assignedTo:        assigneeId,
       assigneeName:      assignee?.name || '',
+      assignedTo2:       coAssignee?.id || null,
+      assigneeName2:     coAssignee?.name || '',
       assignedBy:        user.id,
       priority:          priority,
       status:            'New',
@@ -198,20 +216,36 @@ export default function Creative({ user, state, updateState, activeDepartment })
       createdAt:         now,
     };
 
-    updateState({ tasks: [...(tasks || []), newTask] });
+    const newNotifs = [];
     if (assignee) {
-      updateState({ notifications: [{
+      newNotifs.push({
         id:        `NTF${Date.now()}`,
         userId:    assigneeId,
         message:   `${user.name} assigned you a task: "${taskTitle.trim()}"`,
         type:      'assignment',
         timestamp: now,
         read:      false,
-      }, ...(state.notifications || [])] });
+      });
+    }
+    if (coAssignee) {
+      newNotifs.push({
+        id:        `NTF${Date.now()}_co`,
+        userId:    coAssigneeId,
+        message:   `${user.name} assigned you as co-assignee on: "${taskTitle.trim()}"`,
+        type:      'assignment',
+        timestamp: now,
+        read:      false,
+      });
+    }
+
+    updateState({ tasks: [...(tasks || []), newTask] });
+    if (newNotifs.length) {
+      updateState({ notifications: [...newNotifs, ...(state.notifications || [])] });
     }
     toast.success(`"${taskTitle}" added to ${activeDepartment} queue.`);
     setTaskTitle(''); setAssigneeId('');
     setScheduledDate(''); setPriority('Medium'); setAttachmentUrl('');
+    setNeedsBothRoles(false); setCoAssigneeId('');
   };
 
   const handleStatusChange = (taskId, nextStatus) => {
@@ -292,7 +326,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const canDelegate = (task) =>
     canAssignTasks &&
     task.sourceDept === 'Social Media' &&
-    (!task.assignedTo || task.assignedTo === user.id);
+    (!task.assignedTo || task.assignedTo === user.id || task.assignedTo2 === user.id);
 
   const handleDelegate = (e) => {
     e.preventDefault();
@@ -601,6 +635,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
                 ) : (
                     colTasks.map((task, idx) => {
                     const assignee = employees.find(e => e.id === task.assignedTo);
+                    const assignee2 = task.assignedTo2 ? employees.find(e => e.id === task.assignedTo2) : null;
                     const assigner = employees.find(e => e.id === task.assignedBy);
                     const isOverdue = task.dueDate && task.dueDate < todayStr() && task.status !== 'Completed';
                     const isDueToday = task.dueDate === todayStr() && task.status !== 'Completed';
@@ -670,8 +705,8 @@ export default function Creative({ user, state, updateState, activeDepartment })
                             )}
                             <span className="text-slate-700">→</span>
                             {assignee ? (
-                              <span className="flex items-center gap-1 font-medium text-slate-400" title={`Assigned to ${assignee.name}`}>
-                                <User className="w-2.5 h-2.5 text-teal-500" /> {assignee.name.split(' ')[0]}
+                              <span className="flex items-center gap-1 font-medium text-slate-400" title={`Assigned to ${assignee.name}${assignee2 ? ` + ${assignee2.name}` : ''}`}>
+                                <User className="w-2.5 h-2.5 text-teal-500" /> {assignee.name.split(' ')[0]}{assignee2 ? <span className="text-amber-400">+{assignee2.name.split(' ')[0]}</span> : ''}
                               </span>
                             ) : (
                               <span className="flex items-center gap-1 text-slate-600 italic">Unassigned</span>
@@ -827,13 +862,24 @@ export default function Creative({ user, state, updateState, activeDepartment })
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1.5">Role Type</label>
-                  <select value={subTypeFilter} onChange={e => { setSubTypeFilter(e.target.value); setAssigneeId(''); }}
+                  <select value={subTypeFilter} onChange={e => { setSubTypeFilter(e.target.value); setAssigneeId(''); setCoAssigneeId(''); setNeedsBothRoles(false); }}
                     className="w-full glass-input p-2.5 rounded-xl text-sm">
                     <option value="">All Roles</option>
                     <option value="Videographer">Videographer</option>
                     <option value="Content Creator">Content Creator / Influencer</option>
                   </select>
                 </div>
+                {subTypeFilter && activeDepartment === 'Videography/Photography' && (
+                  <div className="flex items-center gap-3 px-1">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={needsBothRoles}
+                        onChange={e => { setNeedsBothRoles(e.target.checked); if (!e.target.checked) setCoAssigneeId(''); }}
+                        className="sr-only peer" />
+                      <div className="w-9 h-5 bg-slate-700 peer-focus:ring-2 peer-focus:ring-violet-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                    </label>
+                    <span className="text-xs text-slate-400">Requires both roles?</span>
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs text-slate-400 mb-1.5">Assign to</label>
                   <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
@@ -853,6 +899,26 @@ export default function Creative({ user, state, updateState, activeDepartment })
                     })}
                   </select>
                 </div>
+                {needsBothRoles && coAssigneeStaff.length > 0 && (
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1.5">Co-Assignee ({subTypeFilter === 'Videographer' ? 'Content Creator' : 'Videographer'})</label>
+                    <select value={coAssigneeId} onChange={e => setCoAssigneeId(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm" required>
+                      <option value="">— Choose co-assignee —</option>
+                      {coAssigneeStaff.map(s => {
+                        const dueDate = scheduledDate
+                          ? addDays(scheduledDate, -parseInt(daysPrior))
+                          : addDays(todayStr(), parseInt(daysPrior));
+                        const info = getWorkloadInfo(tasks, s.id, dueDate, activeDepartment, priority);
+                        const label = info ? formatWorkloadLabel(s.name, info.load, info.softMax, dueDate) : s.name;
+                        return <option key={s.id} value={s.id} className={
+                          info?.color === 'red' ? 'text-red-400' :
+                          info?.color === 'amber' ? 'text-amber-400' : ''
+                        }>{label}</option>;
+                      })}
+                    </select>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <DatePicker label="Prior Date" value={scheduledDate} onChange={setScheduledDate} />
                   <div>

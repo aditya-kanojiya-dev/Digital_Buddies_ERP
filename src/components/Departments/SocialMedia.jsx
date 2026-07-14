@@ -133,6 +133,7 @@ export default function SocialMedia({ user, state, updateState }) {
     caption: '', status: 'Draft',
     client_id: '', needs_videography: false, needs_video_editing: false, needs_graphic_design: false,
     assignedVideo: '', assignedGraphic: '', assignedPhoto: '', assignedPhotoSubType: '',
+    needsBothRoles: false, assignedPhotoCo: '',
   });
   const [postForm, setPostForm] = useState(blankPost());
 
@@ -143,6 +144,8 @@ export default function SocialMedia({ user, state, updateState }) {
   });
   const [taskForm, setTaskForm] = useState(blankTask());
   const [crossDeptSubType, setCrossDeptSubType] = useState('');
+  const [crossDeptNeedsBoth, setCrossDeptNeedsBoth] = useState(false);
+  const [crossDeptCoAssignee, setCrossDeptCoAssignee] = useState('');
 
   // Employees filter for the assignee dropdown in the cross-dept modal
   const isVideographyTarget = taskForm.targetDept === 'Videography/Photography';
@@ -150,6 +153,13 @@ export default function SocialMedia({ user, state, updateState }) {
     e.department?.includes(taskForm.targetDept) &&
     (!isVideographyTarget || !crossDeptSubType || e.subType === crossDeptSubType)
   );
+  const crossDeptCoStaff = (crossDeptNeedsBoth && isVideographyTarget && crossDeptSubType)
+    ? employees.filter(e =>
+        e.department?.includes(taskForm.targetDept) &&
+        e.subType !== crossDeptSubType &&
+        e.id !== taskForm.assignedTo
+      )
+    : [];
 
   // ── Quote / MOM form ──────────────────────────────────────────────────────
   const [quoteClient, setQuoteClient] = useState('');
@@ -210,10 +220,11 @@ export default function SocialMedia({ user, state, updateState }) {
     return form[map[dept]] || '';
   };
 
-  const createLinkedTask = (postId, form, dept, assigneeId) => {
+  const createLinkedTask = (postId, form, dept, assigneeId, coAssigneeId) => {
     const window = DEPT_LEAD_WINDOWS[dept];
     const dueDate = addDays(form.postDate, -window.lower);
     const assignee = assigneeId ? employees.find(e => e.id === assigneeId) : null;
+    const coAssignee = coAssigneeId ? employees.find(e => e.id === coAssigneeId) : null;
     const isVideography = dept === 'Videography/Photography';
     return {
       id: `TASK${Date.now()}_${dept.replace(/[^a-z]/gi,'')}`,
@@ -221,6 +232,8 @@ export default function SocialMedia({ user, state, updateState }) {
       description: `${form.caption || ''}\n\nClient: ${form.client_id || 'N/A'}\nPlatform: ${form.platform}\nPost date: ${form.postDate}`,
       assignedTo: assigneeId || null,
       assigneeName: assignee?.name || '',
+      assignedTo2: coAssigneeId || null,
+      assigneeName2: coAssignee?.name || '',
       department: dept,
       sourceDept: 'Social Media',
       assignedBy: user.id,
@@ -296,6 +309,7 @@ export default function SocialMedia({ user, state, updateState }) {
 
     for (const dept of newSelected) {
       const assigneeId = getAssigneeForDept(newForm, dept);
+      const coAssigneeId = dept === 'Videography/Photography' && newForm.needsBothRoles ? newForm.assignedPhotoCo || '' : '';
       const window = DEPT_LEAD_WINDOWS[dept];
       const newDueDate = addDays(newForm.postDate, -window.lower);
       const existing = tasks.find(t => t.calendar_id === postId && t.department === dept);
@@ -309,7 +323,7 @@ export default function SocialMedia({ user, state, updateState }) {
             continue;
           }
         }
-        const task = createLinkedTask(postId, newForm, dept, assigneeId);
+        const task = createLinkedTask(postId, newForm, dept, assigneeId, coAssigneeId);
         resultTasks.push(task);
         const toNotify = assigneeId
           ? [employees.find(e => e.id === assigneeId)].filter(Boolean)
@@ -481,7 +495,8 @@ export default function SocialMedia({ user, state, updateState }) {
 
         selectedDepts.forEach(dept => {
           const assigneeId = getAssigneeForDept(postForm, dept);
-          const task = createLinkedTask(newPost.id, postForm, dept, assigneeId);
+          const coAssigneeId = dept === 'Videography/Photography' && postForm.needsBothRoles ? postForm.assignedPhotoCo || '' : '';
+          const task = createLinkedTask(newPost.id, postForm, dept, assigneeId, coAssigneeId);
           newTasks.push(task);
 
           const toNotify = assigneeId
@@ -651,15 +666,26 @@ export default function SocialMedia({ user, state, updateState }) {
       }
     }
 
+    if (crossDeptNeedsBoth && crossDeptCoAssignee && dueDate && CREATIVE_DEPTS.includes(taskForm.targetDept)) {
+      const coInfo = getWorkloadInfo(tasks, crossDeptCoAssignee, dueDate, taskForm.targetDept, taskForm.priority);
+      if (!coInfo.canAssign) {
+        toast.error(`Co-assignee: ${coInfo.reason}`);
+        return;
+      }
+    }
+
     const isCreative = CREATIVE_DEPTS.includes(taskForm.targetDept);
     const isVideography = taskForm.targetDept === 'Videography/Photography';
     const assignee = taskForm.assignedTo ? employees.find(e => e.id === taskForm.assignedTo) : null;
+    const coAssignee = crossDeptNeedsBoth && crossDeptCoAssignee ? employees.find(e => e.id === crossDeptCoAssignee) : null;
     const newTask = {
       id: `TASK${Date.now()}`,
       title: taskForm.title,
       description: taskForm.description,
       assignedTo: taskForm.assignedTo || null,
       assigneeName: assignee?.name || '',
+      assignedTo2: coAssignee?.id || null,
+      assigneeName2: coAssignee?.name || '',
       department: taskForm.targetDept,
       sourceDept: 'Social Media',
       assignedBy: user.id,
@@ -684,6 +710,7 @@ export default function SocialMedia({ user, state, updateState }) {
     const toNotify = taskForm.assignedTo
       ? [employees.find(e => e.id === taskForm.assignedTo)].filter(Boolean)
       : employees.filter(e => e.department?.includes(taskForm.targetDept));
+    if (coAssignee) toNotify.push(coAssignee);
     const now = new Date().toISOString();
     const newNotifs = toNotify.map(emp => ({
       id: `NTF${Date.now()}_${emp.id}`,
@@ -698,6 +725,8 @@ export default function SocialMedia({ user, state, updateState }) {
     toast.success(`Task "${taskForm.title}" assigned to ${taskForm.targetDept}.`);
     setShowTaskModal(false);
     setTaskForm(blankTask());
+    setCrossDeptNeedsBoth(false);
+    setCrossDeptCoAssignee('');
   };
 
   // ── Quote ─────────────────────────────────────────────────────────────────
@@ -1374,7 +1403,7 @@ Generated by: ${user.name} — Social Media Department
                       {isChecked && (
                         <>
                           {isVideography && (
-                            <select value={postForm[`${assignKey}SubType`] || ''} onChange={e=>setPostForm(f=>({...f,[`${assignKey}SubType`]:e.target.value,[assignKey]:''}))}
+                            <select value={postForm[`${assignKey}SubType`] || ''} onChange={e=>setPostForm(f=>({...f,[`${assignKey}SubType`]:e.target.value,[assignKey]:'',needsBothRoles:false,assignedPhotoCo:''}))}
                               className="glass-input p-2 rounded-lg text-xs shrink-0">
                               <option value="">All Roles</option>
                               <option value="Videographer">Videographer</option>
@@ -1398,6 +1427,39 @@ Generated by: ${user.name} — Social Media Department
                           )}
                         </>
                       )}
+                      {isVideography && isChecked && postForm[`${assignKey}SubType`] && (
+                        <div className="flex items-center gap-2 ml-6">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={postForm.needsBothRoles || false}
+                              onChange={e=>setPostForm(f=>({...f,needsBothRoles:e.target.checked,assignedPhotoCo:e.target.checked?f.assignedPhotoCo:''}))}
+                              className="sr-only peer" />
+                            <div className="w-8 h-4 bg-slate-700 peer-focus:ring-2 peer-focus:ring-violet-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-violet-600"></div>
+                          </label>
+                          <span className="text-3xs text-slate-400">Requires both roles?</span>
+                        </div>
+                      )}
+                      {isVideography && isChecked && postForm.needsBothRoles && postForm[`${assignKey}SubType`] && (() => {
+                        const oppositeRole = postForm[`${assignKey}SubType`] === 'Videographer' ? 'Content Creator' : 'Videographer';
+                        const coEmployees = employees.filter(e =>
+                          e.department?.includes(deptName) && e.subType === oppositeRole
+                        );
+                        return coEmployees.length > 0 ? (
+                          <div className="flex items-center gap-2 ml-6">
+                            <select value={postForm.assignedPhotoCo || ''} onChange={e=>setPostForm(f=>({...f,assignedPhotoCo:e.target.value}))}
+                              className="glass-input p-2 rounded-lg text-xs flex-1">
+                              <option value="">— Co-assignee ({oppositeRole}) —</option>
+                              {coEmployees.map(e => {
+                                const info = dueDate ? getWorkloadInfo(tasks, e.id, dueDate, deptName, 'Medium') : null;
+                                const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
+                                return <option key={e.id} value={e.id} className={
+                                  info?.color === 'red' ? 'text-red-400' :
+                                  info?.color === 'amber' ? 'text-amber-400' : ''
+                                }>{label}</option>;
+                              })}
+                            </select>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   );
                 })}
@@ -1424,7 +1486,7 @@ Generated by: ${user.name} — Social Media Department
 
       {/* Cross-dept task modal */}
       {showTaskModal && (
-        <Modal title="Assign Task to Another Department" onClose={() => { setShowTaskModal(false); setTaskForm(blankTask()); }} wide>
+        <Modal title="Assign Task to Another Department" onClose={() => { setShowTaskModal(false); setTaskForm(blankTask()); setCrossDeptNeedsBoth(false); setCrossDeptCoAssignee(''); }} wide>
           <div className="space-y-4">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Task Title *</label>
@@ -1446,7 +1508,7 @@ Generated by: ${user.name} — Social Media Department
               {isVideographyTarget ? (
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Role Type</label>
-                  <select value={crossDeptSubType} onChange={e=>{setCrossDeptSubType(e.target.value); setTaskForm(f=>({...f,assignedTo:''}));}} className="w-full glass-input p-3 rounded-xl text-sm">
+                  <select value={crossDeptSubType} onChange={e=>{setCrossDeptSubType(e.target.value); setTaskForm(f=>({...f,assignedTo:''})); setCrossDeptNeedsBoth(false); setCrossDeptCoAssignee('');}} className="w-full glass-input p-3 rounded-xl text-sm">
                     <option value="">All Roles</option>
                     <option value="Videographer">Videographer</option>
                     <option value="Content Creator">Content Creator / Influencer</option>
@@ -1484,6 +1546,34 @@ Generated by: ${user.name} — Social Media Department
                       info?.color === 'red' ? 'text-red-400' :
                       info?.color === 'amber' ? 'text-amber-400' :
                       ''
+                    }>{label}</option>;
+                  })}
+                </select>
+              </div>
+            )}
+            {isVideographyTarget && crossDeptSubType && (
+              <div className="flex items-center gap-3 px-1">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={crossDeptNeedsBoth}
+                    onChange={e=>{setCrossDeptNeedsBoth(e.target.checked); if(!e.target.checked) setCrossDeptCoAssignee('');}}
+                    className="sr-only peer" />
+                  <div className="w-9 h-5 bg-slate-700 peer-focus:ring-2 peer-focus:ring-violet-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                </label>
+                <span className="text-xs text-slate-400">Requires both roles?</span>
+              </div>
+            )}
+            {crossDeptNeedsBoth && crossDeptCoStaff.length > 0 && (
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Co-Assignee ({crossDeptSubType === 'Videographer' ? 'Content Creator' : 'Videographer'})</label>
+                <select value={crossDeptCoAssignee} onChange={e=>setCrossDeptCoAssignee(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm">
+                  <option value="">— Select co-assignee —</option>
+                  {crossDeptCoStaff.map(e => {
+                    const dueDate = computeDueDate();
+                    const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, e.id, dueDate, taskForm.targetDept, taskForm.priority) : null;
+                    const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
+                    return <option key={e.id} value={e.id} className={
+                      info?.color === 'red' ? 'text-red-400' :
+                      info?.color === 'amber' ? 'text-amber-400' : ''
                     }>{label}</option>;
                   })}
                 </select>
@@ -1543,7 +1633,7 @@ Generated by: ${user.name} — Social Media Department
                 className="flex-1 bg-neon-gradient py-2.5 rounded-xl text-white text-sm font-bold flex items-center justify-center gap-2">
                 <Send className="w-4 h-4" /> Send Task
               </button>
-              <button onClick={() => { setShowTaskModal(false); setTaskForm(blankTask()); }}
+              <button onClick={() => { setShowTaskModal(false); setTaskForm(blankTask()); setCrossDeptNeedsBoth(false); setCrossDeptCoAssignee(''); }}
                 className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 text-sm font-bold transition">
                 Cancel
               </button>

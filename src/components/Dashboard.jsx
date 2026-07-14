@@ -7,7 +7,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   const toast = useToast();
   const { tasks, timelogs, attendance, notifications } = state;
 
-  const myTasks = tasks.filter(t => t.assignedTo === user.id);
+  const myTasks = tasks.filter(t => t.assignedTo === user.id || t.assignedTo2 === user.id);
   const myLogs = timelogs.filter(l => l.employeeId === user.id);
   const myAttendance = attendance.filter(a => a.employeeId === user.id);
   const myNotifications = notifications.filter(n => n.userId === user.id);

@@ -219,7 +219,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
     // ── Task/leave/attendance data ──────────────────────────────────────────
     const myTasks = useMemo(
         () => (state.tasks || []).filter(t =>
-            t.assignedTo === user.id
+            t.assignedTo === user.id || t.assignedTo2 === user.id
         ),
         [state.tasks, user.id]
     );

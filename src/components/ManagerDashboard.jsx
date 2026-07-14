@@ -51,6 +51,8 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const [timelineDays, setTimelineDays] = useState('3');
   const [taskScheduledDate, setTaskScheduledDate] = useState('');
   const [subTypeFilter, setSubTypeFilter] = useState('');
+  const [needsBothRoles, setNeedsBothRoles] = useState(false);
+  const [coAssigneeId, setCoAssigneeId] = useState('');
 
   const rule = DEPT_TIMELINE_RULES[targetDept] || {};
   const isVideographyDept = targetDept === 'Videography/Photography';
@@ -60,10 +62,17 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         (!isVideographyDept || !subTypeFilter || emp.subType === subTypeFilter)
       )
     : [];
+  const coDeptStaff = (needsBothRoles && isVideographyDept && subTypeFilter)
+    ? employees.filter(emp =>
+        emp.department?.includes(targetDept) &&
+        emp.subType !== subTypeFilter &&
+        emp.id !== assigneeId
+      )
+    : [];
   const deptTasks = tasks.filter(task => {
     if (isSuperAdmin) return true;
     if (ALLOWED_TARGET_DEPTS.includes(task.department)) return true;
-    if (task.assignedBy === user.id || task.assignedTo === user.id) return true;
+    if (task.assignedBy === user.id || task.assignedTo === user.id || task.assignedTo2 === user.id) return true;
     return false;
   });
   const isCreativeDept = CREATIVE_DEPTS.includes(targetDept);
@@ -91,7 +100,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     let result = deptTasks;
     if (taskFilterStatus)   result = result.filter(t => t.status === taskFilterStatus);
     if (taskFilterPriority) result = result.filter(t => t.priority === taskFilterPriority);
-    if (taskFilterAssignee) result = result.filter(t => t.assignedTo === taskFilterAssignee);
+    if (taskFilterAssignee) result = result.filter(t => t.assignedTo === taskFilterAssignee || t.assignedTo2 === taskFilterAssignee);
     if (taskFilterDept)     result = result.filter(t => t.department === taskFilterDept);
     if (taskFilterSearch) {
       const q = taskFilterSearch.toLowerCase();
@@ -139,7 +148,16 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       }
     }
 
+    if (needsBothRoles && coAssigneeId && dueDate && CREATIVE_DEPTS.includes(targetDept)) {
+      const coInfo = getWorkloadInfo(tasks, coAssigneeId, dueDate, targetDept, taskPriority);
+      if (!coInfo.canAssign) {
+        toast.error(`Co-assignee: ${coInfo.reason}`);
+        return;
+      }
+    }
+
     const staffMember = employees.find(emp => emp.id === assigneeId);
+    const coMember = needsBothRoles && coAssigneeId ? employees.find(emp => emp.id === coAssigneeId) : null;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
     const newTask = {
@@ -147,6 +165,8 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       title:         taskTitle,
       assignedTo:    assigneeId,
       assigneeName:  staffMember?.name || '',
+      assignedTo2:   coMember?.id || null,
+      assigneeName2: coMember?.name || '',
       assignedBy:    user.id,
       department:    targetDept,
       sourceDept:    'Work Assignment',
@@ -160,25 +180,38 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       scheduledDate: isCreativeDept ? taskScheduledDate || null : null,
     };
 
-    updateState({ tasks: [...tasks, newTask] });
-    updateState({ notifications: [{
+    const newNotifs = [{
       id:        `NTF${Date.now()}`,
       userId:    assigneeId,
       message:   `${user.name} assigned task "${taskTitle}" to you.`,
       type:      'assignment',
       timestamp: now,
       read:      false,
-    }, ...notifications] });
+    }];
+    if (coMember) {
+      newNotifs.push({
+        id:        `NTF${Date.now()}_co`,
+        userId:    coAssigneeId,
+        message:   `${user.name} assigned you as co-assignee on "${taskTitle}".`,
+        type:      'assignment',
+        timestamp: now,
+        read:      false,
+      });
+    }
+
+    updateState({ tasks: [...tasks, newTask] });
+    updateState({ notifications: [...newNotifs, ...notifications] });
     updateState({ auditLogs: [{
       id:        `AUD${Date.now()}`,
       userId:    user.id,
       action:    'Task Created',
-      details:   `${user.name} assigned task "${taskTitle}" to ${staffMember?.name} (${targetDept}).`,
+      details:   `${user.name} assigned task "${taskTitle}" to ${staffMember?.name}${coMember ? ` + ${coMember?.name}` : ''} (${targetDept}).`,
       timestamp: now,
     }, ...state.auditLogs] });
 
-    toast.success(`Task assigned to ${staffMember?.name}.`, `"${taskTitle}"`);
+    toast.success(`Task assigned to ${staffMember?.name}${coMember ? ` + ${coMember.name}` : ''}.`, `"${taskTitle}"`);
     setTaskTitle(''); setAssigneeId(''); setTaskDue(''); setTaskScheduledDate(''); setTargetDept(''); setTimelineDays('3');
+    setNeedsBothRoles(false); setCoAssigneeId('');
   };
 
   const handleReassignSubmit = (e, taskId) => {
@@ -346,6 +379,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const [editTitle, setEditTitle] = useState('');
   const [editDept, setEditDept] = useState('');
   const [editAssignee, setEditAssignee] = useState('');
+  const [editAssignee2, setEditAssignee2] = useState('');
   const [editPriority, setEditPriority] = useState('Medium');
   const [editDue, setEditDue] = useState('');
 
@@ -379,6 +413,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     setEditTitle(task.title);
     setEditDept(task.department);
     setEditAssignee(task.assignedTo);
+    setEditAssignee2(task.assignedTo2 || '');
     setEditPriority(task.priority);
     setEditDue(task.dueDate || '');
   };
@@ -399,6 +434,8 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
           department: editDept,
           assignedTo: editAssignee,
           assigneeName: employees.find(e => e.id === editAssignee)?.name || '',
+          assignedTo2: editAssignee2 || null,
+          assigneeName2: editAssignee2 ? employees.find(e => e.id === editAssignee2)?.name || '' : '',
           priority: editPriority,
           dueDate: editDue,
         } : t
@@ -639,12 +676,23 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               {isVideographyDept && (
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Role Type</label>
-                  <select value={subTypeFilter} onChange={e => { setSubTypeFilter(e.target.value); setAssigneeId(''); }}
+                  <select value={subTypeFilter} onChange={e => { setSubTypeFilter(e.target.value); setAssigneeId(''); setCoAssigneeId(''); setNeedsBothRoles(false); }}
                     className="w-full glass-input p-3 rounded-xl text-xs">
                     <option value="">All Roles</option>
                     <option value="Videographer">Videographer</option>
                     <option value="Content Creator">Content Creator / Influencer</option>
                   </select>
+                </div>
+              )}
+              {isVideographyDept && subTypeFilter && (
+                <div className="flex items-center gap-3 px-1">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={needsBothRoles}
+                      onChange={e => { setNeedsBothRoles(e.target.checked); if (!e.target.checked) setCoAssigneeId(''); }}
+                      className="sr-only peer" />
+                    <div className="w-9 h-5 bg-slate-700 peer-focus:ring-2 peer-focus:ring-violet-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                  </label>
+                  <span className="text-xs text-slate-400">Requires both roles?</span>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
@@ -674,6 +722,24 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   </select>
                 </div>
               </div>
+              {needsBothRoles && coDeptStaff.length > 0 && (
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Co-Assignee ({subTypeFilter === 'Videographer' ? 'Content Creator' : 'Videographer'})</label>
+                  <select value={coAssigneeId} onChange={e => setCoAssigneeId(e.target.value)}
+                    className="w-full glass-input p-3 rounded-xl text-xs" required>
+                    <option value="">-- Select co-assignee --</option>
+                    {coDeptStaff.map(emp => {
+                      const dueDate = computeDueDate();
+                      const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, emp.id, dueDate, targetDept, taskPriority) : null;
+                      const label = info ? formatWorkloadLabel(emp.name, info.load, info.softMax, dueDate) : emp.name;
+                      return <option key={emp.id} value={emp.id} className={
+                        info?.color === 'red' ? 'text-red-400' :
+                        info?.color === 'amber' ? 'text-amber-400' : ''
+                      }>{label}</option>;
+                    })}
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Priority</label>
@@ -850,6 +916,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   key={task.id}
                   task={task}
                   assignee={employees.find(e => e.id === task.assignedTo)}
+                  assignee2={task.assignedTo2 ? employees.find(e => e.id === task.assignedTo2) : null}
                   viewMode="manager"
                   onOpenDetail={(t) => setSelectedTaskId(t.id)}
                   renderActions={renderPingReassign}
@@ -867,7 +934,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
           <h3 className="text-sm font-bold text-slate-350 uppercase tracking-wider">Team Task Metrics</h3>
           <div className="space-y-3">
             {deptStaff.map(emp => {
-              const empTasks  = tasks.filter(t => t.assignedTo === emp.id);
+              const empTasks  = tasks.filter(t => t.assignedTo === emp.id || t.assignedTo2 === emp.id);
               const completed = empTasks.filter(t => t.status === 'Completed').length;
               const overdue   = empTasks.filter(t => t.status !== 'Completed' && t.dueDate && t.dueDate < todayStr()).length;
               const pending   = empTasks.filter(t => t.status !== 'Completed').length;

@@ -127,6 +127,7 @@ export default function DeptCalendar({
         caption: '', status: 'Draft',
         client_id: '', needs_videography: false, needs_video_editing: false, needs_graphic_design: false,
         assignedVideo: '', assignedGraphic: '', assignedPhoto: '', assignedPhotoSubType: '',
+        needsBothRoles: false, assignedPhotoCo: '',
     });
     const [postForm, setPostForm] = useState(blankPost());
 
@@ -137,6 +138,8 @@ export default function DeptCalendar({
     });
     const [taskForm, setTaskForm] = useState(blankTask());
     const [crossDeptSubType, setCrossDeptSubType] = useState('');
+    const [crossDeptNeedsBoth, setCrossDeptNeedsBoth] = useState(false);
+    const [crossDeptCoAssignee, setCrossDeptCoAssignee] = useState('');
 
     // Recompute "today" whenever the month flips so derived dates stay current.
     useEffect(() => { setTick(t => t + 1); }, [calYear, calMonth]);
@@ -241,15 +244,22 @@ export default function DeptCalendar({
         return form[map[dept]] || '';
     };
 
-    const createLinkedTask = (postId, form, dept, assigneeId, userName) => {
+    const getCoAssigneeForForm = (form) => form.assignedPhotoCo || '';
+
+    const createLinkedTask = (postId, form, dept, assigneeId, userName, coAssigneeId) => {
         const window = DEPT_LEAD_WINDOWS[dept];
         const dueDate = addDays(form.postDate, -window.lower);
         const isVideography = dept === 'Videography/Photography';
+        const assignee = assigneeId ? employees.find(e => e.id === assigneeId) : null;
+        const coAssignee = coAssigneeId ? employees.find(e => e.id === coAssigneeId) : null;
         return {
             id: `TASK${Date.now()}_${dept.replace(/[^a-z]/gi,'')}`,
             title: `[${dept}] ${form.title}`,
             description: `${form.caption || ''}\n\nClient: ${form.client_id || 'N/A'}\nPlatform: ${form.platform}\nPost date: ${form.postDate}`,
             assignedTo: assigneeId || null,
+            assigneeName: assignee?.name || '',
+            assignedTo2: coAssigneeId || null,
+            assigneeName2: coAssignee?.name || '',
             department: dept,
             sourceDept: deptName,
             assignedBy: userName,
@@ -287,6 +297,16 @@ export default function DeptCalendar({
                         read: false,
                     });
                 }
+                if (t.assignedTo2) {
+                    notifs.push({
+                        id: `NTF${Date.now()}_cancel_co_${t.id}`,
+                        userId: t.assignedTo2,
+                        message: `❌ Content requirement cancelled: "${t.title}" (post no longer scheduled)`,
+                        type: 'info',
+                        timestamp: now,
+                        read: false,
+                    });
+                }
             });
             return {
                 tasks: tasks.map(t => t.calendar_id === postId && t.status !== 'Completed' && t.status !== 'Blocked' ? { ...t, status: 'Blocked' } : t),
@@ -314,7 +334,15 @@ export default function DeptCalendar({
                         continue;
                     }
                 }
-                const task = createLinkedTask(postId, newForm, dept, assigneeId, user.name);
+                const coAssigneeId = dept === 'Videography/Photography' && newForm.needsBothRoles ? getCoAssigneeForForm(newForm) : '';
+                if (coAssigneeId) {
+                    const coInfo = getWorkloadInfo(tasks, coAssigneeId, newDueDate, dept, 'Medium');
+                    if (!coInfo.canAssign) {
+                        toast.error(`${dept} co-assignee: ${coInfo.reason}. Task not created.`);
+                        continue;
+                    }
+                }
+                const task = createLinkedTask(postId, newForm, dept, assigneeId, user.name, coAssigneeId);
                 resultTasks.push(task);
                 const toNotify = assigneeId
                     ? [employees.find(e => e.id === assigneeId)].filter(Boolean)
@@ -329,6 +357,19 @@ export default function DeptCalendar({
                         read: false,
                     });
                 });
+                if (coAssigneeId) {
+                    const coEmp = employees.find(e => e.id === coAssigneeId);
+                    if (coEmp) {
+                        resultNotifs.push({
+                            id: `NTF${Date.now()}_new_co_${coEmp.id}_${dept}`,
+                            userId: coEmp.id,
+                            message: `📅 You are co-assigned to a content task: "${newForm.title}" — due ${task.dueDate} (${dept})`,
+                            type: 'assignment',
+                            timestamp: now,
+                            read: false,
+                        });
+                    }
+                }
             } else {
                 let changed = false;
                 const updates = {};
@@ -371,6 +412,16 @@ export default function DeptCalendar({
                             read: false,
                         });
                     }
+                    if (existing.assignedTo2) {
+                        resultNotifs.push({
+                            id: `NTF${Date.now()}_dated_co_${dept}`,
+                            userId: existing.assignedTo2,
+                            message: `📅 Deadline changed for "${existing.title}": now due ${newDueDate} (was ${existing.dueDate})`,
+                            type: 'info',
+                            timestamp: now,
+                            read: false,
+                        });
+                    }
                     changed = true;
                 }
 
@@ -391,6 +442,16 @@ export default function DeptCalendar({
                         resultNotifs.push({
                             id: `NTF${Date.now()}_removed_${dept}`,
                             userId: existing.assignedTo,
+                            message: `❌ Content requirement cancelled: "${existing.title}" (${dept} no longer needed)`,
+                            type: 'info',
+                            timestamp: now,
+                            read: false,
+                        });
+                    }
+                    if (existing.assignedTo2) {
+                        resultNotifs.push({
+                            id: `NTF${Date.now()}_removed_co_${dept}`,
+                            userId: existing.assignedTo2,
                             message: `❌ Content requirement cancelled: "${existing.title}" (${dept} no longer needed)`,
                             type: 'info',
                             timestamp: now,
@@ -422,13 +483,26 @@ export default function DeptCalendar({
         if (isFinalizing) {
             for (const dept of selectedDepts) {
                 const assigneeId = getAssigneeForForm(postForm, dept);
-                if (!assigneeId) continue;
-                const window = DEPT_LEAD_WINDOWS[dept];
-                const dueDate = addDays(postForm.postDate, -window.lower);
-                const info = getWorkloadInfo(tasks, assigneeId, dueDate, dept, 'Medium');
-                if (!info.canAssign) {
-                    toast.error(`${dept}: ${info.reason}`);
-                    return;
+                if (assigneeId) {
+                    const window = DEPT_LEAD_WINDOWS[dept];
+                    const dueDate = addDays(postForm.postDate, -window.lower);
+                    const info = getWorkloadInfo(tasks, assigneeId, dueDate, dept, 'Medium');
+                    if (!info.canAssign) {
+                        toast.error(`${dept}: ${info.reason}`);
+                        return;
+                    }
+                }
+                if (dept === 'Videography/Photography' && postForm.needsBothRoles) {
+                    const coId = getCoAssigneeForForm(postForm);
+                    if (coId) {
+                        const window = DEPT_LEAD_WINDOWS[dept];
+                        const dueDate = addDays(postForm.postDate, -window.lower);
+                        const info = getWorkloadInfo(tasks, coId, dueDate, dept, 'Medium');
+                        if (!info.canAssign) {
+                            toast.error(`${dept} co-assignee: ${info.reason}`);
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -461,7 +535,8 @@ export default function DeptCalendar({
 
                 selectedDepts.forEach(dept => {
                     const assigneeId = getAssigneeForForm(postForm, dept);
-                    const task = createLinkedTask(newPost.id, postForm, dept, assigneeId, user.name);
+                    const coAssigneeId = dept === 'Videography/Photography' && postForm.needsBothRoles ? getCoAssigneeForForm(postForm) : '';
+                    const task = createLinkedTask(newPost.id, postForm, dept, assigneeId, user.name, coAssigneeId);
                     newTasks.push(task);
 
                     const toNotify = assigneeId
@@ -478,6 +553,20 @@ export default function DeptCalendar({
                             read: false,
                         });
                     });
+
+                    if (coAssigneeId) {
+                        const coEmp = employees.find(e => e.id === coAssigneeId);
+                        if (coEmp) {
+                            newNotifs.push({
+                                id: `NTF${Date.now()}_co_${coEmp.id}_${dept}`,
+                                userId: coEmp.id,
+                                message: `📅 You are co-assigned to a content task from ${deptName}: "${postForm.title}" — due ${task.dueDate} (${dept})`,
+                                type: 'assignment',
+                                timestamp: now,
+                                read: false,
+                            });
+                        }
+                    }
                 });
 
                 updateState({ tasks: [...tasks, ...newTasks] });
@@ -538,6 +627,7 @@ export default function DeptCalendar({
 
         const dueDate = taskForm.dueDate || '';
         const isCreativeDept = ['Video Editors', 'Graphic Designers', 'Videography/Photography'].includes(taskForm.targetDept);
+        const coAssigneeId = isVideographyTarget && crossDeptNeedsBoth ? crossDeptCoAssignee : '';
 
         // ── Workload cap check ──
         if (taskForm.assignedTo && dueDate && isCreativeDept) {
@@ -547,12 +637,22 @@ export default function DeptCalendar({
                 return;
             }
         }
+        if (coAssigneeId && dueDate && isCreativeDept) {
+            const coInfo = getWorkloadInfo(tasks, coAssigneeId, dueDate, taskForm.targetDept, taskForm.priority);
+            if (!coInfo.canAssign) {
+                toast.error(`Co-assignee: ${coInfo.reason}`);
+                return;
+            }
+        }
 
+        const coAssignee = coAssigneeId ? employees.find(e => e.id === coAssigneeId) : null;
         const newTask = {
             id: `TASK${Date.now()}`,
             title: taskForm.title,
             description: taskForm.description,
             assignedTo: taskForm.assignedTo || null,
+            assignedTo2: coAssigneeId || null,
+            assigneeName2: coAssignee?.name || '',
             department: taskForm.targetDept,
             sourceDept: deptName,
             assignedBy: user.id,
@@ -583,11 +683,23 @@ export default function DeptCalendar({
             timestamp: now,
             read: false,
         }));
+        if (coAssigneeId && coAssignee) {
+            newNotifs.push({
+                id: `NTF${Date.now()}_co_${coAssigneeId}`,
+                userId: coAssigneeId,
+                message: `📌 ${deptName} co-assigned you to a task: "${taskForm.title}"${taskForm.dueDate ? ` — due ${taskForm.dueDate}` : ''}`,
+                type: 'assignment',
+                timestamp: now,
+                read: false,
+            });
+        }
         if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });
 
         toast.success(`Task "${taskForm.title}" assigned to ${taskForm.targetDept}.`);
         setShowTaskModal(false);
         setTaskForm(blankTask());
+        setCrossDeptNeedsBoth(false);
+        setCrossDeptCoAssignee('');
     };
 
     // ── Month nav ─────────────────────────────────────────────────────────
@@ -819,6 +931,7 @@ export default function DeptCalendar({
 
                         {selectedDay.tasks.map(t => {
                             const assignee = employees.find(e => e.id === t.assignedTo);
+                            const assignee2 = t.assignedTo2 ? employees.find(e => e.id === t.assignedTo2) : null;
                             return (
                                 <div key={t.id} className="glass-card rounded-xl border border-orange-500/20 p-4">
                                     <div className="flex items-center gap-2 mb-1">
@@ -830,7 +943,9 @@ export default function DeptCalendar({
                                     <h4 className="font-bold text-sm text-slate-200">{t.title}</h4>
                                     {t.description && <p className="text-xs text-slate-400 mt-1">{t.description}</p>}
                                     <div className="flex items-center justify-between mt-2">
-                                        <p className="text-3xs text-slate-500">by {t.assignedBy || deptName} {assignee && `→ ${assignee.name}`}</p>
+                                        <p className="text-3xs text-slate-500">
+                                            by {t.assignedBy || deptName}{assignee ? ` → ${assignee.name}` : ''}{assignee2 ? ` + ${assignee2.name}` : ''}
+                                        </p>
                                         <button onClick={() => setSelectedTaskId(t.id)}
                                             className="text-3xs text-violet-400 hover:text-violet-300 font-bold">
                                             Open →
@@ -925,6 +1040,13 @@ export default function DeptCalendar({
                                         e.department?.includes(deptName) &&
                                         (!isVideography || !postForm[`${assignKey}SubType`] || e.subType === postForm[`${assignKey}SubType`])
                                     );
+                                    const coAssigneeList = (isVideography && postForm.needsBothRoles)
+                                        ? employees.filter(e =>
+                                            e.department?.includes(deptName) &&
+                                            e.id !== postForm[assignKey] &&
+                                            (!postForm[`${assignKey}SubType`] || e.subType !== postForm[`${assignKey}SubType`])
+                                        )
+                                        : [];
                                     const window = DEPT_LEAD_WINDOWS[deptName];
                                     const dueDate = postForm.postDate ? addDays(postForm.postDate, -window.lower) : '';
                                     return (
@@ -960,6 +1082,25 @@ export default function DeptCalendar({
                                                         <span className="text-3xs text-slate-500 shrink-0">due {dueDate}</span>
                                                     )}
                                                 </>
+                                            )}
+                                            {isVideography && isChecked && (
+                                                <div className="flex items-center gap-2 mt-1 w-full">
+                                                    <label className="flex items-center gap-1.5 text-xs text-amber-400/80 cursor-pointer shrink-0">
+                                                        <input type="checkbox" checked={postForm.needsBothRoles}
+                                                            onChange={e=>setPostForm(f=>({...f,needsBothRoles:e.target.checked,assignedPhotoCo:''}))}
+                                                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500" />
+                                                        Requires both roles?
+                                                    </label>
+                                                    {postForm.needsBothRoles && postForm[assignKey] && (
+                                                        <select value={postForm.assignedPhotoCo || ''} onChange={e=>setPostForm(f=>({...f,assignedPhotoCo:e.target.value}))}
+                                                            className="glass-input p-2 rounded-lg text-xs flex-1">
+                                                            <option value="">— Select co-assignee —</option>
+                                                            {coAssigneeList.map(e => (
+                                                                <option key={e.id} value={e.id}>{e.name} ({e.subType || e.role})</option>
+                                                            ))}
+                                                        </select>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     );
@@ -1052,6 +1193,29 @@ export default function DeptCalendar({
                                         }>{label}</option>;
                                     })}
                                 </select>
+                            </div>
+                        )}
+                        {isVideographyTarget && (
+                            <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-1.5 text-xs text-amber-400/80 cursor-pointer shrink-0">
+                                    <input type="checkbox" checked={crossDeptNeedsBoth}
+                                        onChange={e => { setCrossDeptNeedsBoth(e.target.checked); setCrossDeptCoAssignee(''); }}
+                                        className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500" />
+                                    Requires both roles?
+                                </label>
+                                {crossDeptNeedsBoth && taskForm.assignedTo && (
+                                    <select value={crossDeptCoAssignee} onChange={e => setCrossDeptCoAssignee(e.target.value)}
+                                        className="flex-1 glass-input p-2 rounded-lg text-xs">
+                                        <option value="">— Select co-assignee —</option>
+                                        {employees.filter(e =>
+                                            e.department?.includes(taskForm.targetDept) &&
+                                            e.id !== taskForm.assignedTo &&
+                                            (!crossDeptSubType || e.subType !== crossDeptSubType)
+                                        ).map(e => (
+                                            <option key={e.id} value={e.id}>{e.name} ({e.subType || e.role})</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                         )}
                         <div className="grid grid-cols-2 gap-4">

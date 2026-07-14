@@ -530,13 +530,15 @@ export default function Projects({ user, state, updateState }) {
                     </p>
                   ) : (
                     projectMilestones(selectedProject.id).map(task => {
-                      const assignee = employees.find(e => e.id === task.assignedTo);
-                      return (
-                        <div key={task.id} className="scale-[0.97] origin-left">
-                          <TaskCard
-                            task={task}
-                            assignee={assignee}
-                            currentUser={user}
+                       const assignee = employees.find(e => e.id === task.assignedTo);
+                       const assignee2 = task.assignedTo2 ? employees.find(e => e.id === task.assignedTo2) : null;
+                       return (
+                         <div key={task.id} className="scale-[0.97] origin-left">
+                           <TaskCard
+                             task={task}
+                             assignee={assignee}
+                             assignee2={assignee2}
+                             currentUser={user}
                             viewMode="employee"
                             onStatusChange={(id, status) => {
                               const updated = (tasks || []).map(t => t.id === id ? { ...t, status } : t);
