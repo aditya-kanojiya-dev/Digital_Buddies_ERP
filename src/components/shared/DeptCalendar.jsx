@@ -126,7 +126,7 @@ export default function DeptCalendar({
         title: '', postDate: todayStr(), postTime: '12:00', platform: 'Instagram',
         caption: '', status: 'Draft',
         client_id: '', needs_videography: false, needs_video_editing: false, needs_graphic_design: false,
-        assignedVideo: '', assignedGraphic: '', assignedPhoto: '',
+        assignedVideo: '', assignedGraphic: '', assignedPhoto: '', assignedPhotoSubType: '',
     });
     const [postForm, setPostForm] = useState(blankPost());
 
@@ -136,6 +136,7 @@ export default function DeptCalendar({
         assignedTo: '', dueDate: '', priority: 'Medium',
     });
     const [taskForm, setTaskForm] = useState(blankTask());
+    const [crossDeptSubType, setCrossDeptSubType] = useState('');
 
     // Recompute "today" whenever the month flips so derived dates stay current.
     useEffect(() => { setTick(t => t + 1); }, [calYear, calMonth]);
@@ -523,7 +524,11 @@ export default function DeptCalendar({
     };
 
     // ── Cross-dept task assign ────────────────────────────────────────────
-    const targetDeptEmployees = employees.filter(e => e.department?.includes(taskForm.targetDept));
+    const isVideographyTarget = taskForm.targetDept === 'Videography/Photography';
+    const targetDeptEmployees = employees.filter(e =>
+        e.department?.includes(taskForm.targetDept) &&
+        (!isVideographyTarget || !crossDeptSubType || e.subType === crossDeptSubType)
+    );
 
     const handleAssignTask = () => {
         if (!taskForm.title || !taskForm.targetDept) {
@@ -915,7 +920,11 @@ export default function DeptCalendar({
                                     { key: 'needs_videography', deptName: 'Videography/Photography', assignKey: 'assignedPhoto' },
                                 ].map(({ key, deptName, assignKey }) => {
                                     const isChecked = postForm[key];
-                                    const deptEmployees = employees.filter(e => e.department?.includes(deptName));
+                                    const isVideography = deptName === 'Videography/Photography';
+                                    const deptEmployees = employees.filter(e =>
+                                        e.department?.includes(deptName) &&
+                                        (!isVideography || !postForm[`${assignKey}SubType`] || e.subType === postForm[`${assignKey}SubType`])
+                                    );
                                     const window = DEPT_LEAD_WINDOWS[deptName];
                                     const dueDate = postForm.postDate ? addDays(postForm.postDate, -window.lower) : '';
                                     return (
@@ -927,6 +936,14 @@ export default function DeptCalendar({
                                             </label>
                                             {isChecked && (
                                                 <>
+                                                    {isVideography && (
+                                                        <select value={postForm[`${assignKey}SubType`] || ''} onChange={e=>setPostForm(f=>({...f,[`${assignKey}SubType`]:e.target.value,[assignKey]:''}))}
+                                                            className="glass-input p-2 rounded-lg text-xs shrink-0">
+                                                            <option value="">All Roles</option>
+                                                            <option value="Videographer">Videographer</option>
+                                                            <option value="Content Creator">Content Creator</option>
+                                                        </select>
+                                                    )}
                                                     <select value={postForm[assignKey]} onChange={e=>setPostForm(f=>({...f,[assignKey]:e.target.value}))}
                                                         className="glass-input p-2 rounded-lg text-xs flex-1">
                                                         <option value="">— Auto-assign —</option>
@@ -985,10 +1002,40 @@ export default function DeptCalendar({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs text-slate-400 mb-1">Target Department *</label>
-                                <select value={taskForm.targetDept} onChange={e => setTaskForm(f => ({ ...f, targetDept: e.target.value, assignedTo: '' }))} className="w-full glass-input p-3 rounded-xl text-sm">
+                                <select value={taskForm.targetDept} onChange={e => {setTaskForm(f => ({ ...f, targetDept: e.target.value, assignedTo: '' })); setCrossDeptSubType('');}} className="w-full glass-input p-3 rounded-xl text-sm">
                                     {ALL_DEPARTMENTS.filter(d => d !== deptName).map(d => <option key={d}>{d}</option>)}
                                 </select>
                             </div>
+                            {isVideographyTarget ? (
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">Role Type</label>
+                                    <select value={crossDeptSubType} onChange={e => {setCrossDeptSubType(e.target.value); setTaskForm(f => ({ ...f, assignedTo: '' }));}} className="w-full glass-input p-3 rounded-xl text-sm">
+                                        <option value="">All Roles</option>
+                                        <option value="Videographer">Videographer</option>
+                                        <option value="Content Creator">Content Creator / Influencer</option>
+                                    </select>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">Assign to (optional)</label>
+                                    <select value={taskForm.assignedTo} onChange={e => setTaskForm(f => ({ ...f, assignedTo: e.target.value }))} className="w-full glass-input p-3 rounded-xl text-sm">
+                                        <option value="">Whole department</option>
+                                        {targetDeptEmployees.map(e => {
+                                            const dueDate = taskForm.dueDate || '';
+                                            const isCreativeDept = ['Video Editors', 'Graphic Designers', 'Videography/Photography'].includes(taskForm.targetDept);
+                                            const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, e.id, dueDate, taskForm.targetDept, taskForm.priority) : null;
+                                            const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
+                                            return <option key={e.id} value={e.id} className={
+                                                info?.color === 'red' ? 'text-red-400' :
+                                                info?.color === 'amber' ? 'text-amber-400' :
+                                                ''
+                                            }>{label}</option>;
+                                        })}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                        {isVideographyTarget && (
                             <div>
                                 <label className="block text-xs text-slate-400 mb-1">Assign to (optional)</label>
                                 <select value={taskForm.assignedTo} onChange={e => setTaskForm(f => ({ ...f, assignedTo: e.target.value }))} className="w-full glass-input p-3 rounded-xl text-sm">
@@ -1006,7 +1053,7 @@ export default function DeptCalendar({
                                     })}
                                 </select>
                             </div>
-                        </div>
+                        )}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs text-slate-400 mb-1">Priority</label>

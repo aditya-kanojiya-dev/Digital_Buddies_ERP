@@ -26,7 +26,7 @@ const DEPT_TIMELINE_RULES = {
   'Paid Ads':                { mode: 'manual', label: 'Manual' },
   'Video Editors':           { mode: 'select', options: [3, 5], label: 'Editors timeline' },
   'Graphic Designers':       { mode: 'select', options: [3, 5], label: 'Designers timeline' },
-  'Videography/Photography': { mode: 'fixed',  days: 5, label: 'Fixed 5 days' },
+  'Videography/Photography': { mode: 'select', options: [3, 4, 5], label: 'Videography timeline' },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,9 +50,16 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const [taskDue,      setTaskDue]      = useState('');
   const [timelineDays, setTimelineDays] = useState('3');
   const [taskScheduledDate, setTaskScheduledDate] = useState('');
+  const [subTypeFilter, setSubTypeFilter] = useState('');
 
   const rule = DEPT_TIMELINE_RULES[targetDept] || {};
-  const deptStaff = targetDept ? employees.filter(emp => emp.department?.includes(targetDept)) : [];
+  const isVideographyDept = targetDept === 'Videography/Photography';
+  const deptStaff = targetDept
+    ? employees.filter(emp =>
+        emp.department?.includes(targetDept) &&
+        (!isVideographyDept || !subTypeFilter || emp.subType === subTypeFilter)
+      )
+    : [];
   const deptTasks = tasks.filter(task => {
     if (isSuperAdmin) return true;
     if (ALLOWED_TARGET_DEPTS.includes(task.department)) return true;
@@ -104,7 +111,9 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   const computeDueDate = () => {
     if (taskPriority === 'Emergency') {
-      return timelineDays === '1' ? addDays(todayStr(), 1) : todayStr();
+      if (timelineDays === '2') return addDays(todayStr(), 2);
+      if (timelineDays === '1') return addDays(todayStr(), 1);
+      return todayStr();
     }
     if (rule.mode === 'manual') return taskDue || addDays(todayStr(), 7);
     if (rule.mode === 'fixed') return addDays(todayStr(), rule.days);
@@ -621,12 +630,23 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Target Department</label>
-                <select value={targetDept} onChange={e => { setTargetDept(e.target.value); setAssigneeId(''); }}
+                <select value={targetDept} onChange={e => { setTargetDept(e.target.value); setAssigneeId(''); setSubTypeFilter(''); }}
                   className="w-full glass-input p-3 rounded-xl text-xs" required>
                   <option value="">-- Select department --</option>
                   {ALLOWED_TARGET_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
+              {isVideographyDept && (
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Role Type</label>
+                  <select value={subTypeFilter} onChange={e => { setSubTypeFilter(e.target.value); setAssigneeId(''); }}
+                    className="w-full glass-input p-3 rounded-xl text-xs">
+                    <option value="">All Roles</option>
+                    <option value="Videographer">Videographer</option>
+                    <option value="Content Creator">Content Creator / Influencer</option>
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Assignee</label>
@@ -657,7 +677,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Priority</label>
-                  <select value={taskPriority} onChange={e => { setTaskPriority(e.target.value); if (e.target.value === 'Emergency') setTimelineDays('0'); }}
+                   <select value={taskPriority} onChange={e => { setTaskPriority(e.target.value); if (e.target.value === 'Emergency') setTimelineDays('0'); }}
                     className="w-full glass-input p-3 rounded-xl text-xs">
                     <option value="Emergency">Emergency</option>
                     <option value="High">High Priority</option>
@@ -672,6 +692,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                       className="w-full glass-input p-3 rounded-xl text-xs">
                       <option value="0">Today (ASAP)</option>
                       <option value="1">Tomorrow (End of day)</option>
+                      <option value="2">Day After Tomorrow</option>
                     </select>
                     <p className="text-3xs text-rose-400 mt-1 font-semibold">Due: {computeDueDate()}</p>
                   </div>
@@ -684,8 +705,9 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                     <label className="block text-xs text-slate-400 mb-1">Timeline</label>
                     <select value={timelineDays} onChange={e => setTimelineDays(e.target.value)}
                       className="w-full glass-input p-3 rounded-xl text-xs">
-                      <option value="3">3 Days from today</option>
-                      <option value="5">5 Days from today</option>
+                      {(rule.options || [3, 5]).map(d => (
+                        <option key={d} value={d}>{d} Days from today</option>
+                      ))}
                     </select>
                     <p className="text-3xs text-slate-500 mt-1">Due: {addDays(todayStr(), parseInt(timelineDays))}</p>
                   </div>

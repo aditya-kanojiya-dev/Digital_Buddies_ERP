@@ -31,6 +31,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   const [empDesignation, setEmpDesignation] = useState('');
   const [empRole, setEmpRole] = useState('Employee');
   const [empManagerId, setEmpManagerId] = useState('');
+  const [empSubType, setEmpSubType] = useState('');
 
   // Modals / Popups state
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -98,6 +99,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     setEmpRole('Employee');
     setEmpManagerId('');
     setEmpDept(['Developers']);
+    setEmpSubType('');
   };
 
   const handleSaveEmployee = async (e) => {
@@ -113,6 +115,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           phone: empPhone,
           department: empDept,
           designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
+          subType: empDept.includes('Videography/Photography') ? empSubType : '',
           role: empRole,
           managerId: empManagerId || 'EMP01',
           salary: parseFloat(empSalary),
@@ -153,6 +156,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           role: empRole,
           department: empDept,
           designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
+          subType: empDept.includes('Videography/Photography') ? empSubType : '',
           salary: parseFloat(empSalary),
           joinDate: empHire,
           bio: "Company team member.",
@@ -231,6 +235,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     setEmpDesignation(emp.designation || '');
     setEmpRole(emp.role || 'Employee');
     setEmpManagerId(emp.managerId || '');
+    setEmpSubType(emp.subType || '');
   };
 
   const handleDeleteEmployee = async (id) => {
@@ -1056,8 +1061,23 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                     ))}
                   </div>
                 </div>
-                <div>
-                  <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Base Salary (₹)</label>
+                <div className="space-y-4">
+                  {empDept.includes('Videography/Photography') && (
+                    <div>
+                      <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Role Type</label>
+                      <select
+                        value={empSubType}
+                        onChange={(e) => setEmpSubType(e.target.value)}
+                        className="w-full glass-input p-3 rounded-xl text-xs"
+                      >
+                        <option value="">-- Select Role --</option>
+                        <option value="Videographer">Videographer</option>
+                        <option value="Content Creator">Content Creator / Influencer</option>
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Base Salary (₹)</label>
                   <input
                     type="number"
                     value={empSalary}
@@ -1066,6 +1086,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                     placeholder="60000"
                     required
                   />
+                </div>
                 </div>
               </div>
 

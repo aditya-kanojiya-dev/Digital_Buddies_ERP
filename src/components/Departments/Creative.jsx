@@ -41,7 +41,11 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const toast = useToast();
 
   const canAssignTasks = user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Admin' || user.department?.includes('Social Media');
-  const creativeStaff = employees.filter(emp => emp.department?.includes(activeDepartment));
+  const [subTypeFilter, setSubTypeFilter] = useState('');
+  const creativeStaff = employees.filter(emp =>
+    emp.department?.includes(activeDepartment) &&
+    (!subTypeFilter || emp.subType === subTypeFilter)
+  );
 
   // ── Form state ──────────────────────────────────────────────────────────
   const [taskTitle, setTaskTitle] = useState('');
@@ -790,22 +794,44 @@ export default function Creative({ user, state, updateState, activeDepartment })
                     className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="e.g. Aura Serum Instagram Ad V1" required />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1.5">Timeline Milestone</label>
-                  <select value={daysPrior} onChange={e => setDaysPrior(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm">
-                    <option value="3">3 Days — Review / Renders</option>
-                    <option value="4">4 Days — Dailies / Rough Drafts</option>
-                    <option value="12">12 Days — Shoot / Storyboard</option>
-                  </select>
-                </div>
-                <div>
                   <label className="block text-xs text-slate-400 mb-1.5">Priority</label>
-                  <select value={priority} onChange={e => setPriority(e.target.value)}
+                  <select value={priority} onChange={e => {
+                    setPriority(e.target.value);
+                    if (e.target.value === 'Emergency') setDaysPrior('0');
+                    else if (daysPrior === '0' || daysPrior === '1' || daysPrior === '2') setDaysPrior('3');
+                  }}
                     className="w-full glass-input p-2.5 rounded-xl text-sm">
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
                     <option value="High">High</option>
                     <option value="Emergency">Emergency</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">Timeline</label>
+                  {priority === 'Emergency' ? (
+                    <select value={daysPrior} onChange={e => setDaysPrior(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm">
+                      <option value="0">Today (ASAP)</option>
+                      <option value="1">Tomorrow (End of day)</option>
+                      <option value="2">Day After Tomorrow</option>
+                    </select>
+                  ) : (
+                    <select value={daysPrior} onChange={e => setDaysPrior(e.target.value)}
+                      className="w-full glass-input p-2.5 rounded-xl text-sm">
+                      <option value="3">3 Days from today</option>
+                      <option value="4">4 Days from today</option>
+                      <option value="5">5 Days from today</option>
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">Role Type</label>
+                  <select value={subTypeFilter} onChange={e => { setSubTypeFilter(e.target.value); setAssigneeId(''); }}
+                    className="w-full glass-input p-2.5 rounded-xl text-sm">
+                    <option value="">All Roles</option>
+                    <option value="Videographer">Videographer</option>
+                    <option value="Content Creator">Content Creator / Influencer</option>
                   </select>
                 </div>
                 <div>

@@ -41,6 +41,7 @@ const toSessionUser = (row) => ({
   role: row.role || 'Employee',
   department: normalizeDept(row.department),
   designation: row.designation || '',
+  subType: row.sub_type || row.subType || '',
   avatar: row.avatar || '',
   mustChangePassword: row.must_change_password === true,
   status: row.status || 'Active',
