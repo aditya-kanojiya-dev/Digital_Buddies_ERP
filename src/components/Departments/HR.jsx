@@ -115,7 +115,6 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           phone: empPhone,
           department: empDept,
           designation: empDesignation || `${empDept[0] || 'General'} Specialist`,
-          subType: empDept.includes('Videography/Photography') ? empSubType : '',
           role: empRole,
           managerId: empManagerId || 'EMP01',
           salary: parseFloat(empSalary),
@@ -130,9 +129,15 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         }
 
         const updated = employees.map(emp =>
-          emp.id === editingEmpId ? { ...emp, ...updatedFields } : emp
+          emp.id === editingEmpId ? { ...emp, ...updatedFields, subType: empDept.includes('Videography/Photography') ? empSubType : '' } : emp
         );
         updateState({ employees: updated });
+
+        // Best-effort: persist sub_type if the column exists in Supabase
+        try {
+          await db.updateEmployee(editingEmpId, { subType: empDept.includes('Videography/Photography') ? empSubType : '' });
+        } catch (_) { /* column may not exist yet — ignore */ }
+
         toast.success('Employee details updated.');
         resetForm();
       } else {
