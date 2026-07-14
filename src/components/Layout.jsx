@@ -113,8 +113,18 @@ export default function Layout({
 
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('sb_collapsed') === '1'; } catch { return false; }
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const toggleCollapse = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      try { localStorage.setItem('sb_collapsed', next ? '1' : '0'); } catch {}
+      return next;
+    });
+  };
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
 
@@ -183,7 +193,7 @@ export default function Layout({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden p-2.5 text-[var(--text-2)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
+            className="sm:hidden p-2.5 text-[var(--text-2)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
@@ -310,7 +320,7 @@ export default function Layout({
                   initials(user.name)
                 )}
               </div>
-              <div className="hidden md:block text-left">
+              <div className="hidden sm:block text-left">
                 <div className="text-xs font-bold text-[var(--text-1)] leading-tight">{user.name}</div>
                 <div className="text-[0.65rem] text-[var(--text-3)]">{user.designation}</div>
               </div>
@@ -359,8 +369,8 @@ export default function Layout({
 
       <div className="flex-1 flex">
         <aside
-          className={`hidden md:flex flex-col justify-between glass-panel border-r border-[var(--border)] p-3 transition-all duration-300 ease-in-out ${
-            collapsed ? 'w-[72px]' : 'w-60'
+          className={`hidden sm:flex flex-col justify-between glass-panel border-r border-[var(--border)] p-3 transition-all duration-300 ease-in-out ${
+            collapsed ? 'w-[68px]' : 'w-60'
           }`}
         >
           <div className="overflow-y-auto overflow-x-hidden relative">
@@ -373,7 +383,7 @@ export default function Layout({
             </div>
           </div>
           <button
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={toggleCollapse}
             className="mt-3 flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-1)] text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer"
           >
             <ChevronLeft className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
@@ -382,12 +392,12 @@ export default function Layout({
         </aside>
 
         {mobileOpen && (
-          <div className="md:hidden fixed inset-0 z-[var(--z-drawer)] flex">
+          <div className="sm:hidden fixed inset-0 z-[var(--z-drawer)] flex">
             <div
               className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
               onClick={() => setMobileOpen(false)}
             />
-            <aside className="relative w-72 max-w-[80%] glass-panel border-r border-[var(--border)] p-4 overflow-y-auto animate-slide-in-left">
+            <aside className="relative w-72 max-w-[80%] glass-panel border-r border-[var(--border)] p-4 overflow-y-auto animate-slide-in-left flex flex-col">
               <div className="flex items-center justify-between mb-5">
                 <span className="text-sm font-bold text-[var(--text-1)]">Modules</span>
                 <button
@@ -397,7 +407,9 @@ export default function Layout({
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <SidebarContent showLabels activeTab={activeTab} goTo={goTo} allowedTabs={allowedTabs} />
+              <div className="flex-1 overflow-y-auto">
+                <SidebarContent showLabels activeTab={activeTab} goTo={goTo} allowedTabs={allowedTabs} />
+              </div>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 mt-5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 border-t border-[var(--border-divider)] pt-4 transition-colors cursor-pointer"
