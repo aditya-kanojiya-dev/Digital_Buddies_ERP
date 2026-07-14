@@ -47,14 +47,6 @@ export default function Creative({ user, state, updateState, activeDepartment })
     (!subTypeFilter || emp.subType === subTypeFilter)
   );
 
-  const coAssigneeStaff = (needsBothRoles && subTypeFilter)
-    ? employees.filter(emp =>
-        emp.department?.includes(activeDepartment) &&
-        emp.subType !== subTypeFilter &&
-        emp.id !== assigneeId
-      )
-    : [];
-
   // ── Form state ──────────────────────────────────────────────────────────
   const [taskTitle, setTaskTitle] = useState('');
   const [daysPrior, setDaysPrior] = useState('3');
@@ -64,6 +56,14 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [needsBothRoles, setNeedsBothRoles] = useState(false);
   const [coAssigneeId, setCoAssigneeId] = useState('');
+
+  const coAssigneeStaff = (needsBothRoles && subTypeFilter)
+    ? employees.filter(emp =>
+        emp.department?.includes(activeDepartment) &&
+        emp.subType !== subTypeFilter &&
+        emp.id !== assigneeId
+      )
+    : [];
 
   // ── Quick filters, modals ──────────────────────────────────────────────
   const [quickFilter, setQuickFilter] = useState('all');
