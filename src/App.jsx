@@ -80,7 +80,14 @@ export default function App() {
  // ── Fetch all data from Supabase ──────────────────────────────────────────
 const fetchAllData = async () => {
   try {
-    const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+    let { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+
+    // If the access token expired, the SDK may return null even though the
+    // refresh token is still valid.  Attempt one silent refresh before bailing.
+    if (!session) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      session = refreshed?.session ?? null;
+    }
 
     if (sessionErr || !session) {
       console.error('[fetchAllData] No valid Supabase Auth session:', sessionErr?.message || 'session is null');
