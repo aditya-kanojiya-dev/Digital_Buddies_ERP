@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useEffect } from 'react';
+import { Suspense, lazy, useState, useEffect, startTransition } from 'react';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import Login from './components/Login';
@@ -80,20 +80,19 @@ export default function App() {
  // ── Fetch all data from Supabase ──────────────────────────────────────────
 const fetchAllData = async () => {
   try {
-    let { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+    let { data: { session } } = await supabase.auth.getSession();
 
-    // If the access token expired, the SDK may return null even though the
-    // refresh token is still valid.  Attempt one silent refresh before bailing.
+    // If the access token expired, try a silent refresh.
     if (!session) {
       const { data: refreshed } = await supabase.auth.refreshSession();
       session = refreshed?.session ?? null;
     }
 
-    if (sessionErr || !session) {
-      console.error('[fetchAllData] No valid Supabase Auth session:', sessionErr?.message || 'session is null');
-      sessionStorage.removeItem('neomax_session');
-      setUser(null);
-      return;
+    // don't bail on missing session — try fetches first.
+    // RLS may still allow reads with the anon key for some tables, and
+    // the existing auth-failure check at the bottom handles true 401s.
+    if (!session) {
+      console.warn('[fetchAllData] No Supabase auth session — attempting fetches anyway.');
     }
 
     const results = await Promise.allSettled([
@@ -235,6 +234,8 @@ useEffect(() => {
         }, 2000);
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (signOutTimer) { clearTimeout(signOutTimer); signOutTimer = null; }
+        // token refreshed → re-fetch so RLS queries succeed again
+        if (event === 'TOKEN_REFRESHED') fetchAllData();
       }
     }
   );
@@ -291,17 +292,12 @@ useEffect(() => {
   };
 }, [user]);
 
-// ── Tab-visibility refresh: re-fetch when user returns to the tab ──────────
+// ── Tab-visibility refresh: re-fetch all data when user returns to tab ─────
   useEffect(() => {
     if (!user) return;
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
-      startTransition(() => {
-        Promise.allSettled([
-          db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))),
-          db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))),
-        ]);
-      });
+      startTransition(() => { fetchAllData(); });
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);

@@ -121,25 +121,21 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           joinDate: empHire
         };
 
-        try {
-          await db.updateEmployee(editingEmpId, updatedFields);
-        } catch (err) {
-          toast.error(`Could not save changes: ${err.message}`);
-          return;
-        }
-
+        // ponytail: optimistic update — local state first, persist in background
         const updated = employees.map(emp =>
           emp.id === editingEmpId ? { ...emp, ...updatedFields, subType: empDept.includes('Videography/Photography') ? empSubType : '' } : emp
         );
         updateState({ employees: updated });
+        resetForm();
 
-        // Best-effort: persist sub_type if the column exists in Supabase
-        try {
-          await db.updateEmployee(editingEmpId, { subType: empDept.includes('Videography/Photography') ? empSubType : '' });
-        } catch (_) { /* column may not exist yet — ignore */ }
+        // Background persist — warn on failure but don't revert
+        db.updateEmployee(editingEmpId, updatedFields).catch(err => {
+          console.error('[HR] Employee update failed:', err);
+          toast.warning(`Changes saved locally but cloud sync failed: ${err.message}`);
+        });
+        db.updateEmployee(editingEmpId, { subType: empDept.includes('Videography/Photography') ? empSubType : '' }).catch(() => {});
 
         toast.success('Employee details updated.');
-        resetForm();
       } else {
         // Find maximum numeric value in existing employee IDs
         const nextNum = employees.reduce((max, e) => {
