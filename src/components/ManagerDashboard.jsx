@@ -86,10 +86,12 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const [taskFilterAssignee, setTaskFilterAssignee] = useState('');
   const [taskFilterDept, setTaskFilterDept] = useState('');
   const [taskFilterSearch, setTaskFilterSearch] = useState('');
+  const [taskFilterOwner, setTaskFilterOwner] = useState('mine');
   const [showFilters, setShowFilters] = useState(false);
 
   const filteredTasks = useMemo(() => {
     let result = deptTasks;
+    if (taskFilterOwner === 'mine') result = result.filter(t => t.assignedBy === user.id);
     if (taskFilterStatus)   result = result.filter(t => t.status === taskFilterStatus);
     if (taskFilterPriority) result = result.filter(t => t.priority === taskFilterPriority);
     if (taskFilterAssignee) result = result.filter(t => t.assignedTo === taskFilterAssignee || t.assignedTo2 === taskFilterAssignee);
@@ -103,10 +105,10 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       );
     }
     return result;
-  }, [deptTasks, taskFilterStatus, taskFilterPriority, taskFilterAssignee, taskFilterDept, taskFilterSearch]);
+  }, [deptTasks, taskFilterOwner, taskFilterStatus, taskFilterPriority, taskFilterAssignee, taskFilterDept, taskFilterSearch, user.id]);
 
-  const activeFilterCount = [taskFilterStatus, taskFilterPriority, taskFilterAssignee, taskFilterDept, taskFilterSearch].filter(Boolean).length;
-  const clearFilters = () => { setTaskFilterStatus(''); setTaskFilterPriority(''); setTaskFilterAssignee(''); setTaskFilterDept(''); setTaskFilterSearch(''); };
+  const activeFilterCount = [taskFilterOwner !== 'mine' ? taskFilterOwner : '', taskFilterStatus, taskFilterPriority, taskFilterAssignee, taskFilterDept, taskFilterSearch].filter(Boolean).length;
+  const clearFilters = () => { setTaskFilterOwner('mine'); setTaskFilterStatus(''); setTaskFilterPriority(''); setTaskFilterAssignee(''); setTaskFilterDept(''); setTaskFilterSearch(''); };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -824,7 +826,20 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
               </div>
 
               {/* Filter dropdowns */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {/* Owner */}
+                <div className="relative">
+                  <select
+                    value={taskFilterOwner}
+                    onChange={e => setTaskFilterOwner(e.target.value)}
+                    className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
+                  >
+                    <option value="mine">My Assignments</option>
+                    <option value="">All Tasks</option>
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                </div>
+
                 {/* Status */}
                 <div className="relative">
                   <select
