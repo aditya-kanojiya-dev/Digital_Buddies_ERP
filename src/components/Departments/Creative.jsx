@@ -326,7 +326,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
   const canDelegate = (task) =>
     canAssignTasks &&
     task.sourceDept === 'Social Media' &&
-    (!task.assignedTo || task.assignedTo === user.id || task.assignedTo2 === user.id);
+    task.assignedBy === user.id;
 
   const handleDelegate = (e) => {
     e.preventDefault();
