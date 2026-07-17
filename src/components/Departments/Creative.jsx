@@ -9,6 +9,7 @@ import { genId, today as todayStr, addDays } from '../../lib/format';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
 import { DatePicker } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
+import { db } from '../../data/db';
 
 const COLUMNS = ['New', 'In Progress', 'Review', 'Completed'];
 
@@ -277,12 +278,18 @@ export default function Creative({ user, state, updateState, activeDepartment })
       });
     }
 
-    const updates = {
+    // ponytail: skip bulk saveTasks (triggers Realtime race that reverts the optimistic update).
+    // Use targeted updateTask for single-row persist instead.
+    updateState({
       tasks: updatedTasks,
       ...(statusNotifs.length ? { notifications: [...statusNotifs, ...(state.notifications || [])] } : {}),
-    };
+    }, new Set(['tasks']));
 
-    updateState(updates);
+    const rc = revisionReason ? (t.revisionCount || 0) + 1 : (t.revisionCount || 0);
+    db.updateTask(taskId, { status: nextStatus, revisionCount: rc }).catch(err =>
+      console.error('[doStatusChange] Failed to persist task:', err)
+    );
+
     toast.success(`Task moved to ${nextStatus}.`);
   };
 
@@ -303,7 +310,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
     e.dataTransfer.dropEffect = 'move';
     setDragOverCol(col);
   };
-  const handleDragLeave = () => setDragOverCol(null);
+  const handleDragLeave = (e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragOverCol(null); };
   const handleDrop = (e, targetStatus) => {
     e.preventDefault();
     setDragOverCol(null);

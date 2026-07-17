@@ -317,12 +317,14 @@ useEffect(() => {
 }, []);
 
   // ── Optimistic state update → background Supabase persist ─────────────────
-  const updateState = (newSubState) => {
+  const updateState = (newSubState, skipPersist) => {
     // 1. Update React state immediately
     setState(prev => ({ ...prev, ...newSubState }));
 
     // 2. Persist each changed key to Supabase in the background
+    //    skipPersist: optional Set of keys to skip (e.g. 'tasks' when using targeted updateTask)
     Object.entries(newSubState).forEach(([key, val]) => {
+      if (skipPersist && skipPersist.has(key)) return;
       const saveFn = DB_SAVE_MAP[key];
       if (saveFn) {
         saveFn(val).catch(err =>
