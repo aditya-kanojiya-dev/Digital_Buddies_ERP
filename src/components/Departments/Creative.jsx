@@ -719,7 +719,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
 
       {/* ── Kanban columns ── */}
       <div ref={kanbanRef} tabIndex={0} onKeyDown={handleKanbanKeyDown}
-        className="flex-1 grid grid-cols-4 md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 min-h-0 overflow-x-auto overflow-y-hidden md:overflow-y-auto md:overflow-x-hidden focus:outline-none snap-x snap-mandatory md:snap-none scroll-smooth"
+        className="flex-1 flex md:grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 min-h-0 overflow-x-auto md:overflow-y-auto md:overflow-x-hidden focus:outline-none snap-x snap-mandatory md:snap-none scroll-smooth"
         style={{ WebkitOverflowScrolling: 'touch' }}>
         {COLUMNS.map(col => {
           const colTasks = columns[col] || [];
@@ -729,7 +729,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
           const isColFocused = focusedCol === col;
           return (
             <div key={col}
-              className={`flex flex-col min-h-0 rounded-xl border ${style.borderCol} ${style.panelBg} ${isOver ? 'ring-2 ring-fuchsia-500/50' : ''} ${isColFocused ? 'ring-2 ring-fuchsia-400/60 shadow-lg shadow-fuchsia-500/10' : ''} snap-start min-w-[70vw] md:min-w-0`}
+              className={`flex flex-col min-h-0 rounded-xl border ${style.borderCol} ${style.panelBg} ${isOver ? 'ring-2 ring-fuchsia-500/50' : ''} ${isColFocused ? 'ring-2 ring-fuchsia-400/60 shadow-lg shadow-fuchsia-500/10' : ''} snap-start min-w-[80vw] sm:min-w-[60vw] md:min-w-0 shrink-0 md:shrink`}
               onDragOver={(e) => handleDragOver(e, col)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col)}
