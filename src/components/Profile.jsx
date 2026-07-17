@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { User, Mail, Calendar, Code, Save, Image, Shield, Briefcase } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { User, Mail, Calendar, Code, Save, Image, Shield, Briefcase, BarChart3, CheckCircle2, Clock, AlertTriangle, Zap, TrendingUp, Flame, Target } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { useToast } from './shared/Toast';
 import { Button, Card, Field, Input, Textarea } from './ui';
+import { today as todayStr } from '../lib/format';
 
 export default function Profile({ user, state, updateState }) {
   const toast = useToast();
@@ -51,6 +52,46 @@ export default function Profile({ user, state, updateState }) {
     }
     toast.success('Profile updated');
   };
+
+  const stats = useMemo(() => {
+    const uid = user.id;
+    const today = todayStr();
+    const myTasks = (state.tasks || []).filter(t => t.assignedTo === uid || t.assignedTo2 === uid);
+
+    const total = myTasks.length;
+    const completed = myTasks.filter(t => t.status === 'Completed').length;
+    const inProgress = myTasks.filter(t => t.status === 'In Progress').length;
+    const inReview = myTasks.filter(t => t.status === 'Review').length;
+    const overdue = myTasks.filter(t => t.status !== 'Completed' && t.dueDate && t.dueDate < today).length;
+    const delayed = myTasks.filter(t => t.isDelayed).length;
+    const totalDelayDays = myTasks.reduce((sum, t) => sum + (t.delayCount || 0), 0);
+    const totalRevisions = myTasks.reduce((sum, t) => sum + (t.revisionCount || 0), 0);
+    const avgRevisions = total > 0 ? (totalRevisions / total).toFixed(1) : '0';
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const onTimeRate = completed > 0
+      ? Math.round(((completed - myTasks.filter(t => t.status === 'Completed' && t.isDelayed).length) / completed) * 100)
+      : 100;
+
+    const byPriority = { Emergency: 0, High: 0, Medium: 0, Low: 0 };
+    myTasks.forEach(t => { if (byPriority[t.priority] !== undefined) byPriority[t.priority]++; });
+
+    const byStatus = { New: 0, 'In Progress': 0, Review: 0, Completed: 0 };
+    myTasks.forEach(t => { if (byStatus[t.status] !== undefined) byStatus[t.status]++; });
+
+    const byDept = {};
+    myTasks.forEach(t => { byDept[t.department] = (byDept[t.department] || 0) + 1; });
+
+    const recentCompleted = myTasks
+      .filter(t => t.status === 'Completed')
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+      .slice(0, 5);
+
+    return {
+      total, completed, inProgress, inReview, overdue, delayed,
+      totalDelayDays, totalRevisions, avgRevisions, completionRate, onTimeRate,
+      byPriority, byStatus, byDept, recentCompleted,
+    };
+  }, [state.tasks, user.id]);
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
@@ -120,6 +161,159 @@ export default function Profile({ user, state, updateState }) {
           </form>
         </Card>
       </div>
+
+      {/* ── Analytics ── */}
+      {stats.total > 0 && (
+        <div className="space-y-4 sm:space-y-5">
+          <div className="flex items-center gap-2.5">
+            <BarChart3 className="w-4 h-4 text-fuchsia-400" />
+            <h3 className="text-sm font-bold text-slate-200 tracking-wide uppercase">My Work Analytics</h3>
+          </div>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Target className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-3xs text-slate-500 uppercase font-semibold">Total Tasks</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-100">{stats.total}</p>
+            </Card>
+            <Card className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 mb-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-3xs text-slate-500 uppercase font-semibold">Completed</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-extrabold text-emerald-400">{stats.completed}</p>
+              <p className="text-3xs text-slate-500 mt-0.5">{stats.completionRate}% rate</p>
+            </Card>
+            <Card className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Clock className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-3xs text-slate-500 uppercase font-semibold">In Progress</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-extrabold text-blue-400">{stats.inProgress}</p>
+              <p className="text-3xs text-slate-500 mt-0.5">{stats.inReview} in review</p>
+            </Card>
+            <Card className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 mb-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                <span className="text-3xs text-slate-500 uppercase font-semibold">Overdue</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-extrabold text-rose-400">{stats.overdue}</p>
+              <p className="text-3xs text-slate-500 mt-0.5">{stats.delayed} delayed</p>
+            </Card>
+          </div>
+
+          {/* Performance bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-xs font-bold text-slate-200">Completion Rate</span>
+              </div>
+              <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${stats.completionRate}%` }} />
+              </div>
+              <div className="flex justify-between text-3xs text-slate-500">
+                <span>{stats.completed} of {stats.total} tasks done</span>
+                <span className="text-emerald-400 font-bold">{stats.completionRate}%</span>
+              </div>
+            </Card>
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-xs font-bold text-slate-200">On-Time Delivery</span>
+              </div>
+              <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${stats.onTimeRate}%` }} />
+              </div>
+              <div className="flex justify-between text-3xs text-slate-500">
+                <span>{stats.totalDelayDays} total delay incidents</span>
+                <span className="text-amber-400 font-bold">{stats.onTimeRate}%</span>
+              </div>
+            </Card>
+          </div>
+
+          {/* Priority + Status breakdown */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Card className="p-4 space-y-3">
+              <span className="text-xs font-bold text-slate-200">By Priority</span>
+              {[
+                { label: 'Emergency', count: stats.byPriority.Emergency, color: 'bg-red-500', text: 'text-red-400' },
+                { label: 'High', count: stats.byPriority.High, color: 'bg-rose-500', text: 'text-rose-400' },
+                { label: 'Medium', count: stats.byPriority.Medium, color: 'bg-amber-500', text: 'text-amber-400' },
+                { label: 'Low', count: stats.byPriority.Low, color: 'bg-slate-500', text: 'text-slate-400' },
+              ].map(p => (
+                <div key={p.label} className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{}} />
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${p.color}`} />
+                  <span className="text-3xs text-slate-400 w-16">{p.label}</span>
+                  <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div className={`h-full ${p.color} rounded-full`} style={{ width: stats.total > 0 ? `${(p.count / stats.total) * 100}%` : '0%' }} />
+                  </div>
+                  <span className={`text-3xs font-bold ${p.text} w-4 text-right`}>{p.count}</span>
+                </div>
+              ))}
+            </Card>
+            <Card className="p-4 space-y-3">
+              <span className="text-xs font-bold text-slate-200">By Status</span>
+              {[
+                { label: 'New', count: stats.byStatus.New, color: 'bg-fuchsia-500', text: 'text-fuchsia-400' },
+                { label: 'In Progress', count: stats.byStatus['In Progress'], color: 'bg-blue-500', text: 'text-blue-400' },
+                { label: 'Review', count: stats.byStatus.Review, color: 'bg-amber-500', text: 'text-amber-400' },
+                { label: 'Completed', count: stats.byStatus.Completed, color: 'bg-emerald-500', text: 'text-emerald-400' },
+              ].map(s => (
+                <div key={s.label} className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.color}`} />
+                  <span className="text-3xs text-slate-400 w-16">{s.label}</span>
+                  <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div className={`h-full ${s.color} rounded-full`} style={{ width: stats.total > 0 ? `${(s.count / stats.total) * 100}%` : '0%' }} />
+                  </div>
+                  <span className={`text-3xs font-bold ${s.text} w-4 text-right`}>{s.count}</span>
+                </div>
+              ))}
+              <div className="pt-2 border-t border-slate-800/50 flex items-center gap-2">
+                <Zap className="w-3 h-3 text-violet-400" />
+                <span className="text-3xs text-slate-500">Avg revisions: <span className="text-violet-400 font-bold">{stats.avgRevisions}</span></span>
+              </div>
+            </Card>
+          </div>
+
+          {/* Department breakdown + Recent completions */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Card className="p-4 space-y-3">
+              <span className="text-xs font-bold text-slate-200">By Department</span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(stats.byDept)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([dept, count]) => (
+                    <span key={dept} className="inline-flex items-center gap-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg px-2.5 py-1.5 text-3xs">
+                      <span className="text-slate-300 font-medium">{dept}</span>
+                      <span className="text-fuchsia-400 font-bold">{count}</span>
+                    </span>
+                  ))}
+              </div>
+            </Card>
+            <Card className="p-4 space-y-3">
+              <span className="text-xs font-bold text-slate-200">Recent Completions</span>
+              {stats.recentCompleted.length === 0 ? (
+                <p className="text-3xs text-slate-500 italic">No completed tasks yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {stats.recentCompleted.map(t => (
+                    <div key={t.id} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                      <span className="text-3xs text-slate-300 truncate flex-1">{t.title}</span>
+                      <span className="text-3xs text-slate-600 flex-shrink-0">{t.department}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
