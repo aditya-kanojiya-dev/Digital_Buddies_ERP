@@ -143,12 +143,12 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
     const hasReschedule = task.rescheduleRequest;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4" onClick={onClose}>
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
             <aside
                 onClick={e => e.stopPropagation()}
-                className="relative w-full max-w-lg max-h-[90dvh] glass-panel border border-violet-500/15 z-10 flex flex-col shadow-2xl rounded-2xl overflow-hidden animate-fade-in"
+                className="relative w-full md:max-w-lg max-h-[85dvh] md:max-h-[90dvh] glass-panel border border-violet-500/15 z-10 flex flex-col shadow-2xl rounded-t-2xl md:rounded-2xl overflow-hidden animate-fade-in"
             >
                 {/* ── Header ── */}
                 <div className="p-5 border-b border-slate-800 flex items-start justify-between gap-3 flex-shrink-0">
