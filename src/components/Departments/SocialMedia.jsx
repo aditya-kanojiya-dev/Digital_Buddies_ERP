@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Calendar, Plus, Download, FileText, Share2,
   Lock, ChevronLeft, ChevronRight, X, Check, Edit3,
@@ -7,9 +7,9 @@ import {
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
-import { DatePicker, Modal } from '../ui';
+import { DatePicker, Modal, ConfirmDialog } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
-import { today, addDays } from '../../lib/format';
+import { genId, today, addDays, computeDueDate } from '../../lib/format';
 import { CREATIVE_DEPTS, DEPT_TIMELINE_RULES } from '../ManagerDashboard';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -121,6 +121,7 @@ export default function SocialMedia({ user, state, updateState }) {
   const [momAttendees, setMomAttendees] = useState('');
   const [momPoints, setMomPoints] = useState('');
   const [momActionItems, setMomActionItems] = useState('');
+  const [confirmState, setConfirmState] = useState({ open: false, message: '', onConfirm: null });
 
   // ── Calendar helpers ──────────────────────────────────────────────────────
   const daysInMonth  = getDaysInMonth(calYear, calMonth);
@@ -178,7 +179,7 @@ export default function SocialMedia({ user, state, updateState }) {
     const coAssignee = coAssigneeId ? employees.find(e => e.id === coAssigneeId) : null;
     const isVideography = dept === 'Videography/Photography';
     return {
-      id: `TASK${Date.now()}_${dept.replace(/[^a-z]/gi,'')}`,
+      id: genId('TASK') + `_${dept.replace(/[^a-z]/gi,'')}`,
       title: `[${dept}] ${form.title}`,
       description: `${form.caption || ''}\n\nClient: ${form.client_id || 'N/A'}\nPlatform: ${form.platform}\nPost date: ${form.postDate}`,
       assignedTo: assigneeId || null,
@@ -237,7 +238,7 @@ export default function SocialMedia({ user, state, updateState }) {
       toCancel.forEach(t => {
         if (t.assignedTo) {
           notifs.push({
-            id: `NTF${Date.now()}_cancel_${t.id}`,
+            id: genId('NTF') + `_cancel_${t.id}`,
             userId: t.assignedTo,
             message: `❌ Content requirement cancelled: "${t.title}" (post no longer scheduled)`,
             type: 'info',
@@ -281,7 +282,7 @@ export default function SocialMedia({ user, state, updateState }) {
           : employees.filter(e => e.department?.includes(dept));
         toNotify.forEach(emp => {
           resultNotifs.push({
-            id: `NTF${Date.now()}_new_${dept}_${emp.id}`,
+            id: genId('NTF') + `_new_${dept}_${emp.id}`,
             userId: emp.id,
             message: `📅 New content task: "${newForm.title}" — due ${task.dueDate} (${dept})`,
             type: 'assignment',
@@ -303,7 +304,7 @@ export default function SocialMedia({ user, state, updateState }) {
           const newEmp = employees.find(e => e.id === assigneeId);
           if (newEmp) {
             resultNotifs.push({
-              id: `NTF${Date.now()}_reassign_${dept}_to`,
+              id: genId('NTF') + `_reassign_${dept}_to`,
               userId: assigneeId,
               message: `📌 Task reassigned to you: "${existing.title}" — due ${newDueDate} (${dept})`,
               type: 'assignment',
@@ -314,7 +315,7 @@ export default function SocialMedia({ user, state, updateState }) {
           // Notify old assignee
           if (existing.assignedTo) {
             resultNotifs.push({
-              id: `NTF${Date.now()}_reassign_${dept}_from`,
+              id: genId('NTF') + `_reassign_${dept}_from`,
               userId: existing.assignedTo,
               message: `Task "${existing.title}" reassigned from you to ${newEmp?.name || 'another team member'}`,
               type: 'info',
@@ -330,7 +331,7 @@ export default function SocialMedia({ user, state, updateState }) {
           updates.dueDate = newDueDate;
           if (existing.assignedTo) {
             resultNotifs.push({
-              id: `NTF${Date.now()}_dated_${dept}`,
+              id: genId('NTF') + `_dated_${dept}`,
               userId: existing.assignedTo,
               message: `📅 Deadline changed for "${existing.title}": now due ${newDueDate} (was ${existing.dueDate})`,
               type: 'info',
@@ -359,7 +360,7 @@ export default function SocialMedia({ user, state, updateState }) {
           if (idx !== -1) resultTasks[idx] = { ...resultTasks[idx], status: 'Blocked' };
           if (existing.assignedTo) {
             resultNotifs.push({
-              id: `NTF${Date.now()}_removed_${dept}`,
+              id: genId('NTF') + `_removed_${dept}`,
               userId: existing.assignedTo,
               message: `❌ Content requirement cancelled: "${existing.title}" (${dept} no longer needed)`,
               type: 'info',
@@ -430,7 +431,7 @@ export default function SocialMedia({ user, state, updateState }) {
       toast.success('Post updated on calendar.');
     } else {
       const newPost = {
-        id: `POST${Date.now()}`,
+        id: genId('POST'),
         ...postForm,
         addedBy: user.name,
         addedById: user.id,
@@ -456,7 +457,7 @@ export default function SocialMedia({ user, state, updateState }) {
 
           toNotify.forEach(emp => {
             newNotifs.push({
-              id: `NTF${Date.now()}_${emp.id}_${dept}`,
+              id: genId('NTF') + `_${emp.id}_${dept}`,
               userId: emp.id,
               message: `📅 New content task from Social Media: "${postForm.title}" — due ${task.dueDate} (${dept})`,
               type: 'assignment',
@@ -480,7 +481,7 @@ export default function SocialMedia({ user, state, updateState }) {
           const deptMembers = employees.filter(e => e.department?.includes(dept));
           deptMembers.forEach(emp => {
             newNotifs.push({
-              id: `NTF${Date.now()}_${emp.id}_${dept}`,
+              id: genId('NTF') + `_${emp.id}_${dept}`,
               userId: emp.id,
               message: `📅 New draft content from Social Media: "${postForm.title}" on ${postForm.postDate} (${dept})`,
               type: 'info',
@@ -501,11 +502,17 @@ export default function SocialMedia({ user, state, updateState }) {
   };
 
   const handleDeletePost = (postId) => {
-    if (!window.confirm('Delete this calendar entry?')) return;
-    db.deleteCalendarPost(postId).catch(err => console.error(err));
-    updateState({ smmCalendar: smmCalendar.filter(p => p.id !== postId) });
-    toast.success('Entry removed from calendar.');
-    setShowDayModal(false);
+    setConfirmState({
+      open: true,
+      message: 'Delete this calendar entry?',
+      onConfirm: () => {
+        setConfirmState({ open: false, message: '', onConfirm: null });
+        db.deleteCalendarPost(postId).catch(err => console.error(err));
+        updateState({ smmCalendar: smmCalendar.filter(p => p.id !== postId) });
+        toast.success('Entry removed from calendar.');
+        setShowDayModal(false);
+      }
+    });
   };
 
   const handleStatusChange = (postId, newStatus) => {
@@ -536,7 +543,7 @@ export default function SocialMedia({ user, state, updateState }) {
     const notifs = [];
     if (t.assignedTo) {
       notifs.push({
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: t.assignedTo,
         message: `✅ ${user.name} accepted the reschedule for "${t.title}". New due date: ${proposedDate}. Please approve the shoot date.`,
         type: 'info',
@@ -568,7 +575,7 @@ export default function SocialMedia({ user, state, updateState }) {
     const notifs = [];
     if (t.assignedTo) {
       notifs.push({
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: t.assignedTo,
         message: `❌ ${user.name} rejected the reschedule request for "${t.title}". Original date ${t.dueDate} stands. Please coordinate with Social Media.`,
         type: 'info',
@@ -588,22 +595,10 @@ export default function SocialMedia({ user, state, updateState }) {
   const rule = DEPT_TIMELINE_RULES[taskForm.targetDept] || {};
   const isCreativeDept = CREATIVE_DEPTS.includes(taskForm.targetDept);
 
-  const computeDueDate = () => {
-    if (taskForm.priority === 'Emergency') {
-      if (taskForm.timelineDays === '2') return addDays(today(), 2);
-      if (taskForm.timelineDays === '1') return addDays(today(), 1);
-      return today();
-    }
-    if (rule.mode === 'manual') return taskForm.dueDate || '';
-    if (rule.mode === 'fixed') return addDays(today(), rule.days);
-    if (rule.mode === 'select') return addDays(today(), parseInt(taskForm.timelineDays || '3'));
-    return taskForm.dueDate || '';
-  };
-
   const handleAssignTask = () => {
     if (!taskForm.title || !taskForm.targetDept) { toast.error('Task title and target department are required.'); return; }
 
-    const dueDate = computeDueDate();
+    const dueDate = computeDueDate({ priority: taskForm.priority, timelineDays: taskForm.timelineDays, dueDate: taskForm.dueDate, rule, fallbackDays: 0 });
 
     // ── Workload cap check ──
     if (taskForm.assignedTo && dueDate && CREATIVE_DEPTS.includes(taskForm.targetDept)) {
@@ -630,7 +625,7 @@ export default function SocialMedia({ user, state, updateState }) {
     const assignee = taskForm.assignedTo ? employees.find(e => e.id === taskForm.assignedTo) : null;
     const coAssignee = crossDeptNeedsBoth && crossDeptCoAssignee ? employees.find(e => e.id === crossDeptCoAssignee) : null;
     const newTask = {
-      id: `TASK${Date.now()}`,
+      id: genId('TASK'),
       title: taskForm.title,
       description: taskForm.description,
       assignedTo: taskForm.assignedTo || null,
@@ -664,7 +659,7 @@ export default function SocialMedia({ user, state, updateState }) {
     if (coAssignee) toNotify.push(coAssignee);
     const now = new Date().toISOString();
     const newNotifs = toNotify.map(emp => ({
-      id: `NTF${Date.now()}_${emp.id}`,
+      id: genId('NTF') + `_${emp.id}`,
       userId: emp.id,
       message: `📌 Social Media assigned you a task: "${taskForm.title}"${dueDate ? ` — due ${dueDate}` : ''}`,
       type: 'assignment',
@@ -685,7 +680,7 @@ export default function SocialMedia({ user, state, updateState }) {
     e.preventDefault();
     if (!quoteClient || !quoteCost) return;
     const newQuote = {
-      id: `QT${Date.now()}`,
+      id: genId('QT'),
       clientName: quoteClient,
       details: quoteDetails,
       cost: parseFloat(quoteCost),
@@ -725,7 +720,7 @@ Prepared by: ${user.name} — Social Media Department
   const handleCreateMom = (e) => {
     e.preventDefault();
     if (!momClient || !momPoints) return;
-    const newMom = { id: `MOM${Date.now()}`, clientName: momClient, date: momDate, attendees: momAttendees, points: momPoints, actionItems: momActionItems, createdBy: user.name };
+    const newMom = { id: genId('MOM'), clientName: momClient, date: momDate, attendees: momAttendees, points: momPoints, actionItems: momActionItems, createdBy: user.name };
     updateState({ moms: [...(state.moms||[]), newMom] });
     const blob = new Blob([`
 ========================================
@@ -759,7 +754,7 @@ Generated by: ${user.name} — Social Media Department
     updateState({
       tasks: tasks.map(x => x.id === taskId ? { ...x, status: nextStatus } : x),
       notifications: t.assignedTo && t.assignedTo !== user.id ? [{
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: t.assignedTo,
         message: `${user.name} moved "${t.title}" from "${t.status}" to "${nextStatus}".`,
         type: 'info',
@@ -1475,7 +1470,7 @@ Generated by: ${user.name} — Social Media Department
                   <select value={taskForm.assignedTo} onChange={e=>setTaskForm(f=>({...f,assignedTo:e.target.value}))} className="w-full glass-input p-3 rounded-xl text-sm">
                     <option value="">Whole department</option>
                     {deptEmployees.map(e => {
-                      const dueDate = computeDueDate();
+                      const dueDate = computeDueDate({ priority: taskForm.priority, timelineDays: taskForm.timelineDays, dueDate: taskForm.dueDate, rule, fallbackDays: 0 });
                       const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, e.id, dueDate, taskForm.targetDept, taskForm.priority) : null;
                       const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
                       return <option key={e.id} value={e.id} className={
@@ -1494,7 +1489,7 @@ Generated by: ${user.name} — Social Media Department
                 <select value={taskForm.assignedTo} onChange={e=>setTaskForm(f=>({...f,assignedTo:e.target.value}))} className="w-full glass-input p-3 rounded-xl text-sm">
                   <option value="">Whole department</option>
                   {deptEmployees.map(e => {
-                    const dueDate = computeDueDate();
+                    const dueDate = computeDueDate({ priority: taskForm.priority, timelineDays: taskForm.timelineDays, dueDate: taskForm.dueDate, rule, fallbackDays: 0 });
                     const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, e.id, dueDate, taskForm.targetDept, taskForm.priority) : null;
                     const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
                     return <option key={e.id} value={e.id} className={
@@ -1523,7 +1518,7 @@ Generated by: ${user.name} — Social Media Department
                 <select value={crossDeptCoAssignee} onChange={e=>setCrossDeptCoAssignee(e.target.value)} className="w-full glass-input p-3 rounded-xl text-sm">
                   <option value="">— Select co-assignee —</option>
                   {crossDeptCoStaff.map(e => {
-                    const dueDate = computeDueDate();
+                    const dueDate = computeDueDate({ priority: taskForm.priority, timelineDays: taskForm.timelineDays, dueDate: taskForm.dueDate, rule, fallbackDays: 0 });
                     const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, e.id, dueDate, taskForm.targetDept, taskForm.priority) : null;
                     const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
                     return <option key={e.id} value={e.id} className={
@@ -1550,7 +1545,7 @@ Generated by: ${user.name} — Social Media Department
                     <option value="1">Tomorrow (End of day)</option>
                     <option value="2">Day After Tomorrow</option>
                   </select>
-                  <p className="text-3xs text-rose-400 mt-1 font-semibold">Due: {computeDueDate()}</p>
+                  <p className="text-3xs text-rose-400 mt-1 font-semibold">Due: {computeDueDate({ priority: taskForm.priority, timelineDays: taskForm.timelineDays, dueDate: taskForm.dueDate, rule, fallbackDays: 0 })}</p>
                 </div>
               ) : rule.mode === 'manual' ? (
                 <div>
@@ -1598,6 +1593,13 @@ Generated by: ${user.name} — Social Media Department
             )}
           </div>
         </Modal>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        onClose={() => setConfirmState({ open: false, message: '', onConfirm: null })}
+        onConfirm={confirmState.onConfirm}
+        message={confirmState.message}
+      />
     </div>
   );
 }

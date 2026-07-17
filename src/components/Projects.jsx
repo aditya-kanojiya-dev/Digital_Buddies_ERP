@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Layers, Plus, Search, User, Filter, X, Edit3, Trash2,
   AlertCircle, CheckCircle2, Clock, Briefcase, Target
@@ -7,6 +7,7 @@ import { useToast } from './shared/Toast';
 import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
 import { Modal, ConfirmDialog, Button, DatePicker } from './ui';
+import { genId } from '../lib/format';
 
 const COLUMNS = ['Backlog', 'Active', 'Review', 'Blocked', 'Completed'];
 
@@ -156,7 +157,7 @@ export default function Projects({ user, state, updateState }) {
     if (!projName) return;
     const client = clients.find(c => c.id === projClient);
     const newProj = {
-      id: `PROJ${Date.now()}`,
+      id: genId('PROJ'),
       name: projName,
       clientId: projClient || null,
       ownerId: projOwner || null,
@@ -202,7 +203,7 @@ export default function Projects({ user, state, updateState }) {
     if (!msName || !selectedProject) return;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     const newTask = {
-      id: `TSK${Date.now()}`,
+      id: genId('TSK'),
       title: msName,
       description: '',
       projectId: selectedProject.id,

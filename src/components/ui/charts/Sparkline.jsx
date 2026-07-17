@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 /**
  * Sparkline — tiny inline trend line (no axes). Dependency-free SVG.

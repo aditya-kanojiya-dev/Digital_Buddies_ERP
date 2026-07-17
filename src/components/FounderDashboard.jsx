@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Shield, CreditCard, Users, Briefcase, FileText, Download, Wallet } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { PageHeader, StatCard, Card, EmptyState, LineChart, Sparkline } from './ui';

@@ -25,6 +25,7 @@ const CommandPalette = lazy(() => import('./components/CommandPalette'));
 import { auth, supabase } from './data/auth';
 import { db } from './data/db';
 import { runDeadlineEngine } from './lib/deadlineEngine';
+import { ROLES } from './lib/constants';
 
 // Key → db.js save function mapping for Supabase persistence
 const DB_SAVE_MAP = {
@@ -250,40 +251,40 @@ useEffect(() => {
   const channel = supabase
     .channel('erp-global-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data })));
+      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))).catch(() => {});
     })
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'notifications',
       filter: `user_id=eq.${user.id}`,
     }, () => {
-      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data })));
+      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'smm_calendar' }, () => {
-      db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data })));
+      db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
-      db.getProjects().then(data => setState(prev => ({ ...prev, projects: data })));
+      db.getProjects().then(data => setState(prev => ({ ...prev, projects: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => {
-      db.getAttendance().then(data => setState(prev => ({ ...prev, attendance: data })));
+      db.getAttendance().then(data => setState(prev => ({ ...prev, attendance: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'leaves' }, () => {
-      db.getLeaves().then(data => setState(prev => ({ ...prev, leaves: data })));
+      db.getLeaves().then(data => setState(prev => ({ ...prev, leaves: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'advances' }, () => {
-      db.getAdvances().then(data => setState(prev => ({ ...prev, advances: data })));
+      db.getAdvances().then(data => setState(prev => ({ ...prev, advances: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_campaigns' }, () => {
-      db.getAdCampaigns().then(data => setState(prev => ({ ...prev, adCampaigns: data })));
+      db.getAdCampaigns().then(data => setState(prev => ({ ...prev, adCampaigns: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
-      db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data })));
+      db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
-      db.getClients().then(data => setState(prev => ({ ...prev, clients: data })));
+      db.getClients().then(data => setState(prev => ({ ...prev, clients: data }))).catch(() => {});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'timelogs' }, () => {
-      db.getTimelogs().then(data => setState(prev => ({ ...prev, timelogs: data })));
+      db.getTimelogs().then(data => setState(prev => ({ ...prev, timelogs: data }))).catch(() => {});
     })
     .subscribe();
 
@@ -379,9 +380,9 @@ useEffect(() => {
     setUser(loggedInUser);
     await recordLoginActivity(loggedInUser.id, 'login');
 
-    if (loggedInUser.role === 'Super Admin') setActiveTab('founder');
-    else if (loggedInUser.role === 'Manager')    setActiveTab('manager');
-    else if (loggedInUser.role === 'HR')         setActiveTab('HR');
+    if (loggedInUser.role === ROLES.SUPER_ADMIN) setActiveTab('founder');
+    else if (loggedInUser.role === ROLES.MANAGER)    setActiveTab('manager');
+    else if (loggedInUser.role === ROLES.HR)         setActiveTab('HR');
     else                                         setActiveTab('dashboard');
   };
 
@@ -496,11 +497,11 @@ useEffect(() => {
           </div>
         }>
 
-      {activeTab === 'founder' && user.role === 'Super Admin' && (
+      {activeTab === 'founder' && user.role === ROLES.SUPER_ADMIN && (
         <FounderDashboard state={state} />
       )}
 
-      {activeTab === 'manager' && (user.role === 'Super Admin' || user.role === 'Manager' || user.role === 'Employee') && (
+      {activeTab === 'manager' && (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.MANAGER || user.role === ROLES.EMPLOYEE) && (
         <ManagerDashboard user={user} state={state} updateState={updateState} setActiveTab={setActiveTab} />
       )}
 
@@ -516,15 +517,15 @@ useEffect(() => {
         <Projects user={user} state={state} updateState={updateState} />
       )}
 
-      {activeTab === 'crm' && (user.role === 'Super Admin' || user.role === 'Manager') && (
+      {activeTab === 'crm' && (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.MANAGER) && (
         <CRM state={state} updateState={updateState} />
       )}
 
-      {activeTab === 'analytics' && (user.role === 'Super Admin' || user.role === 'Manager') && (
+      {activeTab === 'analytics' && (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.MANAGER) && (
         <Analytics state={state} />
       )}
 
-      {activeTab === 'settings' && (user.role === 'Super Admin' || user.role === 'Manager') && (
+      {activeTab === 'settings' && (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.MANAGER) && (
         <Settings user={user} state={state} />
       )}
 
@@ -552,7 +553,7 @@ useEffect(() => {
         <Developers user={user} state={state} updateState={updateState} />
       )}
 
-      {activeTab === 'HR' && (user.role === 'Super Admin' || user.role === 'HR' || user.role === 'Manager') && (
+      {activeTab === 'HR' && (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.HR || user.role === ROLES.MANAGER) && (
         <HR user={user} state={state} updateState={updateState} />
       )}
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 /**
  * LineChart — responsive single-series line/area chart with axis labels,

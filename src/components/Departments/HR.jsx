@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { 
   Users, Calendar, Clock, DollarSign, Send, Star, ShieldCheck, Briefcase, Plus, 
   Trash2, Edit2, Check, X, Printer, Download, Key, RefreshCw, Activity
@@ -6,8 +6,15 @@ import {
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
-import { DatePicker, Modal } from '../ui';
-import { today as todayStr } from '../../lib/format';
+import { DatePicker, Modal, ConfirmDialog } from '../ui';
+import { today as todayStr, genId } from '../../lib/format';
+
+const STATUS_COLORS = {
+  Invited: 'bg-amber-500/10 text-amber-400 border border-amber-500/15',
+  Active: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15',
+  Suspended: 'bg-rose-500/10 text-rose-400 border border-rose-500/15',
+  Terminated: 'bg-slate-800 text-slate-500 border border-slate-800'
+};
 
 export default function HR({ state, updateState, user = { role: 'Super Admin', id: 'EMP01' } }) {
   const toast = useToast();
@@ -85,6 +92,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   const [escrowName, setEscrowName] = useState('');
   const [escrowAmount, setEscrowAmount] = useState('');
   const [newOpsText, setNewOpsText] = useState('');
+  const [confirmState, setConfirmState] = useState({ open: false, message: '', onConfirm: null });
 
   // -------------------------
   // EMPLOYEE CRUD & INVITATION FUNCTIONS
@@ -100,6 +108,43 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     setEmpManagerId('');
     setEmpDept(['Developers']);
     setEmpSubType('');
+  };
+
+  const createInviteAndNotify = async ({ name, email, employeeId, type }) => {
+    const inviteToken = crypto.randomUUID();
+    const normalizedEmail = email.toLowerCase().trim();
+    const newInvite = {
+      id: genId('INV'),
+      employeeId,
+      email: normalizedEmail,
+      token: inviteToken,
+      expiresAt: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString(),
+      accepted: false,
+      createdBy: user?.id || 'EMP01',
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await db.addEmployeeInvite(newInvite);
+    } catch (inviteErr) {
+      toast.error(`Could not save invite record: ${inviteErr.message}`);
+      return false;
+    }
+
+    updateState({
+      employeeInvites: [...(state.employeeInvites || []), newInvite]
+    });
+
+    try {
+      await emailService.sendWelcomeEmail({ name, email: normalizedEmail });
+    } catch (emailErr) {
+      console.warn(`[Invite] Email failed (${type}):`, emailErr.message);
+      toast.warning('Invite generated but email could not be sent.');
+    }
+
+    setCreatedInviteInfo({ name, email: normalizedEmail, type });
+    setShowInviteModal(true);
+    return true;
   };
 
   const handleSaveEmployee = async (e) => {
@@ -137,17 +182,12 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
 
         toast.success('Employee details updated.');
       } else {
-        // Find maximum numeric value in existing employee IDs
         const nextNum = employees.reduce((max, e) => {
           const num = parseInt(e.id.replace('EMP', ''), 10);
           return isNaN(num) ? max : (num > max ? num : max);
         }, 0) + 1;
         const employeeId = `EMP${String(nextNum).padStart(2, '0')}`;
-  const inviteToken =
-    'tok_' + Math.random().toString(36).substring(2, 10);
-
-  const normalizedEmail =
-    empEmail.toLowerCase().trim();
+        const normalizedEmail = empEmail.toLowerCase().trim();
 
         const newEmp = {
           id: employeeId,
@@ -169,18 +209,6 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           avatar: ""
         };
 
-        const newInvite = {
-          id: `INV${Date.now()}`,
-          employeeId: employeeId,
-          email: normalizedEmail,
-          token: inviteToken,
-          expiresAt: new Date(Date.now() + 7*60*60*1000).toISOString(),
-          accepted: false,
-          createdBy: user?.id || 'EMP01',
-          createdAt: new Date().toISOString()
-        };
-
-        // Step 1a: Write employee row to Supabase FIRST.
         try {
           await db.addEmployee(newEmp);
         } catch (empErr) {
@@ -188,36 +216,9 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           return;
         }
 
-        // Step 1b: Write invite record while HR session is still active
-        try {
-          await db.addEmployeeInvite(newInvite);
-        } catch (inviteErr) {
-          toast.error(`Could not save invite record: ${inviteErr.message}`);
-          return;
-        }
+        updateState({ employees: [...employees, newEmp] });
 
-        updateState({
-          employees: [...employees, newEmp],
-          employeeInvites: [...(state.employeeInvites || []), newInvite]
-        });
-
-        // Step 2: Send welcome email (non-fatal)
-        try {
-          await emailService.sendWelcomeEmail({
-            name: empName,
-            email: normalizedEmail
-          });
-        } catch (emailErr) {
-          console.warn('[Invite] Welcome email failed:', emailErr.message);
-          toast.warning('Employee created but welcome email could not be sent. Share credentials manually.');
-        }
-
-        setCreatedInviteInfo({
-          name: empName,
-          email: normalizedEmail,
-          type: 'create'
-        });
-        setShowInviteModal(true);
+        await createInviteAndNotify({ name: empName, email: normalizedEmail, employeeId, type: 'create' });
         resetForm();
       }
     } finally {
@@ -240,186 +241,66 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
   };
 
   const handleDeleteEmployee = async (id) => {
-    if (window.confirm('Are you sure you want to terminate this employee profile?')) {
-      try {
-        await db.deleteEmployee(id);
-        const updated = employees.filter(emp => emp.id !== id);
-        updateState({ employees: updated });
-        toast.success('Employee terminated.');
-      } catch (err) {
-        toast.error(`Could not terminate: ${err.message}`);
+    setConfirmState({
+      open: true,
+      message: 'Are you sure you want to terminate this employee profile?',
+      onConfirm: async () => {
+        setConfirmState({ open: false, message: '', onConfirm: null });
+        try {
+          await db.deleteEmployee(id);
+          const updated = employees.filter(emp => emp.id !== id);
+          updateState({ employees: updated });
+          toast.success('Employee terminated.');
+        } catch (err) {
+          toast.error(`Could not terminate: ${err.message}`);
+        }
       }
-    }
+    });
   };
 
   const handleToggleSuspend = async (emp) => {
     const nextStatus = emp.status === 'Suspended' ? 'Active' : 'Suspended';
-    if (!window.confirm(`Are you sure you want to change status to ${nextStatus} for ${emp.name}?`)) return;
-    try {
-      await db.updateEmployee(emp.id, { status: nextStatus });
-      const updated = employees.map(e => e.id === emp.id ? { ...e, status: nextStatus } : e);
-      updateState({ employees: updated });
-      toast.success(`Employee status updated to ${nextStatus}`);
-    } catch (err) {
-      toast.error(`Could not update status: ${err.message}`);
-    }
+    setConfirmState({
+      open: true,
+      message: `Are you sure you want to change status to ${nextStatus} for ${emp.name}?`,
+      onConfirm: async () => {
+        setConfirmState({ open: false, message: '', onConfirm: null });
+        try {
+          await db.updateEmployee(emp.id, { status: nextStatus });
+          const updated = employees.map(e => e.id === emp.id ? { ...e, status: nextStatus } : e);
+          updateState({ employees: updated });
+          toast.success(`Employee status updated to ${nextStatus}`);
+        } catch (err) {
+          toast.error(`Could not update status: ${err.message}`);
+        }
+      }
+    });
   };
 
   const handleResendInvite = async (emp) => {
-    const inviteToken =
-      'tok_' + Math.random().toString(36).substring(2, 10);
-  
-    const normalizedEmail =
-      emp.email.toLowerCase().trim();
-  
-    const newInvite = {
-      id: `INV${Date.now()}`,
-      employeeId: emp.id,
-      email: normalizedEmail,
-      token: inviteToken,
-      expiresAt: new Date(
-        Date.now() + 7 * 60 * 60 * 1000
-      ).toISOString(),
-      accepted: false,
-      createdBy: user?.id || 'EMP01',
-      createdAt: new Date().toISOString()
-    };
-  
     const updated = employees.map((e) =>
-      e.id === emp.id
-        ? {
-            ...e,
-            status: 'Invited',
-            mustChangePassword: true
-          }
-        : e
+      e.id === emp.id ? { ...e, status: 'Invited', mustChangePassword: true } : e
     );
-  
-    try {
-      await db.addEmployeeInvite(newInvite);
-    } catch (inviteErr) {
-      toast.error(
-        `Could not save invite record: ${inviteErr.message}`
-      );
-      return;
-    }
-  
-    updateState({
-      employees: updated,
-      employeeInvites: [
-        ...(state.employeeInvites || []),
-        newInvite
-      ]
-    });
-  
-    try {
-      await emailService.sendWelcomeEmail({
-        name: emp.name,
-        email: normalizedEmail
-      });
-    } catch (emailErr) {
-      console.warn(
-        '[ResendInvite] Email failed:',
-        emailErr.message
-      );
-  
-      toast.warning(
-        'Invite generated but email could not be sent.'
-      );
-    }
-  
-    setCreatedInviteInfo({
-      name: emp.name,
-      email: normalizedEmail,
-      type: 'resend'
-    });
-  
-    setShowInviteModal(true);
-    toast.success(`Invitation resent to ${emp.name}`);
+    updateState({ employees: updated });
+
+    const ok = await createInviteAndNotify({ name: emp.name, email: emp.email, employeeId: emp.id, type: 'resend' });
+    if (ok) toast.success(`Invitation resent to ${emp.name}`);
   };
 
   const handleResetPassword = async (emp) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to reset password for ${emp.name}?`
-      )
-    ) {
-      return;
-    }
-  
-    const inviteToken =
-      'tok_' + Math.random().toString(36).substring(2, 10);
-  
-    const normalizedEmail =
-      emp.email.toLowerCase().trim();
-  
-    const newInvite = {
-      id: `INV${Date.now()}`,
-      employeeId: emp.id,
-      email: normalizedEmail,
-      token: inviteToken,
-      expiresAt: new Date(
-        Date.now() + 7 * 60 * 60 * 1000
-      ).toISOString(),
-      accepted: false,
-      createdBy: user?.id || 'EMP01',
-      createdAt: new Date().toISOString()
-    };
-  
-    try {
-      await db.addEmployeeInvite(newInvite);
-    } catch (inviteErr) {
-      toast.error(
-        `Could not save invite record: ${inviteErr.message}`
-      );
-      return;
-    }
-  
-    const updated = employees.map((e) =>
-      e.id === emp.id
-        ? {
-            ...e,
-            status: 'Invited',
-            mustChangePassword: true
-          }
-        : e
-    );
-  
-    updateState({
-      employees: updated,
-      employeeInvites: [
-        ...(state.employeeInvites || []),
-        newInvite
-      ]
+    setConfirmState({
+      open: true,
+      message: `Are you sure you want to reset password for ${emp.name}?`,
+      onConfirm: async () => {
+        setConfirmState({ open: false, message: '', onConfirm: null });
+        const updated = employees.map((e) =>
+          e.id === emp.id ? { ...e, status: 'Invited', mustChangePassword: true } : e
+        );
+        updateState({ employees: updated });
+        const ok = await createInviteAndNotify({ name: emp.name, email: emp.email, employeeId: emp.id, type: 'reset' });
+        if (ok) toast.success(`Password setup link sent to ${emp.name}.`);
+      }
     });
-  
-    try {
-      await emailService.sendWelcomeEmail({
-        name: emp.name,
-        email: normalizedEmail
-      });
-    } catch (emailErr) {
-      console.warn(
-        '[ResetPassword] Email failed:',
-        emailErr.message
-      );
-  
-      toast.warning(
-        'Password reset link generated but email could not be sent.'
-      );
-    }
-  
-    setCreatedInviteInfo({
-      name: emp.name,
-      email: normalizedEmail,
-      type: 'reset'
-    });
-  
-    setShowInviteModal(true);
-  
-    toast.success(
-      `Password setup link sent to ${emp.name}.`
-    );
   };
 
   const handleViewActivity = (emp) => {
@@ -437,7 +318,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     const dateTime = candDate + 'T' + (candTime || '10:00') + ':00';
 
     const newInt = {
-      id: `INT${Date.now()}`,
+      id: genId('INT'),
       candidateName: candName,
       position: candPos,
       date: dateTime,
@@ -463,7 +344,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     if (!routeClientName || !routeDevId) return;
 
     const newProj = {
-      id: `PROJ${Date.now()}`,
+      id: genId('PROJ'),
       name: routeProjectName || `${routeClientName} Website Setup`,
       client: routeClientName,
       description: 'Incoming website client routed to Dev channel.',
@@ -473,7 +354,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     };
 
     const newClient = {
-      id: `CL${Date.now()}`,
+      id: genId('CL'),
       name: routeClientName,
       email: 'routed@neomax.com',
       phone: '',
@@ -502,7 +383,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     if (!fbClient || !fbComment) return;
 
     const newFb = {
-      id: `FB${Date.now()}`,
+      id: genId('FB'),
       clientName: fbClient,
       department: fbDept,
       rating: parseInt(fbRating),
@@ -524,7 +405,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     if (!leaveEmpId || !leaveStart) return;
 
     const newLeave = {
-      id: `LV${Date.now()}`,
+      id: genId('LV'),
       employeeId: leaveEmpId,
       startDate: leaveStart,
       endDate: leaveEnd || leaveStart,
@@ -553,7 +434,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     if (!clockEmpId) return;
 
     const newAtt = {
-      id: `ATT${Date.now()}`,
+      id: genId('ATT'),
       employeeId: clockEmpId,
       logDate: new Date().toISOString().split('T')[0],
       clockIn: clockInTime,
@@ -575,7 +456,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     if (!advEmpId || !advAmount) return;
 
     const newAdv = {
-      id: `ADV${Date.now()}`,
+      id: genId('ADV'),
       employeeId: advEmpId,
       amount: parseFloat(advAmount),
       date: new Date().toISOString().split('T')[0],
@@ -638,7 +519,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     e.preventDefault();
     if (!escrowName || !escrowAmount) return;
     setEscrows(prev => [...prev, {
-      id: `ESC${Date.now()}`,
+      id: genId('ESC'),
       name: escrowName.trim(),
       amount: parseFloat(escrowAmount),
       status: 'Pending'
@@ -660,7 +541,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     e.preventDefault();
     if (!newOpsText.trim()) return;
     const newOps = {
-      id: `OPS${Date.now()}`,
+      id: genId('OPS'),
       task: newOpsText.trim(),
       status: 'Pending'
     };
@@ -687,7 +568,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         reader.readAsDataURL(file);
       });
       const newDoc = {
-        id: `ADOC${Date.now()}`,
+        id: genId('ADOC'),
         label: docLabel.trim(),
         fileName: file.name,
         fileSize: file.size,
@@ -896,12 +777,6 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                 const q = empSearch.toLowerCase();
                 return !q || emp.name.toLowerCase().includes(q) || emp.email.toLowerCase().includes(q) || emp.id.toLowerCase().includes(q) || (emp.designation || '').toLowerCase().includes(q);
               }).map(emp => {
-                const statusColors = {
-                  Invited: 'bg-amber-500/10 text-amber-400 border border-amber-500/15',
-                  Active: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15',
-                  Suspended: 'bg-rose-500/10 text-rose-400 border border-rose-500/15',
-                  Terminated: 'bg-slate-800 text-slate-500 border border-slate-800'
-                };
                 const statusVal = emp.status || (emp.mustChangePassword ? 'Invited' : 'Active');
                 const deptStr = Array.isArray(emp.department) ? emp.department.join(' + ') : emp.department;
                 const empTasks = (tasks || []).filter(t => t.assignedTo === emp.id);
@@ -918,7 +793,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                         <div className="font-semibold text-slate-100 text-sm truncate">{emp.name}</div>
                         <div className="text-3xs text-slate-500 truncate">{emp.designation || deptStr || 'Staff'}</div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-3xs font-medium shrink-0 ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-3xs font-medium shrink-0 ${STATUS_COLORS[statusVal] || 'bg-slate-800 text-slate-400'}`}>
                         {statusVal}
                       </span>
                     </div>
@@ -1096,12 +971,6 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
 
       {/* Employee detail modal */}
       {selectedEmp && (() => {
-        const statusColors = {
-          Invited: 'bg-amber-500/10 text-amber-400 border border-amber-500/15',
-          Active: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15',
-          Suspended: 'bg-rose-500/10 text-rose-400 border border-rose-500/15',
-          Terminated: 'bg-slate-800 text-slate-500 border border-slate-800'
-        };
         const statusVal = selectedEmp.status || (selectedEmp.mustChangePassword ? 'Invited' : 'Active');
         const deptStr = Array.isArray(selectedEmp.department) ? selectedEmp.department.join(' + ') : selectedEmp.department;
         const empTasks = (tasks || []).filter(t => t.assignedTo === selectedEmp.id);
@@ -1122,7 +991,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                   <h3 className="text-lg font-extrabold text-slate-100 truncate">{selectedEmp.name}</h3>
                   <p className="text-sm text-slate-400">{selectedEmp.designation || deptStr || 'Staff'}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-3xs font-medium ${statusColors[statusVal] || 'bg-slate-800 text-slate-400'}`}>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-3xs font-medium ${STATUS_COLORS[statusVal] || 'bg-slate-800 text-slate-400'}`}>
                       {statusVal}
                     </span>
                     <span className="text-3xs text-slate-500">{selectedEmp.role}</span>
@@ -2242,6 +2111,12 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
         );
       })()}
 
+      <ConfirmDialog
+        open={confirmState.open}
+        onClose={() => setConfirmState({ open: false, message: '', onConfirm: null })}
+        onConfirm={confirmState.onConfirm}
+        message={confirmState.message}
+      />
     </div>
   );
 }

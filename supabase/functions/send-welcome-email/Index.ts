@@ -14,15 +14,19 @@
  *   supabase secrets set APP_URL=https://your-app-domain.com
  */
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+const corsHeaders = (origin: string | null) => ({
+  'Access-Control-Allow-Origin': origin || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+});
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('Origin');
+  const allowedOrigin = Deno.env.get('APP_URL') || '*';
+  const headers = corsHeaders(allowedOrigin);
+
   // ── CORS preflight ──────────────────────────────────────────────────────────
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS });
+    return new Response('ok', { headers });
   }
 
   // ── Only allow POST ─────────────────────────────────────────────────────────
@@ -91,10 +95,16 @@ Deno.serve(async (req: Request) => {
 });
 
 // ── Helper: JSON response ───────────────────────────────────────────────────
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
+  const allowedOrigin = Deno.env.get('APP_URL') || '*';
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    headers: {
+      'Access-Control-Allow-Origin': allowedOrigin,
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      ...extraHeaders,
+      'Content-Type': 'application/json',
+    },
   });
 }
 

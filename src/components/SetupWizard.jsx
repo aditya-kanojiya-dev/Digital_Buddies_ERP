@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Shield, User, Key, Mail, Building, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { db } from '../data/db';
 import { supabase } from '../data/auth';
+import { genId } from '../lib/format';
 
 export default function SetupWizard({ onSetupComplete }) {
   const [name, setName]               = useState('');
@@ -81,7 +82,7 @@ export default function SetupWizard({ onSetupComplete }) {
 
       // ── Step 4: Seed audit log ─────────────────────────────────────────────
       await db.addAuditLog({
-        id:        `AUD${Date.now()}`,
+        id:        genId('AUD'),
         userId:    'EMP01',
         action:    'ERP Bootstrapped',
         details:   `Founder ${name} set up ${companyName} ERP.`,

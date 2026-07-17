@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Calendar, Clock, CheckCircle, AlertTriangle, ListTodo, BarChart3 } from 'lucide-react';
 import { today, addDays } from '../../lib/format';
 

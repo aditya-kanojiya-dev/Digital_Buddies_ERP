@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Clock, Calendar, CheckSquare, Plus, Bell, LogIn, LogOut, Coffee, AlertCircle, Eye } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import PersonalCalendar from './shared/PersonalCalendar';
-import { today } from '../lib/format';
+import { today, genId } from '../lib/format';
 
 export default function Dashboard({ user, state, updateState, onNavigate }) {
   const toast = useToast();
@@ -30,7 +30,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
     const newAtt = {
-      id: `ATT${Date.now()}`,
+      id: genId('ATT'),
       employeeId: user.id,
       logDate: todayStr,
       clockIn: timeStr,
@@ -41,7 +41,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     };
     updateState({ attendance: [...attendance, newAtt] });
     const newAudit = {
-      id: `AUD${Date.now()}`,
+      id: genId('AUD'),
       userId: user.id,
       action: "Clock In",
       details: `${user.name} clocked in at ${timeStr} (${attType}).`,
@@ -61,7 +61,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     });
     updateState({ attendance: updated });
     const newAudit = {
-      id: `AUD${Date.now()}`,
+      id: genId('AUD'),
       userId: user.id,
       action: "Clock Out",
       details: `${user.name} clocked out at ${timeStr}.`,
@@ -104,7 +104,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     );
     updateState({ attendance: updated });
     const newAudit = {
-      id: `AUD${Date.now()}`,
+      id: genId('AUD'),
       userId: user.id,
       action: onBreak ? 'Break End' : 'Break Start',
       details: `${user.name} ${onBreak ? 'ended' : 'started'} a break at ${timeStr}.`,
@@ -153,7 +153,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     const finalHrs = hrs > 0 ? hrs : 0.1;
     const task = tasks.find(t => t.id === timerTaskId);
     const newLog = {
-      id: `TL${Date.now()}`,
+      id: genId('TL'),
       employeeId: user.id,
       taskId: timerTaskId,
       date: todayStr,
@@ -173,7 +173,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     if (!manualTaskId || !manualHours) return;
     const task = tasks.find(t => t.id === manualTaskId);
     const newLog = {
-      id: `TL${Date.now()}`,
+      id: genId('TL'),
       employeeId: user.id,
       taskId: manualTaskId,
       date: todayStr,
@@ -217,7 +217,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     const notifUpdates = {};
     if (found?.assignedBy && found.assignedBy !== user.id) {
       notifUpdates.notifications = [{
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: found.assignedBy,
         message: `${user.name} moved "${found.title}" from "${found.status}" to "${newStatus}".`,
         type: 'info',
@@ -228,7 +228,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     updateState({
       tasks: updated,
       auditLogs: [{
-        id: `AUD${Date.now()}`,
+        id: genId('AUD'),
         userId: user.id,
         action: 'Task Updated',
         details: `${user.name} changed task status to '${newStatus}'.`,
@@ -253,7 +253,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
     const notifUpdates = {};
     if (found.assignedBy && found.assignedBy !== user.id) {
       notifUpdates.notifications = [{
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: found.assignedBy,
         message: msg,
         type: 'info',

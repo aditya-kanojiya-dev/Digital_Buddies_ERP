@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Download, Plus, Check, BarChart2, TrendingUp, Lock,
   Layers, PieChart, Target, Edit3, Trash2, X, Save, Filter
@@ -6,7 +6,7 @@ import {
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
 import { DatePicker, LineChart, BarChart, DonutChart } from '../ui';
-import { today, addDays } from '../../lib/format';
+import { today, addDays, genId } from '../../lib/format';
 
 export default function PaidAds({ user, state, updateState }) {
   const toast = useToast();
@@ -109,7 +109,7 @@ export default function PaidAds({ user, state, updateState }) {
     e.preventDefault();
     if (!selectedClientId) return;
     const newStat = {
-      id: `AS${Date.now()}`,
+      id: genId('AS'),
       clientId: selectedClientId,
       logDate: statsDate,
       budget: parseFloat(statsBudget),
@@ -194,7 +194,7 @@ export default function PaidAds({ user, state, updateState }) {
       toast.success('Campaign updated');
     } else {
       const newCampaign = {
-        id: `CMP${Date.now()}`,
+        id: genId('CMP'),
         clientId: selectedClientId,
         name: campaignName.trim(),
         channel: campaignChannel,
@@ -242,7 +242,7 @@ export default function PaidAds({ user, state, updateState }) {
     e.preventDefault();
     if (!isManager || !newClientName) return;
     const newClient = {
-      id: `CL${Date.now()}`,
+      id: genId('CL'),
       name: newClientName,
       email: newClientEmail,
       phone: newClientPhone,

@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2, Trash2, Save, X, Search, Filter, ChevronDown } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
-import { genId, today as todayStr, addDays } from '../lib/format';
+import { genId, today as todayStr, addDays, computeDueDate } from '../lib/format';
 import { db } from '../data/db';
 import TaskCard from './shared/TaskCard';
 import TaskDetailPanel from './shared/TaskDetailPanel';
 import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
-import { DatePicker } from './ui';
+import { DatePicker, ConfirmDialog } from './ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../lib/workloadCaps';
 
 const ALLOWED_TARGET_DEPTS = ['Developers', 'Video Editors', 'Graphic Designers', 'Videography/Photography', 'Paid Ads', 'Social Media'];
@@ -112,23 +112,11 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const computeDueDate = () => {
-    if (taskPriority === 'Emergency') {
-      if (timelineDays === '2') return addDays(todayStr(), 2);
-      if (timelineDays === '1') return addDays(todayStr(), 1);
-      return todayStr();
-    }
-    if (rule.mode === 'manual') return taskDue || addDays(todayStr(), 7);
-    if (rule.mode === 'fixed') return addDays(todayStr(), rule.days);
-    if (rule.mode === 'select') return addDays(todayStr(), parseInt(timelineDays));
-    return taskDue || addDays(todayStr(), 7);
-  };
-
   const handleCreateTask = (e) => {
     e.preventDefault();
     if (!taskTitle || !assigneeId || !targetDept) return;
 
-    const dueDate = computeDueDate();
+    const dueDate = computeDueDate({ priority: taskPriority, timelineDays, dueDate: taskDue, rule });
 
     // ── Workload cap check ──
     if (assigneeId && dueDate && CREATIVE_DEPTS.includes(targetDept)) {
@@ -175,7 +163,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     };
 
     const newNotifs = [{
-      id:        `NTF${Date.now()}`,
+      id:        genId('NTF'),
       userId:    assigneeId,
       message:   `${user.name} assigned task "${taskTitle}" to you.`,
       type:      'assignment',
@@ -196,7 +184,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     updateState({ tasks: [...tasks, newTask] });
     updateState({ notifications: [...newNotifs, ...notifications] });
     updateState({ auditLogs: [{
-      id:        `AUD${Date.now()}`,
+      id:        genId('AUD'),
       userId:    user.id,
       action:    'Task Created',
       details:   `${user.name} assigned task "${taskTitle}" to ${staffMember?.name}${coMember ? ` + ${coMember?.name}` : ''} (${targetDept}).`,
@@ -274,7 +262,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         : t
     )});
     updateState({ notifications: [{
-      id:        `NTF${Date.now()}`,
+      id:        genId('NTF'),
       userId:    task.assignedTo,
       message,
       type:      'ping',
@@ -282,7 +270,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       read:      false,
     }, ...notifications] });
     updateState({ auditLogs: [{
-      id:        `AUD${Date.now()}`,
+      id:        genId('AUD'),
       userId:    user.id,
       action:    'Task Ping Sent',
       details:   `${user.name} pinged "${task.title}"${customMsg ? ` with message: "${customMsg}"` : ''}.`,
@@ -308,7 +296,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         t.id === task.id ? { ...t, status: 'Completed', approvedAt: now } : t
       ),
       notifications: [{
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: task.assignedTo,
         message: `✅ ${user.name} approved your task "${task.title}". Great work!`,
         type: 'info',
@@ -316,7 +304,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         read: false,
       }, ...(state.notifications || [])],
       auditLogs: [{
-        id: `AUD${Date.now()}`,
+        id: genId('AUD'),
         userId: user.id,
         action: 'Task Approved',
         details: `${user.name} approved task "${task.title}" assigned to ${assignee?.name || task.assignedTo}.`,
@@ -347,7 +335,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         } : t
       ),
       notifications: [{
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: task.assignedTo,
         message: `🔄 ${user.name} requested changes on "${task.title}" (revision ${revisionCount}): "${notes.substring(0, 100)}${notes.length > 100 ? '…' : ''}"`,
         type: 'info',
@@ -355,7 +343,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         read: false,
       }, ...(state.notifications || [])],
       auditLogs: [{
-        id: `AUD${Date.now()}`,
+        id: genId('AUD'),
         userId: user.id,
         action: 'Changes Requested',
         details: `${user.name} requested changes on "${task.title}" (v${revisionCount}): ${notes}`,
@@ -376,30 +364,37 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const [editAssignee2, setEditAssignee2] = useState('');
   const [editPriority, setEditPriority] = useState('Medium');
   const [editDue, setEditDue] = useState('');
+  const [confirmState, setConfirmState] = useState({ open: false, message: '', onConfirm: null });
 
   const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('Delete this task permanently?')) return;
-    const task = tasks.find(t => t.id === taskId);
-    if (!canManageTask(task)) {
-      toast.error('You do not have permission to delete this task.');
-      return;
-    }
-    const taskTitle = task?.title;
-    updateState({ tasks: tasks.filter(t => t.id !== taskId) });
-    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    updateState({ auditLogs: [{
-      id: `AUD${Date.now()}`,
-      userId: user.id,
-      action: 'Task Deleted',
-      details: `${user.name} deleted task "${taskTitle}".`,
-      timestamp: now,
-    }, ...state.auditLogs] });
-    try {
-      await db.deleteTask(taskId);
-    } catch (err) {
-      console.error('Failed to delete task from database:', err);
-    }
-    toast.success('Task deleted.');
+    setConfirmState({
+      open: true,
+      message: 'Delete this task permanently?',
+      onConfirm: async () => {
+        setConfirmState({ open: false, message: '', onConfirm: null });
+        const task = tasks.find(t => t.id === taskId);
+        if (!canManageTask(task)) {
+          toast.error('You do not have permission to delete this task.');
+          return;
+        }
+        const taskTitle = task?.title;
+        updateState({ tasks: tasks.filter(t => t.id !== taskId) });
+        const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+        updateState({ auditLogs: [{
+          id: genId('AUD'),
+          userId: user.id,
+          action: 'Task Deleted',
+          details: `${user.name} deleted task "${taskTitle}".`,
+          timestamp: now,
+        }, ...state.auditLogs] });
+        try {
+          await db.deleteTask(taskId);
+        } catch (err) {
+          console.error('Failed to delete task from database:', err);
+        }
+        toast.success('Task deleted.');
+      }
+    });
   };
 
   const handleEditTask = (task) => {
@@ -696,7 +691,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                     className="w-full glass-input p-3 rounded-xl text-xs" required disabled={!targetDept}>
                     <option value="">-- Select --</option>
                     {deptStaff.map(emp => {
-                      const dueDate = computeDueDate();
+                      const dueDate = computeDueDate({ priority: taskPriority, timelineDays, dueDate: taskDue, rule });
                       const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, emp.id, dueDate, targetDept, taskPriority) : null;
                       const label = info ? formatWorkloadLabel(emp.name, info.load, info.softMax, dueDate) : emp.name;
                       return <option key={emp.id} value={emp.id} className={
@@ -723,7 +718,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                     className="w-full glass-input p-3 rounded-xl text-xs" required>
                     <option value="">-- Select co-assignee --</option>
                     {coDeptStaff.map(emp => {
-                      const dueDate = computeDueDate();
+                      const dueDate = computeDueDate({ priority: taskPriority, timelineDays, dueDate: taskDue, rule });
                       const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, emp.id, dueDate, targetDept, taskPriority) : null;
                       const label = info ? formatWorkloadLabel(emp.name, info.load, info.softMax, dueDate) : emp.name;
                       return <option key={emp.id} value={emp.id} className={
@@ -754,7 +749,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                       <option value="1">Tomorrow (End of day)</option>
                       <option value="2">Day After Tomorrow</option>
                     </select>
-                    <p className="text-3xs text-rose-400 mt-1 font-semibold">Due: {computeDueDate()}</p>
+                    <p className="text-3xs text-rose-400 mt-1 font-semibold">Due: {computeDueDate({ priority: taskPriority, timelineDays, dueDate: taskDue, rule })}</p>
                   </div>
                 ) : rule.mode === 'manual' ? (
                   <div>
@@ -1083,6 +1078,13 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
           onClose={() => setSelectedTaskId(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmState.open}
+        onClose={() => setConfirmState({ open: false, message: '', onConfirm: null })}
+        onConfirm={confirmState.onConfirm}
+        message={confirmState.message}
+      />
     </div>
   );
 }

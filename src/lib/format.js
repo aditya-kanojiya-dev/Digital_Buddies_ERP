@@ -117,3 +117,33 @@ export const initials = (name = '') =>
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase())
     .join('') || '?';
+
+/**
+ * Compute a task due date from priority, timeline, and rule settings.
+ * Shared by ManagerDashboard and SocialMedia.
+ */
+export const computeDueDate = ({ priority, timelineDays, dueDate, rule, fallbackDays = 7 }) => {
+  if (priority === 'Emergency') {
+    if (timelineDays === '2') return addDays(today(), 2);
+    if (timelineDays === '1') return addDays(today(), 1);
+    return today();
+  }
+  if (rule.mode === 'manual') return dueDate || addDays(today(), fallbackDays);
+  if (rule.mode === 'fixed') return addDays(today(), rule.days);
+  if (rule.mode === 'select') return addDays(today(), parseInt(timelineDays || '3'));
+  return dueDate || addDays(today(), fallbackDays);
+};
+
+/**
+ * Factory for the standard notification shape used across the app.
+ * Extra fields are spread onto the object (e.g. deadlineTaskId, deadlineDate).
+ */
+export const createNotification = ({ userId, message, type = 'info', timestamp, ...extra }) => ({
+  id: genId('NTF'),
+  userId,
+  message,
+  type,
+  timestamp: timestamp || nowStamp(),
+  read: false,
+  ...extra,
+});

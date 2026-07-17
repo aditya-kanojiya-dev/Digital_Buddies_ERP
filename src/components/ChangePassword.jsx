@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Key, ShieldAlert, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { auth } from '../data/auth';
 import { useToast } from './shared/Toast';

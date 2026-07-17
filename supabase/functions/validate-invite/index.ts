@@ -1,18 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = (origin: string | null) => ({
+  'Access-Control-Allow-Origin': origin || '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+});
 
 const INVITE_EXPIRY_MS = 7 * 60 * 60 * 1000;
 
 Deno.serve(async (req: Request) => {
+  const allowedOrigin = Deno.env.get('APP_URL') || '*';
+  const headers = corsHeaders(allowedOrigin);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: CORS_HEADERS,
-    });
+    return new Response('ok', { headers });
   }
 
   if (req.method !== 'POST') {
@@ -191,28 +191,28 @@ Deno.serve(async (req: Request) => {
 
   // =====================================================
   // Find Existing Auth User
+  // ponytail: Supabase Admin API has no getUserByEmail — listUsers is the
+  // only option. Paginate to avoid loading all users into memory at once.
   // =====================================================
 
-  const {
-    data: authUsers,
-    error: listError,
-  } = await admin.auth.admin.listUsers();
+  let authUser = null;
+  let page = 1;
+  const perPage = 100;
 
-  if (listError) {
-    return json(
-      {
-        error:
-          'Failed to lookup authentication users.',
-      },
-      500
+  while (!authUser) {
+    const { data: pageData, error: listError } = await admin.auth.admin.listUsers({ page, perPage });
+    if (listError) {
+      return json({ error: 'Failed to lookup authentication users.' }, 500);
+    }
+    authUser = pageData.users.find(
+      (u) => u.email?.toLowerCase() === employee.email.toLowerCase()
     );
+    if (!authUser && pageData.users.length === perPage) {
+      page++;
+    } else {
+      break;
+    }
   }
-
-  let authUser = authUsers.users.find(
-    (u) =>
-      u.email?.toLowerCase() ===
-      employee.email.toLowerCase()
-  );
 
   // =====================================================
   // Create User If Needed
@@ -350,16 +350,19 @@ Deno.serve(async (req: Request) => {
 
 function json(
   body: unknown,
-  status = 200
+  status = 200,
+  extraHeaders: Record<string, string> = {}
 ): Response {
+  const allowedOrigin = Deno.env.get('APP_URL') || '*';
   return new Response(
     JSON.stringify(body),
     {
       status,
       headers: {
-        ...CORS_HEADERS,
-        'Content-Type':
-          'application/json',
+        'Access-Control-Allow-Origin': allowedOrigin,
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        ...extraHeaders,
+        'Content-Type': 'application/json',
       },
     }
   );

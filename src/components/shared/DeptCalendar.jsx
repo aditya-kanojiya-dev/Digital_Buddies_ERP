@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
     Calendar as CalendarIcon, Plus, X, Edit3, Trash2, Send, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useToast } from './Toast';
 import TaskDetailPanel from './TaskDetailPanel';
 import { db } from '../../data/db';
-import { DatePicker } from '../ui';
+import { DatePicker, ConfirmDialog } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
-import { today as todayStr, addDays } from '../../lib/format';
+import { today as todayStr, addDays, genId } from '../../lib/format';
 
 // ─── Date / calendar helpers ────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
@@ -135,6 +135,7 @@ export default function DeptCalendar({
     const [crossDeptSubType, setCrossDeptSubType] = useState('');
     const [crossDeptNeedsBoth, setCrossDeptNeedsBoth] = useState(false);
     const [crossDeptCoAssignee, setCrossDeptCoAssignee] = useState('');
+    const [confirmState, setConfirmState] = useState({ open: false, message: '', onConfirm: null });
 
     // Recompute "today" whenever the month flips so derived dates stay current.
     useEffect(() => { setTick(t => t + 1); }, [calYear, calMonth]);
@@ -199,7 +200,7 @@ export default function DeptCalendar({
         if (t.assignedBy && t.assignedBy !== user.id) {
             const now = new Date().toISOString();
             updateState({ notifications: [{
-                id: `NTF${Date.now()}`,
+                id: genId('NTF'),
                 userId: t.assignedBy,
                 message: `${user.name} moved "${t.title}" from "${t.status}" to "${nextStatus}".`,
                 type: 'info',
@@ -248,7 +249,7 @@ export default function DeptCalendar({
         const assignee = assigneeId ? employees.find(e => e.id === assigneeId) : null;
         const coAssignee = coAssigneeId ? employees.find(e => e.id === coAssigneeId) : null;
         return {
-            id: `TASK${Date.now()}_${dept.replace(/[^a-z]/gi,'')}`,
+            id: genId('TASK') + `_${dept.replace(/[^a-z]/gi,'')}`,
             title: `[${dept}] ${form.title}`,
             description: `${form.caption || ''}\n\nClient: ${form.client_id || 'N/A'}\nPlatform: ${form.platform}\nPost date: ${form.postDate}`,
             assignedTo: assigneeId || null,
@@ -284,7 +285,7 @@ export default function DeptCalendar({
             toCancel.forEach(t => {
                 if (t.assignedTo) {
                     notifs.push({
-                        id: `NTF${Date.now()}_cancel_${t.id}`,
+                        id: genId('NTF') + `_cancel_${t.id}`,
                         userId: t.assignedTo,
                         message: `❌ Content requirement cancelled: "${t.title}" (post no longer scheduled)`,
                         type: 'info',
@@ -294,7 +295,7 @@ export default function DeptCalendar({
                 }
                 if (t.assignedTo2) {
                     notifs.push({
-                        id: `NTF${Date.now()}_cancel_co_${t.id}`,
+                        id: genId('NTF') + `_cancel_co_${t.id}`,
                         userId: t.assignedTo2,
                         message: `❌ Content requirement cancelled: "${t.title}" (post no longer scheduled)`,
                         type: 'info',
@@ -344,7 +345,7 @@ export default function DeptCalendar({
                     : employees.filter(e => e.department?.includes(dept));
                 toNotify.forEach(emp => {
                     resultNotifs.push({
-                        id: `NTF${Date.now()}_new_${dept}_${emp.id}`,
+                        id: genId('NTF') + `_new_${dept}_${emp.id}`,
                         userId: emp.id,
                         message: `📅 New content task: "${newForm.title}" — due ${task.dueDate} (${dept})`,
                         type: 'assignment',
@@ -356,7 +357,7 @@ export default function DeptCalendar({
                     const coEmp = employees.find(e => e.id === coAssigneeId);
                     if (coEmp) {
                         resultNotifs.push({
-                            id: `NTF${Date.now()}_new_co_${coEmp.id}_${dept}`,
+                            id: genId('NTF') + `_new_co_${coEmp.id}_${dept}`,
                             userId: coEmp.id,
                             message: `📅 You are co-assigned to a content task: "${newForm.title}" — due ${task.dueDate} (${dept})`,
                             type: 'assignment',
@@ -374,7 +375,7 @@ export default function DeptCalendar({
                     const newEmp = employees.find(e => e.id === assigneeId);
                     if (newEmp) {
                         resultNotifs.push({
-                            id: `NTF${Date.now()}_reassign_${dept}_to`,
+                            id: genId('NTF') + `_reassign_${dept}_to`,
                             userId: assigneeId,
                             message: `📌 Task reassigned to you: "${existing.title}" — due ${newDueDate} (${dept})`,
                             type: 'assignment',
@@ -384,7 +385,7 @@ export default function DeptCalendar({
                     }
                     if (existing.assignedTo) {
                         resultNotifs.push({
-                            id: `NTF${Date.now()}_reassign_${dept}_from`,
+                            id: genId('NTF') + `_reassign_${dept}_from`,
                             userId: existing.assignedTo,
                             message: `Task "${existing.title}" reassigned from you to ${newEmp?.name || 'another team member'}`,
                             type: 'info',
@@ -399,7 +400,7 @@ export default function DeptCalendar({
                     updates.dueDate = newDueDate;
                     if (existing.assignedTo) {
                         resultNotifs.push({
-                            id: `NTF${Date.now()}_dated_${dept}`,
+                            id: genId('NTF') + `_dated_${dept}`,
                             userId: existing.assignedTo,
                             message: `📅 Deadline changed for "${existing.title}": now due ${newDueDate} (was ${existing.dueDate})`,
                             type: 'info',
@@ -409,7 +410,7 @@ export default function DeptCalendar({
                     }
                     if (existing.assignedTo2) {
                         resultNotifs.push({
-                            id: `NTF${Date.now()}_dated_co_${dept}`,
+                            id: genId('NTF') + `_dated_co_${dept}`,
                             userId: existing.assignedTo2,
                             message: `📅 Deadline changed for "${existing.title}": now due ${newDueDate} (was ${existing.dueDate})`,
                             type: 'info',
@@ -435,7 +436,7 @@ export default function DeptCalendar({
                     if (idx !== -1) resultTasks[idx] = { ...resultTasks[idx], status: 'Blocked' };
                     if (existing.assignedTo) {
                         resultNotifs.push({
-                            id: `NTF${Date.now()}_removed_${dept}`,
+                            id: genId('NTF') + `_removed_${dept}`,
                             userId: existing.assignedTo,
                             message: `❌ Content requirement cancelled: "${existing.title}" (${dept} no longer needed)`,
                             type: 'info',
@@ -445,7 +446,7 @@ export default function DeptCalendar({
                     }
                     if (existing.assignedTo2) {
                         resultNotifs.push({
-                            id: `NTF${Date.now()}_removed_co_${dept}`,
+                            id: genId('NTF') + `_removed_co_${dept}`,
                             userId: existing.assignedTo2,
                             message: `❌ Content requirement cancelled: "${existing.title}" (${dept} no longer needed)`,
                             type: 'info',
@@ -515,7 +516,7 @@ export default function DeptCalendar({
             toast.success('Post updated on calendar.');
         } else {
             const newPost = {
-                id: `POST${Date.now()}`,
+                id: genId('POST'),
                 ...postForm,
                 addedBy: user.name,
                 addedById: user.id,
@@ -540,7 +541,7 @@ export default function DeptCalendar({
 
                     toNotify.forEach(emp => {
                         newNotifs.push({
-                            id: `NTF${Date.now()}_${emp.id}_${dept}`,
+                            id: genId('NTF') + `_${emp.id}_${dept}`,
                             userId: emp.id,
                             message: `📅 New content task from ${deptName}: "${postForm.title}" — due ${task.dueDate} (${dept})`,
                             type: 'assignment',
@@ -553,7 +554,7 @@ export default function DeptCalendar({
                         const coEmp = employees.find(e => e.id === coAssigneeId);
                         if (coEmp) {
                             newNotifs.push({
-                                id: `NTF${Date.now()}_co_${coEmp.id}_${dept}`,
+                                id: genId('NTF') + `_co_${coEmp.id}_${dept}`,
                                 userId: coEmp.id,
                                 message: `📅 You are co-assigned to a content task from ${deptName}: "${postForm.title}" — due ${task.dueDate} (${dept})`,
                                 type: 'assignment',
@@ -574,7 +575,7 @@ export default function DeptCalendar({
                     const deptMembers = employees.filter(e => e.department?.includes(dept));
                     deptMembers.forEach(emp => {
                         newNotifs.push({
-                            id: `NTF${Date.now()}_${emp.id}_${dept}`,
+                            id: genId('NTF') + `_${emp.id}_${dept}`,
                             userId: emp.id,
                             message: `📅 New draft content from ${deptName}: "${postForm.title}" on ${postForm.postDate} (${dept})`,
                             type: 'info',
@@ -594,11 +595,17 @@ export default function DeptCalendar({
     };
 
     const handleDeletePost = (postId) => {
-        if (!window.confirm('Delete this calendar entry?')) return;
-        db.deleteCalendarPost(postId).catch(err => console.error(err));
-        updateState({ smmCalendar: smmCalendar.filter(p => p.id !== postId) });
-        toast.success('Entry removed from calendar.');
-        setSelectedDay(null);
+        setConfirmState({
+            open: true,
+            message: 'Delete this calendar entry?',
+            onConfirm: () => {
+                setConfirmState({ open: false, message: '', onConfirm: null });
+                db.deleteCalendarPost(postId).catch(err => console.error(err));
+                updateState({ smmCalendar: smmCalendar.filter(p => p.id !== postId) });
+                toast.success('Entry removed from calendar.');
+                setSelectedDay(null);
+            }
+        });
     };
 
     const handlePostStatusChange = (postId, newStatus) => {
@@ -642,7 +649,7 @@ export default function DeptCalendar({
 
         const coAssignee = coAssigneeId ? employees.find(e => e.id === coAssigneeId) : null;
         const newTask = {
-            id: `TASK${Date.now()}`,
+            id: genId('TASK'),
             title: taskForm.title,
             description: taskForm.description,
             assignedTo: taskForm.assignedTo || null,
@@ -671,7 +678,7 @@ export default function DeptCalendar({
             : employees.filter(e => e.department?.includes(taskForm.targetDept));
         const now = new Date().toISOString();
         const newNotifs = toNotify.map(emp => ({
-            id: `NTF${Date.now()}_${emp.id}`,
+            id: genId('NTF') + `_${emp.id}`,
             userId: emp.id,
             message: `📌 ${deptName} assigned you a task: "${taskForm.title}"${taskForm.dueDate ? ` — due ${taskForm.dueDate}` : ''}`,
             type: 'assignment',
@@ -680,7 +687,7 @@ export default function DeptCalendar({
         }));
         if (coAssigneeId && coAssignee) {
             newNotifs.push({
-                id: `NTF${Date.now()}_co_${coAssigneeId}`,
+                id: genId('NTF') + `_co_${coAssigneeId}`,
                 userId: coAssigneeId,
                 message: `📌 ${deptName} co-assigned you to a task: "${taskForm.title}"${taskForm.dueDate ? ` — due ${taskForm.dueDate}` : ''}`,
                 type: 'assignment',
@@ -1251,6 +1258,13 @@ export default function DeptCalendar({
                     onClose={() => setSelectedTaskId(null)}
                 />
             )}
+
+            <ConfirmDialog
+                open={confirmState.open}
+                onClose={() => setConfirmState({ open: false, message: '', onConfirm: null })}
+                onConfirm={confirmState.onConfirm}
+                message={confirmState.message}
+            />
         </div>
     );
 }

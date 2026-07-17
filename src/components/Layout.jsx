@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect, useRef } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import {
   Layers,
   Shield,
@@ -25,26 +25,27 @@ import {
 } from 'lucide-react';
 import { auth } from '../data/auth';
 import { timeAgo, initials } from '../lib/format';
+import { ROLES } from '../lib/constants';
 
 const ALL_TABS = [
-  { id: 'founder', label: 'Founder Center', icon: Shield, roles: ['Super Admin'], group: 'Overview' },
-  { id: 'manager', label: 'Work Assignment', icon: Briefcase, roles: ['Super Admin', 'Manager', 'Employee'], group: 'Overview' },
-  { id: 'dashboard', label: 'My Workspace', icon: CheckCircle, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Overview' },
-  { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Overview' },
-  { id: 'analytics', label: 'Analytics', icon: PieChart, roles: ['Super Admin', 'Manager'], group: 'Overview' },
+  { id: 'founder', label: 'Founder Center', icon: Shield, roles: [ROLES.SUPER_ADMIN], group: 'Overview' },
+  { id: 'manager', label: 'Work Assignment', icon: Briefcase, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE], group: 'Overview' },
+  { id: 'dashboard', label: 'My Workspace', icon: CheckCircle, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.HR, ROLES.EMPLOYEE], group: 'Overview' },
+  { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.HR, ROLES.EMPLOYEE], group: 'Overview' },
+  { id: 'analytics', label: 'Analytics', icon: PieChart, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER], group: 'Overview' },
 
-  { id: 'projects', label: 'Projects Kanban', icon: Layers, roles: ['Super Admin', 'Manager'], group: 'Work' },
-  { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, roles: ['Super Admin', 'Manager'], group: 'Work' },
-  { id: 'Social Media', label: 'Social Media', icon: Calendar, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Social Media', group: 'Departments' },
-  { id: 'Paid Ads', label: 'Paid Ads', icon: BarChart2, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Paid Ads', group: 'Departments' },
-  { id: 'Video Editors', label: 'Video Editors', icon: Film, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Video Editors', group: 'Departments' },
-  { id: 'Graphic Designers', label: 'Graphic Designers', icon: Image, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Graphic Designers', group: 'Departments' },
-  { id: 'Videography/Photography', label: 'Videography', icon: Camera, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Videography/Photography', group: 'Departments' },
-  { id: 'Developers', label: 'Developers', icon: Code, roles: ['Super Admin', 'Manager', 'Employee'], dept: 'Developers', group: 'Departments' },
+  { id: 'projects', label: 'Projects Kanban', icon: Layers, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER], group: 'Work' },
+  { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER], group: 'Work' },
+  { id: 'Social Media', label: 'Social Media', icon: Calendar, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE], dept: 'Social Media', group: 'Departments' },
+  { id: 'Paid Ads', label: 'Paid Ads', icon: BarChart2, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE], dept: 'Paid Ads', group: 'Departments' },
+  { id: 'Video Editors', label: 'Video Editors', icon: Film, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE], dept: 'Video Editors', group: 'Departments' },
+  { id: 'Graphic Designers', label: 'Graphic Designers', icon: Image, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE], dept: 'Graphic Designers', group: 'Departments' },
+  { id: 'Videography/Photography', label: 'Videography', icon: Camera, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE], dept: 'Videography/Photography', group: 'Departments' },
+  { id: 'Developers', label: 'Developers', icon: Code, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE], dept: 'Developers', group: 'Departments' },
 
-  { id: 'HR', label: 'HR & Operations', icon: Users, roles: ['Super Admin', 'Manager', 'HR'], group: 'Admin' },
-  { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['Super Admin', 'Manager'], group: 'Admin' },
-  { id: 'profile', label: 'My Profile', icon: User, roles: ['Super Admin', 'Manager', 'HR', 'Employee'], group: 'Admin' },
+  { id: 'HR', label: 'HR & Operations', icon: Users, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.HR], group: 'Admin' },
+  { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER], group: 'Admin' },
+  { id: 'profile', label: 'My Profile', icon: User, roles: [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.HR, ROLES.EMPLOYEE], group: 'Admin' },
 ];
 
 const GROUP_ORDER = ['Overview', 'Work', 'Departments', 'Admin'];
@@ -172,10 +173,10 @@ export default function Layout({
 
   const allowedTabs = ALL_TABS.filter((tab) => {
     if (!tab.roles.includes(user.role)) return false;
-    if (user.role === 'Super Admin' || user.role === 'Admin') return true;
-    if (user.role === 'Manager') return true;
-    if (user.role === 'HR') return tab.id === 'HR' ? true : !tab.dept;
-    if (user.role === 'Employee') {
+    if (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.ADMIN) return true;
+    if (user.role === ROLES.MANAGER) return true;
+    if (user.role === ROLES.HR) return tab.id === 'HR' ? true : !tab.dept;
+    if (user.role === ROLES.EMPLOYEE) {
       if (['manager', 'dashboard', 'profile', 'my-calendar'].includes(tab.id)) return true;
       return user.department?.includes(tab.dept);
     }

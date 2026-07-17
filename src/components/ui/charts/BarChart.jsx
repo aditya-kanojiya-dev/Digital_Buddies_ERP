@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 /**
  * BarChart — vertical bars with labels and hover tooltip. Dependency-free SVG.

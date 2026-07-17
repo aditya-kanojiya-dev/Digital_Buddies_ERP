@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Clock, DollarSign, Calendar, BarChart2, ArrowRight } from 'lucide-react';
 import { today as todayStr } from '../../lib/format';
 

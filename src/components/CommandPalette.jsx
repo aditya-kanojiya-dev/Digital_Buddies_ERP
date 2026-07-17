@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Users, CheckSquare, Briefcase, DollarSign, CornerDownLeft } from 'lucide-react';
 
 /**

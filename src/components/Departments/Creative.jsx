@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
   GitBranch, X, Filter, UserPlus, Edit3, GripVertical,
@@ -212,7 +212,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
     const newNotifs = [];
     if (assignee) {
       newNotifs.push({
-        id:        `NTF${Date.now()}`,
+        id:        genId('NTF'),
         userId:    assigneeId,
         message:   `${user.name} assigned you a task: "${taskTitle.trim()}"`,
         type:      'assignment',
@@ -268,7 +268,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
     const statusNotifs = [];
     if (t.assignedBy && t.assignedBy !== user.id) {
       statusNotifs.push({
-        id:        `NTF${Date.now()}`,
+        id:        genId('NTF'),
         userId:    t.assignedBy,
         message:   `${user.name} moved "${t.title}" from "${t.status}" to "${nextStatus}".`,
         type:      'info',
@@ -337,7 +337,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
           : t
       ),
       notifications: [{
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: delegateEmpId,
         message: `📌 Manager ${user.name} delegated a Social Media task to you: "${task?.title}"`,
         type: 'assignment',
@@ -375,7 +375,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
     const notifs = [];
     if (t.assignedBy && t.assignedBy !== user.id) {
       notifs.push({
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: t.assignedBy,
         message: `✅ ${user.name} approved the shoot date for "${t.title}" (due ${t.dueDate}).`,
         type: 'info',
@@ -415,7 +415,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
     const notifs = [];
     if (t.assignedBy && t.assignedBy !== user.id) {
       notifs.push({
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: t.assignedBy,
         message: `📅 ${user.name} requested reschedule for "${t.title}": new date ${rescheduleDate} — "${rescheduleReason.trim().substring(0, 80)}"`,
         type: 'info',
@@ -470,7 +470,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
     const notifs = [];
     if (t.assignedBy && t.assignedBy !== user.id) {
       notifs.push({
-        id: `NTF${Date.now()}`,
+        id: genId('NTF'),
         userId: t.assignedBy,
         message: `⏰ ${user.name} reported a delay on "${t.title}": "${delayReason.trim().substring(0, 100)}" — new due date: ${delayNewDueDate}`,
         type: 'info',
@@ -483,7 +483,7 @@ export default function Creative({ user, state, updateState, activeDepartment })
       tasks: updatedTasks,
       ...(notifs.length ? { notifications: [...notifs, ...(state.notifications || [])] } : {}),
       auditLogs: [{
-        id: `AUD${Date.now()}`,
+        id: genId('AUD'),
         userId: user.id,
         action: 'Task Delayed',
         details: `${user.name} delayed "${t.title}" from ${t.dueDate} to ${delayNewDueDate}. Reason: ${delayReason.trim()}`,

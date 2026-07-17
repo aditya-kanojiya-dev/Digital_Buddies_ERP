@@ -26,7 +26,7 @@ export const emailService = {
     if (!SUPABASE_URL) {
       if (import.meta.env.DEV) {
         console.log('--- [MOCK EMAIL — SUPABASE_URL not set] ---');
-        console.log(`To: ${name} <${email}>  |  Temp password: ${password}`);
+        console.log(`To: ${name} <${email}>`);
         console.log('-------------------------------------------');
       } else {
         console.error('emailService: VITE_SUPABASE_URL is not set in this environment — welcome email was not sent.');

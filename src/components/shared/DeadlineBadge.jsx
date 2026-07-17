@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { AlertCircle, AlertTriangle, CalendarClock } from 'lucide-react';
 import { today as todayStr, addDays } from '../../lib/format';
 

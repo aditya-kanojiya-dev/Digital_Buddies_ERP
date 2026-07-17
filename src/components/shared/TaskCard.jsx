@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Clock, User, Send, Download } from 'lucide-react';
 import DeadlineBadge from './DeadlineBadge';
 import { today as todayStr } from '../../lib/format';

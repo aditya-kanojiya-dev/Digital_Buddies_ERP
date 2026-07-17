@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { User, Mail, Calendar, Code, Save, Image, Shield, Briefcase } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { useToast } from './shared/Toast';

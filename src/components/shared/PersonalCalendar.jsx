@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
     Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock,
     Plane, Briefcase, Home, X, List, Grid3X3, Columns, CalendarDays,
@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 import TaskDetailPanel from './TaskDetailPanel';
 import { db } from '../../data/db';
-import { DatePicker } from '../ui';
-import { today as todayStr, addDays } from '../../lib/format';
+import { DatePicker, ConfirmDialog } from '../ui';
+import { today as todayStr, addDays, genId } from '../../lib/format';
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -142,6 +142,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
     const [personalDate, setPersonalDate] = useState('');
     const [personalPriority, setPersonalPriority] = useState('Medium');
     const [personalDesc, setPersonalDesc] = useState('');
+    const [confirmState, setConfirmState] = useState({ open: false, message: '', onConfirm: null });
 
     const resetPersonalForm = () => {
         setEditingPersonalId(null);
@@ -164,7 +165,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
             try { await db.updatePersonalTask(editingPersonalId, { title: personalTitle.trim(), date: personalDate, priority: personalPriority, description: personalDesc.trim() }); } catch {}
         } else {
             const newTask = {
-                id: `PT${Date.now()}`,
+                id: genId('PT'),
                 userId: user.id,
                 title: personalTitle.trim(),
                 date: personalDate || today,
@@ -190,9 +191,15 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
     };
 
     const handleDeletePersonalTask = async (id) => {
-        if (!window.confirm('Delete this personal task?')) return;
-        updateState({ personalTasks: (personalTasks || []).filter(t => t.id !== id) });
-        try { await db.deletePersonalTask(id); } catch {}
+        setConfirmState({
+            open: true,
+            message: 'Delete this personal task?',
+            onConfirm: async () => {
+                setConfirmState({ open: false, message: '', onConfirm: null });
+                updateState({ personalTasks: (personalTasks || []).filter(t => t.id !== id) });
+                try { await db.deletePersonalTask(id); } catch {}
+            }
+        });
     };
 
     const handleTogglePersonalCompleted = (id) => {
@@ -977,6 +984,13 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={confirmState.open}
+                onClose={() => setConfirmState({ open: false, message: '', onConfirm: null })}
+                onConfirm={confirmState.onConfirm}
+                message={confirmState.message}
+            />
         </div>
     );
 }

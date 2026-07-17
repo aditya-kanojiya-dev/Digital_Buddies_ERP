@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
     X, Clock, User, CheckCircle2, CheckCircle, Edit2,
     Calendar, CalendarCheck, CalendarClock, Link as LinkIcon,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useToast } from './Toast';
 import DeadlineBadge from './DeadlineBadge';
+import { genId } from '../../lib/format';
 
 const DEPT_DOT = {
     'Paid Ads':               'bg-orange-500',
@@ -40,7 +41,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
         const statusNotifs = [];
         if (task.assignedBy && task.assignedBy !== currentUser.id) {
             statusNotifs.push({
-                id: `NTF${Date.now()}`,
+                id: genId('NTF'),
                 userId: task.assignedBy,
                 message: `${currentUser.name} moved "${task.title}" from "${task.status}" to "${nextStatus}".`,
                 type: 'info',
@@ -54,7 +55,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
             ),
             notifications: [...statusNotifs, ...(state.notifications || [])],
             auditLogs: [{
-                id: `AUD${Date.now()}`,
+                id: genId('AUD'),
                 userId: currentUser.id,
                 action: 'Task Status Changed',
                 details: `${currentUser.name} moved "${task.title}" from "${task.status}" to "${nextStatus}" via detail panel.`,
@@ -78,7 +79,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                 t.id === task.id ? { ...t, status: 'Completed', approvedAt: now } : t
             ),
             notifications: [{
-                id: `NTF${Date.now()}`,
+                id: genId('NTF'),
                 userId: task.assignedTo,
                 message: `✅ ${currentUser.name} approved your task "${task.title}". Great work!`,
                 type: 'info',
@@ -86,7 +87,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                 read: false,
             }, ...(state.notifications || [])],
             auditLogs: [{
-                id: `AUD${Date.now()}`,
+                id: genId('AUD'),
                 userId: currentUser.id,
                 action: 'Task Approved',
                 details: `${currentUser.name} approved task "${task.title}" via detail panel.`,
@@ -116,7 +117,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                 } : t
             ),
             notifications: [{
-                id: `NTF${Date.now()}`,
+                id: genId('NTF'),
                 userId: task.assignedTo,
                 message: `🔄 ${currentUser.name} requested changes on "${task.title}" (revision ${revisionCount}): "${notes.substring(0, 100)}${notes.length > 100 ? '…' : ''}"`,
                 type: 'info',
@@ -124,7 +125,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                 read: false,
             }, ...(state.notifications || [])],
             auditLogs: [{
-                id: `AUD${Date.now()}`,
+                id: genId('AUD'),
                 userId: currentUser.id,
                 action: 'Changes Requested',
                 details: `${currentUser.name} requested changes on "${task.title}" (v${revisionCount}): ${notes}`,

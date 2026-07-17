@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import {
   Plus, Download, Briefcase, DollarSign, UserCheck, FileText, Search,
   X, Edit3, Trash2, Upload, Check, AlertCircle, Save, Users, User,
@@ -8,7 +8,7 @@ import { useToast } from './shared/Toast';
 import { Modal, ConfirmDialog, Button, DatePicker } from './ui';
 import { DonutChart, BarChart } from './ui';
 import { db } from '../data/db';
-import { today as todayStr } from '../lib/format';
+import { today as todayStr, genId } from '../lib/format';
 import * as XLSX from 'xlsx';
 
 const LEAD_SOURCES = ['Website Lead', 'Cold Outreach', 'Referral', 'Meta Ads', 'LinkedIn', 'Google Ads', 'Other'];
@@ -125,7 +125,7 @@ export default function CRM({ state, updateState }) {
     e.preventDefault();
     if (!leadName) return;
     const newLead = {
-      id: `LD${Date.now()}`,
+      id: genId('LD'),
       name: leadName, email: leadEmail, phone: leadPhone,
       budget: parseFloat(leadBudget) || 100000, source: leadSource,
       status: 'Lead', assignedTo: leadAssignedTo || null, notes: leadNotes || '',
@@ -218,7 +218,7 @@ export default function CRM({ state, updateState }) {
   const handleSaveClient = (e) => {
     e.preventDefault();
     if (!clientForm.name) return;
-    const clientId = selectedClient?.id || `CL${Date.now()}`;
+    const clientId = selectedClient?.id || genId('CL');
     const newClient = {
       id: clientId,
       name: clientForm.name,
@@ -347,7 +347,7 @@ export default function CRM({ state, updateState }) {
       }
 
       valid.push({
-        id: `CL${Date.now()}_${i}`,
+        id: genId('CL') + `_${i}`,
         name,
         email,
         phone,
@@ -393,7 +393,7 @@ export default function CRM({ state, updateState }) {
     if (!propClient || !propCost) return;
     const client = clients.find(c => c.id === propClient);
     const newProp = {
-      id: `PRP${Date.now()}`,
+      id: genId('PRP'),
       clientId: propClient,
       clientName: client?.name || propClient,
       title: propTitle || 'Business Proposal Retainer',
@@ -431,7 +431,7 @@ Details: ${newProp.details || '—'}
     if (!invClient || !invAmount) return;
     const client = clients.find(c => c.id === invClient);
     const newInv = {
-      id: `INV${Date.now()}`,
+      id: genId('INV'),
       clientId: invClient,
       clientName: client?.name || invClient,
       amount: parseFloat(invAmount),

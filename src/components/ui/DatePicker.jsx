@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import { Calendar } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Bell, BellOff, Check, CheckCheck, ArrowRight, Filter } from 'lucide-react';
 import { useToast } from './Toast';
 
