@@ -1,4 +1,5 @@
 import { Suspense, lazy, useState, useEffect, startTransition } from 'react';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import Login from './components/Login';
@@ -574,6 +575,7 @@ useEffect(() => {
 
       </Suspense>
       </ErrorBoundary>
+      <VercelAnalytics />
     </Layout>
   );
 }
