@@ -163,7 +163,7 @@ export default function Profile({ user, state, updateState }) {
       </div>
 
       {/* ── Analytics ── */}
-      {stats.total > 0 && (
+      {stats.total > 0 && employee?.department?.some(d => ['Video Editors', 'Graphic Designers', 'Videography/Photography'].includes(d)) && (
         <div className="space-y-4 sm:space-y-5">
           <div className="flex items-center gap-2.5">
             <BarChart3 className="w-4 h-4 text-fuchsia-400" />
