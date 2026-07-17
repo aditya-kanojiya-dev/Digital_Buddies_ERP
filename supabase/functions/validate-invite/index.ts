@@ -1,14 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = (origin: string | null) => ({
-  'Access-Control-Allow-Origin': origin || '*',
+  'Access-Control-Allow-Origin': origin || '',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 });
 
 const INVITE_EXPIRY_MS = 7 * 60 * 60 * 1000;
 
 Deno.serve(async (req: Request) => {
-  const allowedOrigin = Deno.env.get('APP_URL') || '*';
+  const allowedOrigin = Deno.env.get('APP_URL');
+  if (!allowedOrigin) {
+    console.error('[validate-invite] APP_URL secret is not set — rejecting request');
+    return json({ error: 'Server misconfiguration. Missing APP_URL.' }, 500);
+  }
   const headers = corsHeaders(allowedOrigin);
 
   if (req.method === 'OPTIONS') {
@@ -179,11 +183,11 @@ Deno.serve(async (req: Request) => {
   // Password Validation
   // =====================================================
 
-  if (password.length < 8) {
+  if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
     return json(
       {
         error:
-          'Password must be at least 8 characters.',
+          'Password must be at least 8 characters with 1 uppercase letter and 1 number.',
       },
       400
     );
@@ -353,7 +357,7 @@ function json(
   status = 200,
   extraHeaders: Record<string, string> = {}
 ): Response {
-  const allowedOrigin = Deno.env.get('APP_URL') || '*';
+  const allowedOrigin = Deno.env.get('APP_URL') || '';
   return new Response(
     JSON.stringify(body),
     {

@@ -44,10 +44,10 @@ export default function Profile({ user, state, updateState }) {
     if (session) {
       try {
         const s = JSON.parse(session);
-        s.user.name = name;
-        s.user.avatar = avatar;
+        s.name = name;
+        s.avatar = avatar;
         sessionStorage.setItem('neomax_session', JSON.stringify(s));
-      } catch {}
+      } catch (err) { console.warn('[Profile] Failed to update session:', err); }
     }
     toast.success('Profile updated');
   };

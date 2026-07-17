@@ -422,9 +422,9 @@ export default function SocialMedia({ user, state, updateState }) {
       reconcile.tasks.forEach(t => {
         const ot = tasks.find(x => x.id === t.id);
         if (!ot) {
-          db.addTask(t).catch(() => {});
+          db.addTask(t).catch(err => console.warn('[SocialMedia] Failed to add task:', err));
         } else if (JSON.stringify(ot) !== JSON.stringify(t)) {
-          db.updateTask(t.id, t).catch(() => {});
+          db.updateTask(t.id, t).catch(err => console.warn('[SocialMedia] Failed to update task:', err));
         }
       });
 
@@ -470,7 +470,7 @@ export default function SocialMedia({ user, state, updateState }) {
         stateUpdates.tasks = [...tasks, ...newTasks];
         stateUpdates.notifications = [...notifications, ...newNotifs];
         // Persist new tasks individually (bypasses RLS bulk-upsert issue)
-        newTasks.forEach(t => db.addTask(t).catch(() => {}));
+        newTasks.forEach(t => db.addTask(t).catch(err => console.warn('[SocialMedia] Failed to add task:', err)));
       }
 
       // ── Simple notification for non-finalized posts ──
@@ -650,7 +650,7 @@ export default function SocialMedia({ user, state, updateState }) {
       delayHistory: [],
     };
     updateState({ tasks: [...tasks, newTask] });
-    db.addTask(newTask).catch(() => {});
+    db.addTask(newTask).catch(err => console.warn('[SocialMedia] Failed to add task:', err));
 
     // Notify assignee or whole dept
     const toNotify = taskForm.assignedTo

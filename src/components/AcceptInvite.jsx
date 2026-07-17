@@ -65,8 +65,8 @@ export default function AcceptInvite({ token, onInviteAccepted }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (password.length < 8) {
-      setErrorMsg('Password must be at least 8 characters.');
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setErrorMsg('Password must be at least 8 characters with 1 uppercase letter and 1 number.');
       return;
     }
 

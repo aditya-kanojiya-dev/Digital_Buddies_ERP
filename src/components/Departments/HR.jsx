@@ -324,7 +324,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
       date: dateTime,
       interviewerId: candInterviewer || 'EMP01',
       status: 'Scheduled',
-      link: candLink || 'https://meet.google.com'
+      link: candLink || ''
     };
 
     updateState({ interviews: [...interviews, newInt] });
@@ -356,7 +356,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     const newClient = {
       id: genId('CL'),
       name: routeClientName,
-      email: 'routed@neomax.com',
+      email: '',
       phone: '',
       details: 'Routed website lead.',
       department: 'Developers',

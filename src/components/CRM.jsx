@@ -123,7 +123,15 @@ export default function CRM({ state, updateState }) {
 
   const handleCreateLead = (e) => {
     e.preventDefault();
-    if (!leadName) return;
+    if (!leadName.trim()) return;
+    if (leadEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmail)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    if (leadBudget && (isNaN(parseFloat(leadBudget)) || parseFloat(leadBudget) < 0)) {
+      toast.error('Budget must be a positive number');
+      return;
+    }
     const newLead = {
       id: genId('LD'),
       name: leadName, email: leadEmail, phone: leadPhone,
@@ -274,6 +282,9 @@ export default function CRM({ state, updateState }) {
         import('papaparse').then(({ default: Papa }) => {
           const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
           processParsedData(parsed.data, parsed.meta.fields);
+        }).catch(err => {
+          console.error('[CRM] Failed to load papaparse:', err);
+          toast.error('Failed to parse CSV file');
         });
       };
       reader.readAsText(file);

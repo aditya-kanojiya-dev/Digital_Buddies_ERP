@@ -162,7 +162,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                     : t
             );
             updateState({ personalTasks: updated });
-            try { await db.updatePersonalTask(editingPersonalId, { title: personalTitle.trim(), date: personalDate, priority: personalPriority, description: personalDesc.trim() }); } catch {}
+            try { await db.updatePersonalTask(editingPersonalId, { title: personalTitle.trim(), date: personalDate, priority: personalPriority, description: personalDesc.trim() }); } catch (err) { console.warn('[PersonalCalendar] Failed to update task:', err); }
         } else {
             const newTask = {
                 id: genId('PT'),
@@ -175,7 +175,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                 createdAt: new Date().toISOString(),
             };
             updateState({ personalTasks: [...(personalTasks || []), newTask] });
-            try { await db.addPersonalTask(newTask); } catch {}
+            try { await db.addPersonalTask(newTask); } catch (err) { console.warn('[PersonalCalendar] Failed to add task:', err); }
         }
         resetPersonalForm();
         setShowPersonalForm(false);
@@ -197,7 +197,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
             onConfirm: async () => {
                 setConfirmState({ open: false, message: '', onConfirm: null });
                 updateState({ personalTasks: (personalTasks || []).filter(t => t.id !== id) });
-                try { await db.deletePersonalTask(id); } catch {}
+                try { await db.deletePersonalTask(id); } catch (err) { console.warn('[PersonalCalendar] Failed to delete task:', err); }
             }
         });
     };
@@ -208,7 +208,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
         );
         updateState({ personalTasks: updated });
         const task = updated.find(t => t.id === id);
-        if (task) try { db.updatePersonalTask(id, { completed: task.completed }); } catch {}
+        if (task) try { db.updatePersonalTask(id, { completed: task.completed }); } catch (err) { console.warn('[PersonalCalendar] Failed to toggle task:', err); }
     };
 
     const openAddPersonalTask = (dateStr) => {

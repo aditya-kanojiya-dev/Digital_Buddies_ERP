@@ -15,13 +15,17 @@
  */
 
 const corsHeaders = (origin: string | null) => ({
-  'Access-Control-Allow-Origin': origin || '*',
+  'Access-Control-Allow-Origin': origin || '',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 });
 
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get('Origin');
-  const allowedOrigin = Deno.env.get('APP_URL') || '*';
+  const allowedOrigin = Deno.env.get('APP_URL');
+  if (!allowedOrigin) {
+    console.error('[send-welcome-email] APP_URL secret is not set — rejecting request');
+    return json({ error: 'Server misconfiguration. Missing APP_URL.' }, 500);
+  }
   const headers = corsHeaders(allowedOrigin);
 
   // ── CORS preflight ──────────────────────────────────────────────────────────
@@ -96,7 +100,7 @@ Deno.serve(async (req: Request) => {
 
 // ── Helper: JSON response ───────────────────────────────────────────────────
 function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
-  const allowedOrigin = Deno.env.get('APP_URL') || '*';
+  const allowedOrigin = Deno.env.get('APP_URL') || '';
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -116,7 +120,15 @@ interface WelcomeEmailProps {
   appUrl: string;
 }
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function buildWelcomeEmail({ name, email, password, appUrl }: WelcomeEmailProps): string {
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(email);
+  const safePassword = escapeHtml(password);
+  const safeAppUrl = escapeHtml(appUrl);
   return `
     <!DOCTYPE html>
     <html>
@@ -141,15 +153,15 @@ function buildWelcomeEmail({ name, email, password, appUrl }: WelcomeEmailProps)
         <div class="container">
           <div class="header"><h2>Welcome to Digital Buddies</h2></div>
           <div class="body">
-            <p>Hi ${name},</p>
+            <p>Hi ${safeName},</p>
             <p>Your Digital-Buddies-ERP account has been created. Log in with the credentials below.</p>
             <div class="box">
-              <p><strong>Portal:</strong> <a href="${appUrl}" style="color:#c084fc">${appUrl}</a></p>
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Temporary password:</strong> <span class="mono">${password}</span></p>
+              <p><strong>Portal:</strong> <a href="${safeAppUrl}" style="color:#c084fc">${safeAppUrl}</a></p>
+              <p><strong>Email:</strong> ${safeEmail}</p>
+              <p><strong>Temporary password:</strong> <span class="mono">${safePassword}</span></p>
             </div>
             <p class="warning">⚠️ You must change this password on your first login before you can access the dashboard.</p>
-            <a href="${appUrl}" class="btn" target="_blank">Access the Portal</a>
+            <a href="${safeAppUrl}" class="btn" target="_blank">Access the Portal</a>
             <p>Regards,<br>Digital Buddies Team</p>
           </div>
           <div class="footer"><p>Automated system email — do not reply.</p></div>

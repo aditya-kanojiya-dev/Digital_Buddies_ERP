@@ -16,8 +16,8 @@ export default function SetupWizard({ onSetupComplete }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError('Password must be at least 8 characters with 1 uppercase letter and 1 number.');
       return;
     }
     setLoading(true);
@@ -252,8 +252,12 @@ export default function SetupWizard({ onSetupComplete }) {
                 required
               />
             </div>
-            {password.length > 0 && password.length < 8 && (
-              <p className="text-xs text-amber-400 pl-1">At least 8 characters required</p>
+            {password.length > 0 && (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) && (
+              <p className="text-xs text-amber-400 pl-1">
+                {password.length < 8 && 'At least 8 characters. '}
+                {!/[A-Z]/.test(password) && '1 uppercase letter. '}
+                {!/[0-9]/.test(password) && '1 number.'}
+              </p>
             )}
           </div>
 

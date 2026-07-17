@@ -251,40 +251,40 @@ useEffect(() => {
   const channel = supabase
     .channel('erp-global-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))).catch(() => {});
+      db.getTasks().then(data => setState(prev => ({ ...prev, tasks: data }))).catch(err => console.warn('[realtime] Failed to fetch tasks:', err));
     })
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'notifications',
       filter: `user_id=eq.${user.id}`,
     }, () => {
-      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))).catch(() => {});
+      db.getNotifications().then(data => setState(prev => ({ ...prev, notifications: data }))).catch(err => console.warn('[realtime] Failed to fetch notifications:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'smm_calendar' }, () => {
-      db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data }))).catch(() => {});
+      db.getSmmCalendar().then(data => setState(prev => ({ ...prev, smmCalendar: data }))).catch(err => console.warn('[realtime] Failed to fetch smm_calendar:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
-      db.getProjects().then(data => setState(prev => ({ ...prev, projects: data }))).catch(() => {});
+      db.getProjects().then(data => setState(prev => ({ ...prev, projects: data }))).catch(err => console.warn('[realtime] Failed to fetch projects:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => {
-      db.getAttendance().then(data => setState(prev => ({ ...prev, attendance: data }))).catch(() => {});
+      db.getAttendance().then(data => setState(prev => ({ ...prev, attendance: data }))).catch(err => console.warn('[realtime] Failed to fetch attendance:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'leaves' }, () => {
-      db.getLeaves().then(data => setState(prev => ({ ...prev, leaves: data }))).catch(() => {});
+      db.getLeaves().then(data => setState(prev => ({ ...prev, leaves: data }))).catch(err => console.warn('[realtime] Failed to fetch leaves:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'advances' }, () => {
-      db.getAdvances().then(data => setState(prev => ({ ...prev, advances: data }))).catch(() => {});
+      db.getAdvances().then(data => setState(prev => ({ ...prev, advances: data }))).catch(err => console.warn('[realtime] Failed to fetch advances:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_campaigns' }, () => {
-      db.getAdCampaigns().then(data => setState(prev => ({ ...prev, adCampaigns: data }))).catch(() => {});
+      db.getAdCampaigns().then(data => setState(prev => ({ ...prev, adCampaigns: data }))).catch(err => console.warn('[realtime] Failed to fetch ad_campaigns:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
-      db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data }))).catch(() => {});
+      db.getEmployees().then(data => setState(prev => ({ ...prev, employees: data }))).catch(err => console.warn('[realtime] Failed to fetch employees:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
-      db.getClients().then(data => setState(prev => ({ ...prev, clients: data }))).catch(() => {});
+      db.getClients().then(data => setState(prev => ({ ...prev, clients: data }))).catch(err => console.warn('[realtime] Failed to fetch clients:', err));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'timelogs' }, () => {
-      db.getTimelogs().then(data => setState(prev => ({ ...prev, timelogs: data }))).catch(() => {});
+      db.getTimelogs().then(data => setState(prev => ({ ...prev, timelogs: data }))).catch(err => console.warn('[realtime] Failed to fetch timelogs:', err));
     })
     .subscribe();
 

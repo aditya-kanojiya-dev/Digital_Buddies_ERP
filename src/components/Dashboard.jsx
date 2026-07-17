@@ -25,50 +25,62 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
   const resolvedBreaks = parseBreaks(todayAttendance);
 
   const [attType, setAttType] = useState('Office');
+  const [attLoading, setAttLoading] = useState(false);
 
-  const handleClockIn = () => {
-    const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
-    const newAtt = {
-      id: genId('ATT'),
-      employeeId: user.id,
-      logDate: todayStr,
-      clockIn: timeStr,
-      clockOut: null,
-      breaks: '[]',
-      status: "Present",
-      type: attType
-    };
-    updateState({ attendance: [...attendance, newAtt] });
-    const newAudit = {
-      id: genId('AUD'),
-      userId: user.id,
-      action: "Clock In",
-      details: `${user.name} clocked in at ${timeStr} (${attType}).`,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    };
-    updateState({ auditLogs: [newAudit, ...state.auditLogs] });
-    toast.success(`Clocked in at ${timeStr}`);
+  const handleClockIn = async () => {
+    if (attLoading) return;
+    setAttLoading(true);
+    try {
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+      const newAtt = {
+        id: genId('ATT'),
+        employeeId: user.id,
+        logDate: todayStr,
+        clockIn: timeStr,
+        clockOut: null,
+        breaks: '[]',
+        status: "Present",
+        type: attType
+      };
+      updateState({ attendance: [...attendance, newAtt] });
+      const newAudit = {
+        id: genId('AUD'),
+        userId: user.id,
+        action: "Clock In",
+        details: `${user.name} clocked in at ${timeStr} (${attType}).`,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
+      };
+      updateState({ auditLogs: [newAudit, ...state.auditLogs] });
+      toast.success(`Clocked in at ${timeStr}`);
+    } finally {
+      setAttLoading(false);
+    }
   };
 
-  const handleClockOut = () => {
-    if (!todayAttendance) return;
-    const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
-    const updated = attendance.map(a => {
-      if (a.id === todayAttendance.id) return { ...a, clockOut: timeStr };
-      return a;
-    });
-    updateState({ attendance: updated });
-    const newAudit = {
-      id: genId('AUD'),
-      userId: user.id,
-      action: "Clock Out",
-      details: `${user.name} clocked out at ${timeStr}.`,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    };
-    updateState({ auditLogs: [newAudit, ...state.auditLogs] });
-    toast.success(`Clocked out at ${timeStr}`);
+  const handleClockOut = async () => {
+    if (!todayAttendance || attLoading) return;
+    setAttLoading(true);
+    try {
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+      const updated = attendance.map(a => {
+        if (a.id === todayAttendance.id) return { ...a, clockOut: timeStr };
+        return a;
+      });
+      updateState({ attendance: updated });
+      const newAudit = {
+        id: genId('AUD'),
+        userId: user.id,
+        action: "Clock Out",
+        details: `${user.name} clocked out at ${timeStr}.`,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
+      };
+      updateState({ auditLogs: [newAudit, ...state.auditLogs] });
+      toast.success(`Clocked out at ${timeStr}`);
+    } finally {
+      setAttLoading(false);
+    }
   };
 
   const onBreak = resolvedBreaks.some(
@@ -334,7 +346,8 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
               </div>
               <button
                 onClick={handleClockIn}
-                className="w-full bg-neon-gradient hover:opacity-95 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow transition-opacity"
+                disabled={attLoading}
+                className="w-full bg-neon-gradient hover:opacity-95 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow transition-opacity"
               >
                 <LogIn className="w-4 h-4" /> Clock In
               </button>
@@ -377,7 +390,8 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                   </button>
                   <button
                     onClick={handleClockOut}
-                    className="bg-rose-600/80 hover:bg-rose-600 text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    disabled={attLoading}
+                    className="bg-rose-600/80 hover:bg-rose-600 disabled:opacity-60 text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <LogOut className="w-4 h-4" /> Clock Out
                   </button>
