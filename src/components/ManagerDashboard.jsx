@@ -436,7 +436,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   // ── renderActions: ping + reassign + edit/delete, passed to TaskCard ───
   const canManageTask = (task) =>
-    isManager || task.assignedBy === user.id;
+    isSuperAdmin || (isManager && Array.isArray(managerDept) && managerDept.includes(task.department)) || task.assignedBy === user.id;
 
   const renderPingReassign = (task) => {
     const assignee       = employees.find(e => e.id === task.assignedTo);
