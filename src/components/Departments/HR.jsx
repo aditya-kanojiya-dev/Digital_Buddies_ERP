@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { 
   Users, Calendar, Clock, DollarSign, Send, Star, ShieldCheck, Briefcase, Plus, 
-  Trash2, Edit2, Check, X, Printer, Download, Key, RefreshCw, Activity
+  Trash2, Edit2, Check, X, Printer, Key, RefreshCw, Activity
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
@@ -1078,855 +1078,119 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
           SUBTAB: ATTENDANCE & LEAVES
           ------------------------- */}
       {activeSubTab === 'attendance' && (
-        <div className="space-y-6 print:hidden">
-          {/* Stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Pending Leaves', count: leaves.filter(l => l.status === 'Pending').length, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-              { label: 'Approved', count: leaves.filter(l => l.status === 'Approved').length, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-              { label: 'Rejected', count: leaves.filter(l => l.status === 'Rejected').length, color: 'text-rose-400', bg: 'bg-rose-500/10' },
-              { label: 'Today Logged', count: attendance.filter(a => a.logDate === todayStr() || a.date === todayStr()).length, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-            ].map(s => (
-              <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3 border border-slate-800/40`}>
-                <p className="text-3xs text-slate-500 uppercase tracking-wider">{s.label}</p>
-                <p className={`text-sm font-bold ${s.color} mt-0.5`}>{s.count}</p>
-              </div>
-            ))}
-          </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Leaves Manager */}
-          <div className="glass-panel p-6 rounded-2xl space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Leave Requests & Approvals</h3>
-            
-            <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-              {leaves.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-slate-800/60 rounded-xl">
-                  <Clock className="w-8 h-8 text-slate-600 mb-2" />
-                  <p className="text-xs text-slate-500">No leave requests logged yet.</p>
-                </div>
-              ) : (
-                leaves.map(l => {
-                  const emp = employees.find(e => e.id === l.employeeId);
-                  return (
-                    <div key={l.id} className="glass-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-amber-500">
-                      <div className="space-y-1">
-                        <div className="font-semibold text-sm text-slate-200">
-                          {emp ? emp.name : 'Unknown Staff'}
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          {l.type} | {l.startDate} to {l.endDate}
-                        </div>
-                        <div className="text-xs text-slate-500 italic">" {l.reason} "</div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        {l.status === 'Pending' ? (
-                          <>
-                            <button
-                              onClick={() => handleUpdateLeaveStatus(l.id, 'Approved')}
-                              className="p-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40 rounded transition"
-                              title="Approve"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleUpdateLeaveStatus(l.id, 'Rejected')}
-                              className="p-1 bg-rose-500/20 text-rose-400 hover:bg-rose-500/40 rounded transition"
-                              title="Reject"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                            l.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                          }`}>
-                            {l.status}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <form onSubmit={handleApplyLeave} className="border-t border-slate-900 pt-6 space-y-4">
-              <h4 className="font-bold text-sm text-slate-300">Submit Leave Application</h4>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Employee</label>
-                  <select
-                    value={leaveEmpId}
-                    onChange={(e) => setLeaveEmpId(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                    required
-                  >
-                    <option value="">-- Choose Member --</option>
-                    {employees.map(e => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Leave Type</label>
-                  <select
-                    value={leaveType}
-                    onChange={(e) => setLeaveType(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                  >
-                    <option value="Sick Leave">Sick Leave</option>
-                    <option value="Casual Leave">Casual Leave</option>
-                    <option value="Maternity/Paternity">Maternity/Paternity</option>
-                    <option value="Unpaid Leave">Unpaid Leave</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <DatePicker label="Start Date" value={leaveStart} onChange={setLeaveStart} required />
-                <DatePicker label="End Date" value={leaveEnd} onChange={setLeaveEnd} />
-              </div>
-
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Reason Description</label>
-                <input
-                  type="text"
-                  value={leaveReason}
-                  onChange={(e) => setLeaveReason(e.target.value)}
-                  className="w-full glass-input p-2.5 rounded-xl text-xs"
-                  placeholder="Reason detail..."
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-violet-600 hover:bg-violet-700 py-2.5 rounded-xl text-xs font-semibold text-white transition"
-              >
-                Submit Request
-              </button>
-            </form>
-          </div>
-
-          {/* Clock Register */}
-          <div className="glass-panel p-6 rounded-2xl space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Clock-In & Attendance Register</h3>
-            
-            <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-              {attendance.map(a => {
-                const emp = employees.find(e => e.id === a.employeeId);
-                return (
-                  <div key={a.id} className="glass-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-blue-500">
-                    <div className="space-y-1">
-                      <div className="font-semibold text-sm text-slate-200">
-                        {emp ? emp.name : 'Unknown Staff'}
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        Date Log: {a.logDate || a.date} | Mode: {a.type || 'Office'}
-                      </div>
-                    </div>
-                    <div className="text-right text-xs text-slate-300">
-                      <div>Clock In: <span className="font-mono text-emerald-400 font-semibold">{a.clockIn}</span></div>
-                      <div>Clock Out: <span className="font-mono text-slate-400">{a.clockOut || '--:--'}</span></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <form onSubmit={handleClockIn} className="border-t border-slate-900 pt-6 space-y-4">
-              <h4 className="font-bold text-sm text-slate-300 font-sans">Register Day Timestamp</h4>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-1">
-                  <label className="block text-xs text-slate-400 mb-1">Employee</label>
-                  <select
-                    value={clockEmpId}
-                    onChange={(e) => setClockEmpId(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                    required
-                  >
-                    <option value="">-- Select --</option>
-                    {employees.map(e => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Clock In</label>
-                  <input
-                    type="time"
-                    value={clockInTime}
-                    onChange={(e) => setClockInTime(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Clock Out</label>
-                  <input
-                    type="time"
-                    value={clockOutTime}
-                    onChange={(e) => setClockOutTime(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 py-2.5 rounded-xl text-xs font-semibold text-white transition"
-              >
-                Log Stamp
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Attendance Document Upload */}
-        <div className="glass-panel p-6 rounded-2xl space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">Attendance Records (Uploaded Documents)</h3>
-            <span className="text-3xs text-slate-500 font-mono">{(attendanceDocs || []).length} files</span>
-          </div>
-
-          <form onSubmit={handleUploadAttendanceDoc} className="glass-card p-4 rounded-xl border border-dashed border-slate-700/60 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Label (e.g. June Week 3)</label>
-                <input type="text" value={docLabel} onChange={e => setDocLabel(e.target.value)}
-                  className="w-full glass-input p-2.5 rounded-xl text-xs" placeholder="e.g. July Week 1, July 2026" required />
-              </div>
-              <div>
-                <label className="block text-3xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">File</label>
-                <input ref={fileInputRef} type="file" accept=".pdf,.csv,.xlsx,.xls,.jpg,.jpeg,.png"
-                  className="w-full glass-input p-2 rounded-xl text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-violet-600 file:text-white file:text-xs file:font-semibold hover:file:bg-violet-700 file:cursor-pointer cursor-pointer"
-                  required />
-              </div>
-            </div>
-            <button type="submit" disabled={uploadingDoc}
-              className="w-full bg-violet-600 hover:bg-violet-700 disabled:opacity-60 py-2 rounded-xl text-xs font-semibold text-white transition cursor-pointer flex items-center justify-center gap-2">
-              {uploadingDoc ? (
-                <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Uploading...</>
-              ) : 'Upload Attendance Document'}
-            </button>
-          </form>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(attendanceDocs || []).length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center col-span-full border border-dashed border-slate-800/60 rounded-xl">
-                <Download className="w-8 h-8 text-slate-600 mb-2" />
-                <p className="text-xs text-slate-500">No attendance documents uploaded yet.</p>
-              </div>
-            ) : [...(attendanceDocs || [])].reverse().map(doc => (
-              <div key={doc.id} className="glass-card p-3 rounded-xl flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-xs text-slate-200 truncate">{doc.label}</div>
-                  <div className="text-3xs text-slate-400 font-mono">{doc.fileName} • {(doc.fileSize / 1024).toFixed(0)} KB</div>
-                  <div className="text-3xs text-slate-500">Uploaded: {doc.uploadedAt}</div>
-                </div>
-                <a href={doc.dataUrl} download={doc.fileName}
-                  className="shrink-0 p-2 bg-violet-600/15 hover:bg-violet-600/30 rounded-lg text-violet-400 transition cursor-pointer"
-                  title="Download">
-                  <Download className="w-4 h-4" />
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        <AttendanceLeaves
+          employees={employees}
+          leaves={leaves}
+          attendance={attendance}
+          attendanceDocs={attendanceDocs}
+          leaveEmpId={leaveEmpId} setLeaveEmpId={setLeaveEmpId}
+          leaveStart={leaveStart} setLeaveStart={setLeaveStart}
+          leaveEnd={leaveEnd} setLeaveEnd={setLeaveEnd}
+          leaveType={leaveType} setLeaveType={setLeaveType}
+          leaveReason={leaveReason} setLeaveReason={setLeaveReason}
+          clockEmpId={clockEmpId} setClockEmpId={setClockEmpId}
+          clockInTime={clockInTime} setClockInTime={setClockInTime}
+          clockOutTime={clockOutTime} setClockOutTime={setClockOutTime}
+          docLabel={docLabel} setDocLabel={setDocLabel}
+          uploadingDoc={uploadingDoc}
+          fileInputRef={fileInputRef}
+          handleApplyLeave={handleApplyLeave}
+          handleUpdateLeaveStatus={handleUpdateLeaveStatus}
+          handleClockIn={handleClockIn}
+          handleUploadAttendanceDoc={handleUploadAttendanceDoc}
+        />
       )}
 
       {/* -------------------------
           SUBTAB: TIMESHEETS AUDIT LOGS
           ------------------------- */}
       {activeSubTab === 'timelogs' && (
-        <div className="glass-panel p-6 rounded-2xl space-y-6 print:hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-100">Timesheet Audit Ledger</h3>
-              <p className="text-xs text-slate-400">View and audit all hours logged by team members against task contexts.</p>
-            </div>
-            <button
-              onClick={handleExportTimelogs}
-              className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-            >
-              <Download className="w-4 h-4" /> Export Timesheets (.csv)
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase">
-                  <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Task Reference</th>
-                  <th className="py-3 px-4">Date Logged</th>
-                  <th className="py-3 px-4">Hours Logged</th>
-                  <th className="py-3 px-4">Work Description Summary</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/40 text-slate-300">
-                {timelogs.map(log => {
-                  const emp = employees.find(e => e.id === log.employeeId);
-                  const task = tasks.find(t => t.id === log.taskId);
-                  return (
-                    <tr key={log.id} className="hover:bg-slate-900/20">
-                      <td className="py-3.5 px-4 font-semibold text-slate-200">{emp?.name || 'Staff'}</td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-violet-400">{task?.title || 'General Activity'}</td>
-                      <td className="py-3.5 px-4">{log.date}</td>
-                      <td className="py-3.5 px-4 font-mono font-bold">{log.hours} Hrs</td>
-                      <td className="py-3.5 px-4 text-slate-400 italic line-clamp-1">"{log.description}"</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <TimesheetAudit
+          employees={employees}
+          timelogs={timelogs}
+          tasks={tasks}
+          handleExportTimelogs={handleExportTimelogs}
+        />
       )}
 
       {/* -------------------------
           SUBTAB: SALARY & ADVANCES
           ------------------------- */}
       {activeSubTab === 'salary' && (
-        <div className="space-y-6 print:hidden">
-          {/* Stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Total Payroll', count: `₹${employees.reduce((s, e) => s + (e.salary || 0), 0).toLocaleString()}`, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-              { label: 'Pending Advances', count: advances.filter(a => a.status === 'Pending').length, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-              { label: 'Approved Advances', count: advances.filter(a => a.status === 'Approved').length, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-              { label: 'Total Advances', count: `₹${advances.filter(a => a.status === 'Approved').reduce((s, a) => s + a.amount, 0).toLocaleString()}`, color: 'text-rose-400', bg: 'bg-rose-500/10' },
-            ].map(s => (
-              <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3 border border-slate-800/40`}>
-                <p className="text-3xs text-slate-500 uppercase tracking-wider">{s.label}</p>
-                <p className={`text-sm font-bold ${s.color} mt-0.5`}>{s.count}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Advance Salary Requests</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {advances.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center col-span-2 border border-dashed border-slate-800/60 rounded-xl">
-                  <DollarSign className="w-8 h-8 text-slate-600 mb-2" />
-                  <p className="text-xs text-slate-500">No advance requests logged yet.</p>
-                </div>
-              ) : (
-                advances.map(a => {
-                  const emp = employees.find(e => e.id === a.employeeId);
-                  return (
-                    <div key={a.id} className="glass-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-fuchsia-500">
-                      <div className="space-y-1">
-                        <div className="font-semibold text-sm text-slate-200">{emp ? emp.name : 'Unknown Staff'}</div>
-                        <div className="text-xs text-slate-400">Request: ₹{a.amount.toLocaleString()} on {a.date}</div>
-                        <div className="text-xs text-slate-500">Reason: "{a.reason}"</div>
-                      </div>
-
-                      <div className="flex gap-1">
-                        {a.status === 'Pending' ? (
-                          <>
-                            <button
-                              onClick={() => handleUpdateAdvanceStatus(a.id, 'Approved')}
-                              className="p-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40 rounded transition"
-                              title="Approve"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleUpdateAdvanceStatus(a.id, 'Rejected')}
-                              className="p-1 bg-rose-500/20 text-rose-400 hover:bg-rose-500/40 rounded transition"
-                              title="Reject"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            a.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                          }`}>
-                            {a.status}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <form onSubmit={handleRequestAdvance} className="border-t border-slate-900 pt-6 space-y-4">
-              <h4 className="font-bold text-sm text-slate-300">Create Advance Request Form</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Employee Profile</label>
-                  <select
-                    value={advEmpId}
-                    onChange={(e) => setAdvEmpId(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                    required
-                  >
-                    <option value="">-- Choose Member --</option>
-                    {employees.map(e => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Request Amount (₹)</label>
-                  <input
-                    type="number"
-                    value={advAmount}
-                    onChange={(e) => setAdvAmount(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                    placeholder="10000"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Deduction Reason</label>
-                  <input
-                    type="text"
-                    value={advReason}
-                    onChange={(e) => setAdvReason(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-xs"
-                    placeholder="House rent prepayment..."
-                    required
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-fuchsia-600 hover:bg-fuchsia-700 py-2.5 rounded-xl text-xs font-semibold text-white transition"
-              >
-                Log Request
-              </button>
-            </form>
-          </div>
-
-          {/* Salary Event Logic Ledger */}
-          <div className="glass-panel p-6 rounded-2xl space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100 flex items-center justify-between">
-              <span>Salary Ledger (Total Salary Calculation)</span>
-            </h3>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase">
-                    <th className="py-2.5 px-4">Employee</th>
-                    <th className="py-2.5 px-4">Base</th>
-                    <th className="py-2.5 px-4 text-rose-400">Leave Ded.</th>
-                    <th className="py-2.5 px-4 text-amber-500">Advance Ded.</th>
-                    <th className="py-2.5 px-4 text-emerald-400 font-bold">Total Payout</th>
-                    <th className="py-2.5 px-4 text-right">Reciept</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 text-xs">
-                  {employees.map(emp => {
-                    const pay = getEmployeePayrollDetails(emp);
-                    return (
-                      <tr key={emp.id} className="text-slate-300 text-xs hover:bg-slate-900/25">
-                        <td className="py-3 px-4 font-semibold text-slate-200">{emp.name}</td>
-                        <td className="py-3 px-4 font-mono">₹{pay.base.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-rose-400 font-mono">-₹{pay.leaveDeduction.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-amber-500 font-mono">-₹{pay.advancesDeduction.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-emerald-400 font-bold font-mono text-sm">
-                          ₹{pay.totalSalary.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => setSelectedPayslipEmp(emp)}
-                            className="bg-violet-600/15 hover:bg-violet-600/30 text-violet-400 px-3 py-1.5 rounded-xl border border-violet-500/20 transition flex items-center gap-1.5 ml-auto text-xs cursor-pointer font-bold"
-                          >
-                            <Printer className="w-3.5 h-3.5" /> Payslip
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <SalaryAdvances
+          employees={employees}
+          advances={advances}
+          advEmpId={advEmpId} setAdvEmpId={setAdvEmpId}
+          advAmount={advAmount} setAdvAmount={setAdvAmount}
+          advReason={advReason} setAdvReason={setAdvReason}
+          handleRequestAdvance={handleRequestAdvance}
+          handleUpdateAdvanceStatus={handleUpdateAdvanceStatus}
+          getEmployeePayrollDetails={getEmployeePayrollDetails}
+          setSelectedPayslipEmp={setSelectedPayslipEmp}
+        />
       )}
 
       {/* -------------------------
           SUBTAB: CLIENT ROUTER
           ------------------------- */}
       {activeSubTab === 'router' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
-          <div className="glass-panel p-6 rounded-2xl lg:col-span-1 space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Connect Website Client to Dev</h3>
-            <form onSubmit={handleRouteClient} className="space-y-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Company/Client Name</label>
-                <input
-                  type="text"
-                  value={routeClientName}
-                  onChange={(e) => setRouteClientName(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  placeholder="e.g. Aura Cosmetics"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Project Objective</label>
-                <input
-                  type="text"
-                  value={routeProjectName}
-                  onChange={(e) => setRouteProjectName(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  placeholder="e.g. E-Commerce Redesign"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Assign Development Lead</label>
-                <select
-                  value={routeDevId}
-                  onChange={(e) => setRouteDevId(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  required
-                >
-                  <option value="">-- Choose Dev --</option>
-                  {employees.filter(e => e.department?.includes('Developers')).map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-violet-600 hover:bg-violet-700 py-3 rounded-xl text-white font-medium transition flex items-center justify-center gap-2"
-              >
-                <Send className="w-4 h-4" /> Route Project Lead
-              </button>
-            </form>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl lg:col-span-2 space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Routed Technical Clients</h3>
-            
-            <div className="space-y-4">
-              {devProjects.map(proj => {
-                const dev = employees.find(e => e.id === proj.devId);
-                return (
-                  <div key={proj.id} className="glass-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-violet-500">
-                    <div className="space-y-0.5">
-                      <div className="font-semibold text-slate-200">{proj.name}</div>
-                      <div className="text-xs text-slate-400">Client: {proj.client}</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs bg-slate-900 text-slate-300 px-3 py-1 rounded-full">
-                        Lead Developer: {dev ? dev.name : 'Unassigned'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <ConnectLeads
+          employees={employees}
+          devProjects={devProjects}
+          routeClientName={routeClientName} setRouteClientName={setRouteClientName}
+          routeProjectName={routeProjectName} setRouteProjectName={setRouteProjectName}
+          routeDevId={routeDevId} setRouteDevId={setRouteDevId}
+          handleRouteClient={handleRouteClient}
+        />
       )}
 
       {/* -------------------------
           SUBTAB: INTERVIEWS
           ------------------------- */}
       {activeSubTab === 'interviews' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
-          <div className="glass-panel p-6 rounded-2xl lg:col-span-1 space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Schedule Interview</h3>
-            <form onSubmit={handleScheduleInterview} className="space-y-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Candidate Name</label>
-                <input
-                  type="text"
-                  value={candName}
-                  onChange={(e) => setCandName(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Target Position</label>
-                <input
-                  type="text"
-                  value={candPos}
-                  onChange={(e) => setCandPos(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  placeholder="Senior React Developer"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Interview Date</label>
-                  <DatePicker value={candDate} onChange={setCandDate} placeholderText="Select date" required />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={candTime}
-                    onChange={(e) => setCandTime(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Assigned Interviewer</label>
-                <select
-                  value={candInterviewer}
-                  onChange={(e) => setCandInterviewer(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-xs"
-                >
-                  <option value="">-- Select Interviewer --</option>
-                  {employees.map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Virtual Meeting Link</label>
-                <input
-                  type="url"
-                  value={candLink}
-                  onChange={(e) => setCandLink(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  placeholder="https://meet.google.com/abc-defg"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-violet-600 hover:bg-violet-700 py-3 rounded-xl text-white font-medium shadow-md transition"
-              >
-                Confirm Schedule
-              </button>
-            </form>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl lg:col-span-2 space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Schedule Interview Roster</h3>
-            
-            <div className="space-y-4">
-              {interviews.map(i => {
-                const interviewer = employees.find(e => e.id === i.interviewerId);
-                return (
-                  <div key={i.id} className="glass-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-violet-500">
-                    <div className="space-y-1">
-                      <div className="font-semibold text-slate-100">{i.candidateName}</div>
-                      <div className="text-xs text-slate-400">{i.position} | Interviewer: {interviewer ? interviewer.name : 'HR'}</div>
-                      <div className="text-xs text-violet-400">{new Date(i.date).toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <a
-                        href={i.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded text-xs transition font-semibold"
-                      >
-                        Join Meet
-                      </a>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <Interviews
+          employees={employees}
+          interviews={interviews}
+          candName={candName} setCandName={setCandName}
+          candPos={candPos} setCandPos={setCandPos}
+          candDate={candDate} setCandDate={setCandDate}
+          candTime={candTime} setCandTime={setCandTime}
+          candInterviewer={candInterviewer} setCandInterviewer={setCandInterviewer}
+          candLink={candLink} setCandLink={setCandLink}
+          handleScheduleInterview={handleScheduleInterview}
+        />
       )}
 
       {/* -------------------------
           SUBTAB: CLIENT FEEDBACK
           ------------------------- */}
       {activeSubTab === 'feedback' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
-          <div className="glass-panel p-6 rounded-2xl lg:col-span-1 space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Log Clients Feedback</h3>
-            <form onSubmit={handleAddFeedback} className="space-y-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Company/Client Name</label>
-                <input
-                  type="text"
-                  value={fbClient}
-                  onChange={(e) => setFbClient(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm"
-                  placeholder="Luna Fashion"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Department Rated</label>
-                  <select
-                    value={fbDept}
-                    onChange={(e) => setFbDept(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-sm"
-                  >
-                    <option value="Paid Ads">Paid Ads</option>
-                    <option value="Social Media">Social Media</option>
-                    <option value="Developers">Developers</option>
-                    <option value="Video Editors">Video Editors</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Rating Score</label>
-                  <select
-                    value={fbRating}
-                    onChange={(e) => setFbRating(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-sm"
-                  >
-                    <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
-                    <option value="4">⭐⭐⭐⭐ (4/5)</option>
-                    <option value="3">⭐⭐⭐ (3/5)</option>
-                    <option value="2">⭐⭐ (2/5)</option>
-                    <option value="1">⭐ (1/5)</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Feedback Brief</label>
-                <textarea
-                  value={fbComment}
-                  onChange={(e) => setFbComment(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl h-24 text-sm"
-                  placeholder="They loved the layout, wanted earlier postings..."
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-violet-600 hover:bg-violet-700 py-3 rounded-xl text-white font-medium shadow-md transition"
-              >
-                Log Feedback
-              </button>
-            </form>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl lg:col-span-2 space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100 font-sans">Compiled Feedback Logs</h3>
-            
-            <div className="space-y-4">
-              {feedback.map(fb => (
-                <div key={fb.id} className="glass-card p-5 rounded-2xl flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold text-slate-200">{fb.clientName}</h4>
-                      <p className="text-xs text-slate-400">Department: {fb.department} | {fb.date}</p>
-                    </div>
-                    <span className="text-amber-400 font-bold flex gap-0.5">
-                      {'⭐'.repeat(fb.rating)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-300 italic">" {fb.comment} "</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <ClientFeedback
+          feedback={feedback}
+          fbClient={fbClient} setFbClient={setFbClient}
+          fbDept={fbDept} setFbDept={setFbDept}
+          fbRating={fbRating} setFbRating={setFbRating}
+          fbComment={fbComment} setFbComment={setFbComment}
+          handleAddFeedback={handleAddFeedback}
+        />
       )}
 
       {/* -------------------------
           SUBTAB: PAYMENT SECURITY & OPERATIONS
           ------------------------- */}
       {activeSubTab === 'security' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:hidden">
-          <div className="glass-panel p-6 rounded-2xl space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-100">Payment Security & Escrows</h3>
-              <button onClick={() => setEscrowOpen(true)}
-                className="p-1.5 hover:bg-fuchsia-500/15 rounded text-fuchsia-400 transition cursor-pointer" title="Add Escrow">
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-
-            {escrowOpen && (
-              <form onSubmit={handleAddEscrow} className="glass-card p-4 rounded-xl space-y-3 border border-fuchsia-500/20">
-                <input type="text" value={escrowName} onChange={e => setEscrowName(e.target.value)}
-                  className="w-full glass-input p-2.5 rounded-xl text-xs" placeholder="Project / Milestone name" required />
-                <div className="flex gap-2">
-                  <input type="number" value={escrowAmount} onChange={e => setEscrowAmount(e.target.value)}
-                    className="flex-1 glass-input p-2.5 rounded-xl text-xs font-mono" placeholder="Amount (₹)" required />
-                  <button type="submit" className="bg-fuchsia-600 hover:bg-fuchsia-700 px-3 rounded-xl text-xs font-bold text-white transition cursor-pointer">Add</button>
-                  <button type="button" onClick={() => setEscrowOpen(false)} className="bg-slate-800 hover:bg-slate-700 px-3 rounded-xl text-xs text-slate-300 transition cursor-pointer">Cancel</button>
-                </div>
-              </form>
-            )}
-
-            <div className="space-y-4">
-              {escrows.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-slate-800/60 rounded-xl">
-                  <ShieldCheck className="w-8 h-8 text-slate-600 mb-2" />
-                  <p className="text-xs text-slate-500">No escrow entries yet.</p>
-                </div>
-              ) : escrows.map(esc => (
-                <div key={esc.id} className="glass-card p-4 rounded-xl flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-sm text-slate-200">{esc.name}</div>
-                    <div className="text-xs text-slate-400">Budget Escrow: ₹{esc.amount.toLocaleString()}</div>
-                  </div>
-                  <button onClick={() => handleToggleEscrow(esc.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition cursor-pointer ${
-                      esc.status === 'Verified'
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'
-                    }`}>
-                    {esc.status === 'Verified' ? 'Verified' : 'Pending Verification'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl space-y-6">
-            <h3 className="text-lg font-semibold text-slate-100">Daily Operations Checklist</h3>
-
-            <form onSubmit={handleAddOps} className="flex items-center gap-2">
-              <input type="text" value={newOpsText} onChange={e => setNewOpsText(e.target.value)}
-                className="flex-1 glass-input p-2.5 rounded-xl text-xs" placeholder="New operation task..." required />
-              <button type="submit" className="bg-violet-600 hover:bg-violet-700 px-3 py-2.5 rounded-xl text-xs font-bold text-white transition cursor-pointer flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" /> Add
-              </button>
-            </form>
-
-            <div className="space-y-3">
-              {dailyOps.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-slate-800/60 rounded-xl">
-                  <Activity className="w-8 h-8 text-slate-600 mb-2" />
-                  <p className="text-xs text-slate-500">No operations logged yet.</p>
-                </div>
-              ) : dailyOps.map(op => (
-                <div key={op.id} className="flex items-center gap-3 p-3 bg-slate-950/45 rounded-xl border border-slate-900">
-                  <input
-                    type="checkbox"
-                    checked={op.status === 'Completed'}
-                    onChange={() => {
-                      const updated = dailyOps.map(item => {
-                        if (item.id === op.id) {
-                          return { ...item, status: item.status === 'Completed' ? 'Pending' : 'Completed' };
-                        }
-                        return item;
-                      });
-                      updateState({ dailyOps: updated });
-                    }}
-                    className="w-4.5 h-4.5 border-slate-800 rounded accent-violet-600 focus:ring-0 cursor-pointer"
-                  />
-                  <span className={`text-sm ${op.status === 'Completed' ? 'line-through text-slate-500' : 'text-slate-200'}`}>
-                    {op.task}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <SecurityOps
+          dailyOps={dailyOps}
+          updateState={updateState}
+          escrows={escrows} setEscrows={setEscrows}
+          escrowOpen={escrowOpen} setEscrowOpen={setEscrowOpen}
+          escrowName={escrowName} setEscrowName={setEscrowName}
+          escrowAmount={escrowAmount} setEscrowAmount={setEscrowAmount}
+          newOpsText={newOpsText} setNewOpsText={setNewOpsText}
+          handleAddEscrow={handleAddEscrow}
+          handleToggleEscrow={handleToggleEscrow}
+          handleAddOps={handleAddOps}
+        />
       )}
 
       {/* -------------------------

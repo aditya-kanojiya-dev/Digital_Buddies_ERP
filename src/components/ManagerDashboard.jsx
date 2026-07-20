@@ -867,21 +867,6 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
                 </div>
 
-                {/* Assignee */}
-                <div className="relative">
-                  <select
-                    value={taskFilterAssignee}
-                    onChange={e => setTaskFilterAssignee(e.target.value)}
-                    className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
-                  >
-                    <option value="">All Members</option>
-                    {employees.map(emp => (
-                      <option key={emp.id} value={emp.id}>{emp.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
-                </div>
-
                 {/* Department */}
                 <div className="relative">
                   <select
@@ -897,6 +882,21 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
                 </div>
               </div>
+
+                {/* Assignee */}
+                <div className="relative">
+                  <select
+                    value={taskFilterAssignee}
+                    onChange={e => setTaskFilterAssignee(e.target.value)}
+                    className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
+                  >
+                    <option value="">All Members</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                </div>
 
               {activeFilterCount > 0 && (
                 <button onClick={clearFilters} className="text-3xs text-violet-400 hover:text-violet-300 font-medium transition cursor-pointer">

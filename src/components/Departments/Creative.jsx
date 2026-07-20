@@ -1,15 +1,22 @@
 import { useState, useMemo, useRef } from 'react';
 import {
   Film, Image, Camera, Plus, AlertCircle, User, Link as LinkIcon,
-  GitBranch, X, Filter, UserPlus, Edit3, GripVertical, RefreshCw, Trash2,
+  Filter, UserPlus, Edit3, GripVertical, RefreshCw, Trash2,
   CalendarCheck, CalendarClock, ClockAlert, CheckCircle,
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { genId, today as todayStr, addDays } from '../../lib/format';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
-import { DatePicker } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
 import { db } from '../../data/db';
+import TaskFormModal from './Creative/TaskFormModal';
+import RevisionModal from './Creative/RevisionModal';
+import DelegationModal from './Creative/DelegationModal';
+import RescheduleModal from './Creative/RescheduleModal';
+import DelayReportModal from './Creative/DelayReportModal';
+import ReassignModal from './Creative/ReassignModal';
+import EditTaskModal from './Creative/EditTaskModal';
+import DeleteConfirmModal from './Creative/DeleteConfirmModal';
 
 const COLUMNS = ['New', 'In Progress', 'Review', 'Completed'];
 
@@ -946,461 +953,75 @@ export default function Creative({ user, state, updateState, activeDepartment })
         })}
       </div>
 
-      {/* ── Task form modal ── */}
-      {showTaskForm && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4"
-          onClick={() => setShowTaskForm(false)}>
-          <div className="glass-panel border border-fuchsia-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-lg max-h-[85vh] md:max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 md:p-5 border-b border-slate-800">
-              <h3 className="font-bold text-slate-100 text-sm">New Task</h3>
-              <button onClick={() => setShowTaskForm(false)}
-                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4 md:p-5">
-            {canAssignTasks ? (
-              <form onSubmit={handleAddTask} className="space-y-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1.5">Task Name</label>
-                  <input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="e.g. Aura Serum Instagram Ad V1" required />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1.5">Priority</label>
-                  <select value={priority} onChange={e => {
-                    setPriority(e.target.value);
-                    if (e.target.value === 'Emergency') setDaysPrior('0');
-                    else if (daysPrior === '0' || daysPrior === '1' || daysPrior === '2') setDaysPrior('3');
-                  }}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm">
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                    <option value="Emergency">Emergency</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1.5">Timeline</label>
-                  {priority === 'Emergency' ? (
-                    <select value={daysPrior} onChange={e => setDaysPrior(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm">
-                      <option value="0">Today (ASAP)</option>
-                      <option value="1">Tomorrow (End of day)</option>
-                      <option value="2">Day After Tomorrow</option>
-                    </select>
-                  ) : (
-                    <select value={daysPrior} onChange={e => setDaysPrior(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm">
-                      <option value="3">3 Days from today</option>
-                      <option value="4">4 Days from today</option>
-                      <option value="5">5 Days from today</option>
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1.5">Role Type</label>
-                  <select value={subTypeFilter} onChange={e => { setSubTypeFilter(e.target.value); setAssigneeId(''); setCoAssigneeId(''); setNeedsBothRoles(false); }}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm">
-                    <option value="">All Roles</option>
-                    <option value="Videographer">Videographer</option>
-                    <option value="Content Creator">Content Creator / Influencer</option>
-                  </select>
-                </div>
-                {subTypeFilter && activeDepartment === 'Videography/Photography' && (
-                  <div className="flex items-center gap-3 px-1">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" checked={needsBothRoles}
-                        onChange={e => { setNeedsBothRoles(e.target.checked); if (!e.target.checked) setCoAssigneeId(''); }}
-                        className="sr-only peer" />
-                      <div className="w-9 h-5 bg-slate-700 peer-focus:ring-2 peer-focus:ring-violet-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
-                    </label>
-                    <span className="text-xs text-slate-400">Requires both roles?</span>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1.5">Assign to</label>
-                  <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
-                    className="w-full glass-input p-2.5 rounded-xl text-sm" required>
-                    <option value="">— Choose member —</option>
-                    {creativeStaff.length === 0 && <option disabled>No {activeDepartment} staff found</option>}
-                    {creativeStaff.map(s => {
-                      const dueDate = scheduledDate
-                        ? addDays(scheduledDate, -parseInt(daysPrior))
-                        : addDays(todayStr(), parseInt(daysPrior));
-                      const info = getWorkloadInfo(tasks, s.id, dueDate, activeDepartment, priority);
-                      const label = info ? formatWorkloadLabel(s.name, info.load, info.softMax, dueDate) : s.name;
-                      return <option key={s.id} value={s.id} className={
-                        info?.color === 'red' ? 'text-red-400' :
-                        info?.color === 'amber' ? 'text-amber-400' : ''
-                      }>{label}</option>;
-                    })}
-                  </select>
-                </div>
-                {needsBothRoles && coAssigneeStaff.length > 0 && (
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Co-Assignee ({subTypeFilter === 'Videographer' ? 'Content Creator' : 'Videographer'})</label>
-                    <select value={coAssigneeId} onChange={e => setCoAssigneeId(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" required>
-                      <option value="">— Choose co-assignee —</option>
-                      {coAssigneeStaff.map(s => {
-                        const dueDate = scheduledDate
-                          ? addDays(scheduledDate, -parseInt(daysPrior))
-                          : addDays(todayStr(), parseInt(daysPrior));
-                        const info = getWorkloadInfo(tasks, s.id, dueDate, activeDepartment, priority);
-                        const label = info ? formatWorkloadLabel(s.name, info.load, info.softMax, dueDate) : s.name;
-                        return <option key={s.id} value={s.id} className={
-                          info?.color === 'red' ? 'text-red-400' :
-                          info?.color === 'amber' ? 'text-amber-400' : ''
-                        }>{label}</option>;
-                      })}
-                    </select>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <DatePicker label="Prior Date" value={scheduledDate} onChange={setScheduledDate} />
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Attachment Link</label>
-                    <input type="url" value={attachmentUrl} onChange={e => setAttachmentUrl(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" placeholder="Drive / Figma URL" />
-                  </div>
-                </div>
-                <button type="submit" onClick={() => setShowTaskForm(false)}
-                  className="w-full bg-fuchsia-500 hover:bg-fuchsia-600 py-2.5 rounded-xl text-white font-bold shadow-lg shadow-fuchsia-500/20 transition-all duration-150 flex items-center justify-center gap-2">
-                  <Plus className="w-5 h-5" /> Queue Asset
-                </button>
-              </form>
-            ) : (
-              <div className="text-center py-8 border border-dashed border-slate-800 rounded-2xl">
-                <AlertCircle className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                <p className="text-slate-400 text-xs">Task assignment is restricted to Managers, Admins, and Social Media department</p>
-              </div>
-            )}
-            </div>
-          </div>
-        </div>
-      )}
+      <TaskFormModal
+        showTaskForm={showTaskForm} setShowTaskForm={setShowTaskForm}
+        canAssignTasks={canAssignTasks} handleAddTask={handleAddTask}
+        taskTitle={taskTitle} setTaskTitle={setTaskTitle}
+        priority={priority} setPriority={setPriority}
+        daysPrior={daysPrior} setDaysPrior={setDaysPrior}
+        subTypeFilter={subTypeFilter} setSubTypeFilter={setSubTypeFilter}
+        assigneeId={assigneeId} setAssigneeId={setAssigneeId}
+        needsBothRoles={needsBothRoles} setNeedsBothRoles={setNeedsBothRoles}
+        coAssigneeId={coAssigneeId} setCoAssigneeId={setCoAssigneeId}
+        scheduledDate={scheduledDate} setScheduledDate={setScheduledDate}
+        attachmentUrl={attachmentUrl} setAttachmentUrl={setAttachmentUrl}
+        creativeStaff={creativeStaff} coAssigneeStaff={coAssigneeStaff}
+        activeDepartment={activeDepartment} tasks={tasks}
+        getWorkloadInfo={getWorkloadInfo} formatWorkloadLabel={formatWorkloadLabel}
+        addDays={addDays} todayStr={todayStr}
+      />
 
-      {/* ── Revision modal ── */}
-      {revisionTaskId && (
-        <>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => setRevisionTaskId(null)} />
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-            <div className="glass-panel border border-amber-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-md max-h-[80vh] md:max-h-[90vh] overflow-y-auto p-5 md:p-6 space-y-4"
-              onClick={e => e.stopPropagation()}>
-              <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                <GitBranch className="w-5 h-5 text-amber-400" />
-                Revision Note
-              </h3>
-              <p className="text-sm text-slate-400">Why is this task being sent back from Review?</p>
-              <form onSubmit={handleSubmitRevision} className="space-y-4">
-                <textarea value={revisionNote} onChange={e => setRevisionNote(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm h-24" placeholder="Describe what needs to change..." required autoFocus />
-                <div className="flex gap-2">
-                  <button type="submit" className="bg-amber-600 hover:bg-amber-700 px-5 py-2.5 rounded-xl text-white text-sm font-medium transition flex items-center gap-2">
-                    <GitBranch className="w-4 h-4" /> Send Back (Revision)
-                  </button>
-                  <button type="button" onClick={() => { setRevisionTaskId(null); setRevisionNote(''); }}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </>
-      )}
+      <RevisionModal
+        revisionTaskId={revisionTaskId} setRevisionTaskId={setRevisionTaskId}
+        revisionNote={revisionNote} setRevisionNote={setRevisionNote}
+        handleSubmitRevision={handleSubmitRevision}
+      />
 
-      {/* ── Delegation modal ── */}
-      {delegateTaskId && (() => {
-        const task = tasks.find(t => t.id === delegateTaskId);
-        return (
-          <>
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => { setDelegateTaskId(null); setDelegateEmpId(''); }} />
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-              <div className="glass-panel border border-fuchsia-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-md max-h-[80vh] md:max-h-[90vh] overflow-y-auto p-5 md:p-6 space-y-4"
-                onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                  <UserPlus className="w-5 h-5 text-fuchsia-400" />
-                  Delegate Task
-                </h3>
-                <p className="text-sm text-slate-400">
-                  Delegate <span className="text-slate-200 font-semibold">"{task?.title}"</span> to a {activeDepartment} team member.
-                </p>
-                <form onSubmit={handleDelegate} className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Assign to</label>
-                    <select value={delegateEmpId} onChange={e => setDelegateEmpId(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" required>
-                      <option value="">— Choose member —</option>
-                      {creativeStaff
-                        .filter(s => s.id !== user.id)
-                        .map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                    </select>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="submit"
-                      className="flex-1 bg-fuchsia-500 hover:bg-fuchsia-600 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-fuchsia-500/20 transition-all duration-150">
-                      <UserPlus className="w-4 h-4 inline mr-1.5" /> Delegate
-                    </button>
-                    <button type="button"
-                      onClick={() => { setDelegateTaskId(null); setDelegateEmpId(''); }}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </>
-        );
-      })()}
+      <DelegationModal
+        delegateTaskId={delegateTaskId} setDelegateTaskId={setDelegateTaskId}
+        delegateEmpId={delegateEmpId} setDelegateEmpId={setDelegateEmpId}
+        handleDelegate={handleDelegate}
+        tasks={tasks} creativeStaff={creativeStaff} user={user} activeDepartment={activeDepartment}
+      />
 
-      {/* ── Reschedule modal ── */}
-      {rescheduleTaskId && (() => {
-        const task = tasks.find(t => t.id === rescheduleTaskId);
-        return (
-          <>
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => { setRescheduleTaskId(null); setRescheduleDate(''); setRescheduleReason(''); }} />
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-              <div className="glass-panel border border-amber-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-md max-h-[80vh] md:max-h-[90vh] overflow-y-auto p-5 md:p-6 space-y-4"
-                onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                  <CalendarClock className="w-5 h-5 text-amber-400" />
-                  Request Reschedule
-                </h3>
-                <p className="text-sm text-slate-400">
-                  Propose a new date for <span className="text-slate-200 font-semibold">"{task?.title}"</span>.
-                  The Social Media team will be notified.
-                </p>
-                <form onSubmit={handleReschedule} className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Proposed New Date</label>
-                    <input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" required />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Reason for Reschedule</label>
-                    <textarea value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)}
-                      className="w-full glass-input p-3 rounded-xl text-sm h-24 resize-none"
-                      placeholder="e.g. Venue not available, conflicting shoot, weather issue..."
-                      maxLength={300} required />
-                    <p className="text-3xs text-slate-500 text-right mt-1">{rescheduleReason.length}/300</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="submit"
-                      className="flex-1 bg-amber-600 hover:bg-amber-500 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-amber-500/20 transition-all duration-150 flex items-center justify-center gap-2">
-                      <CalendarClock className="w-4 h-4" /> Send Reschedule
-                    </button>
-                    <button type="button"
-                      onClick={() => { setRescheduleTaskId(null); setRescheduleDate(''); setRescheduleReason(''); }}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </>
-        );
-      })()}
+      <RescheduleModal
+        rescheduleTaskId={rescheduleTaskId} setRescheduleTaskId={setRescheduleTaskId}
+        rescheduleDate={rescheduleDate} setRescheduleDate={setRescheduleDate}
+        rescheduleReason={rescheduleReason} setRescheduleReason={setRescheduleReason}
+        handleReschedule={handleReschedule}
+        tasks={tasks}
+      />
 
-      {/* ── Delay report modal ── */}
-      {delayTaskId && (() => {
-        const task = tasks.find(t => t.id === delayTaskId);
-        return (
-          <>
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => { setDelayTaskId(null); setDelayReason(''); setDelayNewDueDate(''); }} />
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-              <div className="glass-panel border border-rose-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-md max-h-[80vh] md:max-h-[90vh] overflow-y-auto p-5 md:p-6 space-y-4"
-                onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                  <ClockAlert className="w-5 h-5 text-rose-400" />
-                  Report Delay
-                </h3>
-                <p className="text-sm text-slate-400">
-                  Task <span className="text-slate-200 font-semibold">"{task?.title}"</span> was due on{' '}
-                  <span className="text-rose-400 font-semibold">{task?.dueDate}</span>. Provide a reason and a new due date.
-                </p>
-                <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-3">
-                  <p className="text-3xs text-rose-300/80 leading-relaxed">
-                    The assigner will be notified and this delay will be recorded in the audit log.
-                  </p>
-                </div>
-                <form onSubmit={handleReportDelay} className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">New Due Date</label>
-                    <input type="date" value={delayNewDueDate} onChange={e => setDelayNewDueDate(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" required />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Reason for Delay *</label>
-                    <textarea value={delayReason} onChange={e => setDelayReason(e.target.value)}
-                      className="w-full glass-input p-3 rounded-xl text-sm h-28 resize-none"
-                      placeholder="e.g. Client feedback delayed revision approval, additional shoot required due to weather, scope creep from client changes..."
-                      maxLength={500} required autoFocus />
-                    <p className="text-3xs text-slate-500 text-right mt-1">{delayReason.length}/500</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="submit"
-                      className="flex-1 bg-rose-600 hover:bg-rose-500 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-rose-500/20 transition-all duration-150 flex items-center justify-center gap-2">
-                      <ClockAlert className="w-4 h-4" /> Submit Delay Report
-                    </button>
-                    <button type="button"
-                      onClick={() => { setDelayTaskId(null); setDelayReason(''); setDelayNewDueDate(''); }}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </>
-        );
-      })()}
+      <DelayReportModal
+        delayTaskId={delayTaskId} setDelayTaskId={setDelayTaskId}
+        delayReason={delayReason} setDelayReason={setDelayReason}
+        delayNewDueDate={delayNewDueDate} setDelayNewDueDate={setDelayNewDueDate}
+        handleReportDelay={handleReportDelay}
+        tasks={tasks}
+      />
 
-      {/* ── Reassign modal ── */}
-      {reassignTaskId && (() => {
-        const task = tasks.find(t => t.id === reassignTaskId);
-        const taskDeptStaff = employees.filter(e => e.department?.includes(task?.department || activeDepartment));
-        return (
-          <>
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => { setReassignTaskId(null); setReassignEmpId(''); }} />
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-              <div className="glass-panel border border-violet-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-md max-h-[80vh] md:max-h-[90vh] overflow-y-auto p-5 md:p-6 space-y-4"
-                onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                  <RefreshCw className="w-5 h-5 text-violet-400" />
-                  Reassign Task
-                </h3>
-                <p className="text-sm text-slate-400">
-                  Reassign <span className="text-slate-200 font-semibold">"{task?.title}"</span> to a different team member.
-                </p>
-                <form onSubmit={(e) => handleReassignSubmit(e, reassignTaskId)} className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Assign to</label>
-                    <select value={reassignEmpId} onChange={e => setReassignEmpId(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" required>
-                      <option value="">— Choose member —</option>
-                      {taskDeptStaff.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="submit"
-                      className="flex-1 bg-violet-600 hover:bg-violet-500 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-violet-500/20 transition-all duration-150 flex items-center justify-center gap-2">
-                      <RefreshCw className="w-4 h-4" /> Reassign
-                    </button>
-                    <button type="button"
-                      onClick={() => { setReassignTaskId(null); setReassignEmpId(''); }}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </>
-        );
-      })()}
+      <ReassignModal
+        reassignTaskId={reassignTaskId} setReassignTaskId={setReassignTaskId}
+        reassignEmpId={reassignEmpId} setReassignEmpId={setReassignEmpId}
+        handleReassignSubmit={handleReassignSubmit}
+        tasks={tasks} employees={employees} activeDepartment={activeDepartment}
+      />
 
-      {/* ── Edit task modal ── */}
-      {editTaskId && (() => {
-        const task = tasks.find(t => t.id === editTaskId);
-        const taskDeptStaff = employees.filter(e => e.department?.includes(task?.department || activeDepartment));
-        return (
-          <>
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => setEditTaskId(null)} />
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-              <div className="glass-panel border border-blue-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-md max-h-[80vh] md:max-h-[90vh] overflow-y-auto p-5 md:p-6 space-y-4"
-                onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                  <Edit3 className="w-5 h-5 text-blue-400" />
-                  Edit Task
-                </h3>
-                <form onSubmit={handleSaveEdit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Task Name</label>
-                    <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" required />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Priority</label>
-                    <select value={editPriority} onChange={e => setEditPriority(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm">
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                      <option value="Emergency">Emergency</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Assign to</label>
-                    <select value={editAssignee} onChange={e => setEditAssignee(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" required>
-                      <option value="">— Choose member —</option>
-                      {taskDeptStaff.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Due Date</label>
-                    <input type="date" value={editDue} onChange={e => setEditDue(e.target.value)}
-                      className="w-full glass-input p-2.5 rounded-xl text-sm" />
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="submit"
-                      className="flex-1 bg-blue-600 hover:bg-blue-500 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-blue-500/20 transition-all duration-150 flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4" /> Save Changes
-                    </button>
-                    <button type="button" onClick={() => setEditTaskId(null)}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </>
-        );
-      })()}
+      <EditTaskModal
+        editTaskId={editTaskId} setEditTaskId={setEditTaskId}
+        editTitle={editTitle} setEditTitle={setEditTitle}
+        editPriority={editPriority} setEditPriority={setEditPriority}
+        editDue={editDue} setEditDue={setEditDue}
+        editAssignee={editAssignee} setEditAssignee={setEditAssignee}
+        handleSaveEdit={handleSaveEdit}
+        tasks={tasks} employees={employees}
+      />
 
-      {/* ── Delete confirmation modal ── */}
-      {deleteTaskId && (() => {
-        const task = tasks.find(t => t.id === deleteTaskId);
-        return (
-          <>
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => setDeleteTaskId(null)} />
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-              <div className="glass-panel border border-rose-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-sm max-h-[80vh] md:max-h-[90vh] overflow-y-auto p-5 md:p-6 space-y-4"
-                onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                  <Trash2 className="w-5 h-5 text-rose-400" />
-                  Delete Task
-                </h3>
-                <p className="text-sm text-slate-400">
-                  Delete <span className="text-slate-200 font-semibold">"{task?.title}"</span> permanently? This cannot be undone.
-                </p>
-                <div className="flex gap-2">
-                  <button onClick={() => handleDeleteTask(deleteTaskId)}
-                    className="flex-1 bg-rose-600 hover:bg-rose-500 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg shadow-rose-500/20 transition-all duration-150 flex items-center justify-center gap-2">
-                    <Trash2 className="w-4 h-4" /> Delete
-                  </button>
-                  <button onClick={() => setDeleteTaskId(null)}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm transition">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        );
-      })()}
+      <DeleteConfirmModal
+        deleteTaskId={deleteTaskId} setDeleteTaskId={setDeleteTaskId}
+        handleDeleteTask={handleDeleteTask}
+        tasks={tasks}
+      />
 
       {/* ── Task Detail Panel ── */}
       {selectedTask && (
