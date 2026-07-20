@@ -135,7 +135,7 @@ export default function SalaryAdvances({
           <span>Salary Ledger (Total Salary Calculation)</span>
         </h3>
         
-        <div className="overflow-x-auto">
+        <div className="table-wrap">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase">

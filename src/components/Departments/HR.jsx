@@ -662,10 +662,10 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
               </div>
 
               {/* Earnings & Deductions Table */}
-              <div className="border border-slate-800 rounded-xl overflow-x-auto print:border-black">
+              <div className="border border-slate-800 rounded-xl table-wrap print:border-black">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-bold print:border-black print:bg-slate-100 print:text-black">
+                    <tr className="bg-slate-950 text-slate-400 font-bold print:border-black print:bg-slate-100 print:text-black">
                       <th className="py-2.5 px-4">Earnings / Allowances</th>
                       <th className="py-2.5 px-4 text-right">Amount (₹)</th>
                       <th className="py-2.5 px-4 border-l border-slate-800 print:border-black">Deductions</th>
@@ -1329,10 +1329,10 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
                 </button>
               </div>
 
-              <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+              <div className="table-wrap max-h-[300px] overflow-y-auto">
                 <table className="w-full text-left border-collapse text-2xs">
                   <thead>
-                    <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase">
+                    <tr className="text-slate-400 font-semibold uppercase">
                       <th className="py-2 px-3">Login Time</th>
                       <th className="py-2 px-3">Logout Time</th>
                       <th className="py-2 px-3">IP Address</th>

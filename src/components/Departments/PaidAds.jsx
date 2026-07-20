@@ -633,10 +633,10 @@ Prepared by: ${user.name} — Paid Ads Team (NeoMax CMS)
             {clientStats.length === 0 ? (
               <p className="text-slate-400 text-center py-6 text-sm">No performance statistics logged yet for this client.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="table-wrap">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-800 text-slate-400 text-xs">
+                    <tr className="text-slate-400 text-xs">
                       <th className="py-3 px-3">Date</th>
                       <th className="py-3 px-3">Budget</th>
                       <th className="py-3 px-3">Spend</th>
