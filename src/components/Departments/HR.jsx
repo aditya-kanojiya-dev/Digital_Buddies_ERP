@@ -8,6 +8,13 @@ import { db } from '../../data/db';
 import { emailService } from '../../lib/emailService';
 import { DatePicker, Modal, ConfirmDialog } from '../ui';
 import { today as todayStr, genId } from '../../lib/format';
+import AttendanceLeaves from './HR/AttendanceLeaves';
+import TimesheetAudit from './HR/TimesheetAudit';
+import SalaryAdvances from './HR/SalaryAdvances';
+import ConnectLeads from './HR/ConnectLeads';
+import Interviews from './HR/Interviews';
+import ClientFeedback from './HR/ClientFeedback';
+import SecurityOps from './HR/SecurityOps';
 
 const STATUS_COLORS = {
   Invited: 'bg-amber-500/10 text-amber-400 border border-amber-500/15',
