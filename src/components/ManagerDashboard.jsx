@@ -875,7 +875,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                     className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
                   >
                     <option value="">All Members</option>
-                    {deptStaff.map(emp => (
+                    {employees.map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.name}</option>
                     ))}
                   </select>
