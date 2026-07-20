@@ -1066,7 +1066,7 @@ export default function DeptCalendar({
 
             {/* ── Cross-dept assign modal ── */}
             {showTaskModal && (
-                <Modal title="Assign Task to Another Department" onClose={() => setShowTaskModal(false)} wide>
+                <Modal open={showTaskModal} title="Assign Task to Another Department" onClose={() => setShowTaskModal(false)} size="xl">
                     <TaskForm
                         sourceDept={deptName}
                         targetDept="Video Editors"
