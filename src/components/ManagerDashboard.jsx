@@ -110,6 +110,11 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
   const activeFilterCount = [taskFilterOwner !== 'mine' ? taskFilterOwner : '', taskFilterStatus, taskFilterPriority, taskFilterAssignee, taskFilterDept, taskFilterSearch].filter(Boolean).length;
   const clearFilters = () => { setTaskFilterOwner('mine'); setTaskFilterStatus(''); setTaskFilterPriority(''); setTaskFilterAssignee(''); setTaskFilterDept(''); setTaskFilterSearch(''); };
 
+  // Employees narrowed by selected department for the assignee dropdown
+  const filteredEmployees = useMemo(() =>
+    taskFilterDept ? employees.filter(e => e.department === taskFilterDept) : employees
+  , [employees, taskFilterDept]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleCreateTask = (e) => {
@@ -875,7 +880,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                     className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
                   >
                     <option value="">All Members</option>
-                    {employees.map(emp => (
+                    {filteredEmployees.map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.name}</option>
                     ))}
                   </select>
@@ -886,7 +891,15 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                 <div className="relative">
                   <select
                     value={taskFilterDept}
-                    onChange={e => setTaskFilterDept(e.target.value)}
+                    onChange={e => {
+                      const newDept = e.target.value;
+                      setTaskFilterDept(newDept);
+                      // Reset assignee if current selection isn't in the new dept
+                      if (taskFilterAssignee && newDept) {
+                        const stillValid = employees.some(e => e.id === taskFilterAssignee && e.department === newDept);
+                        if (!stillValid) setTaskFilterAssignee('');
+                      }
+                    }}
                     className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
                   >
                     <option value="">All Depts</option>
@@ -897,21 +910,6 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
                 </div>
               </div>
-
-                {/* Assignee */}
-                <div className="relative">
-                  <select
-                    value={taskFilterAssignee}
-                    onChange={e => setTaskFilterAssignee(e.target.value)}
-                    className="w-full glass-input appearance-none pr-7 py-1.5 rounded-lg text-xs cursor-pointer"
-                  >
-                    <option value="">All Members</option>
-                    {employees.map(emp => (
-                      <option key={emp.id} value={emp.id}>{emp.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
-                </div>
 
               {activeFilterCount > 0 && (
                 <button onClick={clearFilters} className="text-3xs text-violet-400 hover:text-violet-300 font-medium transition cursor-pointer">
