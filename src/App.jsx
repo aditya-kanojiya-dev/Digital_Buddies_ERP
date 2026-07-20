@@ -116,7 +116,6 @@ const fetchAllData = async () => {
       db.getLeads(),
       db.getProposals(),
       db.getInvoices(),
-      db.getProjects(),
       db.getAuditLogs(),
       db.getEmployeeInvites(),
       db.getLoginActivity(),
@@ -169,13 +168,13 @@ const fetchAllData = async () => {
       leads: getResult(16),
       proposals: getResult(17),
       invoices: getResult(18),
-      projects: getResult(19),
-      auditLogs: getResult(20),
-      employeeInvites: getResult(21),
-      loginActivity: getResult(22),
-      adCampaigns: getResult(23),
-      attendanceDocs: getResult(24),
-      personalTasks: getResult(25)
+      projects: getResult(5),
+      auditLogs: getResult(19),
+      employeeInvites: getResult(20),
+      loginActivity: getResult(21),
+      adCampaigns: getResult(22),
+      attendanceDocs: getResult(23),
+      personalTasks: getResult(24)
     };
 
     setState(newState);
@@ -317,6 +316,8 @@ useEffect(() => {
 }, []);
 
   // ── Optimistic state update → background Supabase persist ─────────────────
+  // ponytail: debounce notification saves — they re-fire on every task change
+  const notifTimerRef = { current: null };
   const updateState = (newSubState, skipPersist) => {
     // 1. Update React state immediately
     setState(prev => ({ ...prev, ...newSubState }));
@@ -325,6 +326,15 @@ useEffect(() => {
     //    skipPersist: optional Set of keys to skip (e.g. 'tasks' when using targeted updateTask)
     Object.entries(newSubState).forEach(([key, val]) => {
       if (skipPersist && skipPersist.has(key)) return;
+      // Debounce notifications — re-persists are frequent and redundant
+      if (key === 'notifications') {
+        if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
+        notifTimerRef.current = setTimeout(() => {
+          const saveFn = DB_SAVE_MAP[key];
+          if (saveFn) saveFn(val).catch(err => console.error(`[updateState] Failed to persist "${key}":`, err));
+        }, 300);
+        return;
+      }
       const saveFn = DB_SAVE_MAP[key];
       if (saveFn) {
         saveFn(val).catch(err =>

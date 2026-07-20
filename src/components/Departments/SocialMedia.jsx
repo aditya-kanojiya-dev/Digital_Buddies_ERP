@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Calendar, Plus, Download, FileText, Share2,
   Lock, ChevronLeft, ChevronRight, X, Check, Edit3,
@@ -132,16 +132,30 @@ export default function SocialMedia({ user, state, updateState }) {
   const nextMonth    = () => { if (calMonth === 11) { setCalYear(y => y+1); setCalMonth(0); } else setCalMonth(m => m+1); };
   const goToday      = () => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); };
 
+  // ponytail: pre-index by date string to avoid O(n) scan per calendar cell
+  const postsByDate = useMemo(() => {
+    const map = {};
+    smmCalendar.forEach(p => { (map[p.postDate] ??= []).push(p); });
+    return map;
+  }, [smmCalendar]);
+
+  const tasksByDate = useMemo(() => {
+    const map = {};
+    tasks.forEach(t => {
+      if (t.dueDate) (map[t.dueDate] ??= []).push(t);
+      if (t.scheduledDate && t.scheduledDate !== t.dueDate) (map[t.scheduledDate] ??= []).push(t);
+    });
+    return map;
+  }, [tasks]);
+
   const postsOnDay = (d) => {
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    return smmCalendar.filter(p => p.postDate === dateStr);
+    return postsByDate[dateStr] || [];
   };
 
   const tasksOnDay = (d) => {
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    return tasks.filter(t =>
-      t.dueDate === dateStr || t.scheduledDate === dateStr
-    );
+    return tasksByDate[dateStr] || [];
   };
 
   // ── Post CRUD ─────────────────────────────────────────────────────────────
@@ -425,7 +439,7 @@ export default function SocialMedia({ user, state, updateState }) {
         const ot = tasks.find(x => x.id === t.id);
         if (!ot) {
           db.addTask(t).catch(err => console.warn('[SocialMedia] Failed to add task:', err));
-        } else if (JSON.stringify(ot) !== JSON.stringify(t)) {
+        } else if (Object.keys(t).some(k => t[k] !== ot[k])) {
           db.updateTask(t.id, t).catch(err => console.warn('[SocialMedia] Failed to update task:', err));
         }
       });
@@ -651,8 +665,6 @@ export default function SocialMedia({ user, state, updateState }) {
       delayCount: 0,
       delayHistory: [],
     };
-    updateState({ tasks: [...tasks, newTask] });
-    db.addTask(newTask).catch(err => console.warn('[SocialMedia] Failed to add task:', err));
 
     // Notify assignee or whole dept
     const toNotify = taskForm.assignedTo
@@ -668,7 +680,13 @@ export default function SocialMedia({ user, state, updateState }) {
       timestamp: now,
       read: false,
     }));
-    if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });
+
+    // Batch into single updateState to avoid 2 separate Supabase persist calls
+    updateState({
+      tasks: [...tasks, newTask],
+      ...(newNotifs.length ? { notifications: [...notifications, ...newNotifs] } : {}),
+    });
+    db.addTask(newTask).catch(err => console.warn('[SocialMedia] Failed to add task:', err));
 
     toast.success(`Task "${taskForm.title}" assigned to ${taskForm.targetDept}.`);
     setShowTaskModal(false);

@@ -181,15 +181,17 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       });
     }
 
-    updateState({ tasks: [...tasks, newTask] });
-    updateState({ notifications: [...newNotifs, ...notifications] });
-    updateState({ auditLogs: [{
-      id:        genId('AUD'),
-      userId:    user.id,
-      action:    'Task Created',
-      details:   `${user.name} assigned task "${taskTitle}" to ${staffMember?.name}${coMember ? ` + ${coMember?.name}` : ''} (${targetDept}).`,
-      timestamp: now,
-    }, ...state.auditLogs] });
+    updateState({
+      tasks: [...tasks, newTask],
+      notifications: [...newNotifs, ...notifications],
+      auditLogs: [{
+        id:        genId('AUD'),
+        userId:    user.id,
+        action:    'Task Created',
+        details:   `${user.name} assigned task "${taskTitle}" to ${staffMember?.name}${coMember ? ` + ${coMember?.name}` : ''} (${targetDept}).`,
+        timestamp: now,
+      }, ...state.auditLogs],
+    });
 
     toast.success(`Task assigned to ${staffMember?.name}${coMember ? ` + ${coMember.name}` : ''}.`, `"${taskTitle}"`);
     setTaskTitle(''); setAssigneeId(''); setTaskDue(''); setTaskScheduledDate(''); setTargetDept(''); setTimelineDays('3');
@@ -256,26 +258,28 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
       ? `📌 ${user.name} pinged you on "${task.title}": ${customMsg}`
       : `🔔 ${user.name} pinged you on "${task.title}" — please update your status!`;
 
-    updateState({ tasks: tasks.map(t =>
-      t.id === task.id
-        ? { ...t, pinged: (t.pinged || 0) + 1, lastPingedAt: now }
-        : t
-    )});
-    updateState({ notifications: [{
-      id:        genId('NTF'),
-      userId:    task.assignedTo,
-      message,
-      type:      'ping',
-      timestamp: nowDisplay,
-      read:      false,
-    }, ...notifications] });
-    updateState({ auditLogs: [{
-      id:        genId('AUD'),
-      userId:    user.id,
-      action:    'Task Ping Sent',
-      details:   `${user.name} pinged "${task.title}"${customMsg ? ` with message: "${customMsg}"` : ''}.`,
-      timestamp: nowDisplay,
-    }, ...state.auditLogs] });
+    updateState({
+      tasks: tasks.map(t =>
+        t.id === task.id
+          ? { ...t, pinged: (t.pinged || 0) + 1, lastPingedAt: now }
+          : t
+      ),
+      notifications: [{
+        id:        genId('NTF'),
+        userId:    task.assignedTo,
+        message,
+        type:      'ping',
+        timestamp: nowDisplay,
+        read:      false,
+      }, ...notifications],
+      auditLogs: [{
+        id:        genId('AUD'),
+        userId:    user.id,
+        action:    'Task Ping Sent',
+        details:   `${user.name} pinged "${task.title}"${customMsg ? ` with message: "${customMsg}"` : ''}.`,
+        timestamp: nowDisplay,
+      }, ...state.auditLogs],
+    });
 
     toast.success('Ping dispatched to assignee.', `"${task.title}"`);
 
@@ -311,7 +315,6 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         timestamp: now,
       }, ...(state.auditLogs || [])],
     });
-    toast.success('Task approved and marked as completed.', `"${task.title}"`);
   };
 
   const handleRequestChanges = (task) => {
@@ -350,10 +353,6 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
         timestamp: now,
       }, ...(state.auditLogs || [])],
     });
-
-    setChangeRequestTaskId('');
-    setChangeRequestText('');
-    toast.success('Change request sent to assignee.', `"${task.title}"`);
   };
 
   // ── Task Edit state ────────────────────────────────────────────────────
