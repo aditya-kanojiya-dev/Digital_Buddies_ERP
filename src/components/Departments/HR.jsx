@@ -143,7 +143,7 @@ export default function HR({ state, updateState, user = { role: 'Super Admin', i
     });
 
     try {
-      await emailService.sendWelcomeEmail({ name, email: normalizedEmail });
+      await emailService.sendWelcomeEmail({ name, email: normalizedEmail, inviteToken });
     } catch (emailErr) {
       console.warn(`[Invite] Email failed (${type}):`, emailErr.message);
       toast.warning('Invite generated but email could not be sent.');

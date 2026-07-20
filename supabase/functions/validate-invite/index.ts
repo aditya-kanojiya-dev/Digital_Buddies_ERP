@@ -7,6 +7,34 @@ const corsHeaders = (origin: string | null) => ({
 
 const INVITE_EXPIRY_MS = 7 * 60 * 60 * 1000;
 
+// ── Rate limiting (in-memory, per-instance) ────────────────────────────────
+// ponytail: in-memory map resets on cold start; for persistent rate limiting
+// use Upstash Redis or similar. This blocks brute-force during a single
+// instance's lifetime, which is sufficient for invite token validation.
+const RATE_LIMIT_MAX = 10; // requests per window
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+// Periodic cleanup to prevent memory leak from abandoned entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now > entry.resetAt) rateLimitMap.delete(ip);
+  }
+}, RATE_LIMIT_WINDOW_MS * 2);
+
 Deno.serve(async (req: Request) => {
   const allowedOrigin = Deno.env.get('APP_URL');
   if (!allowedOrigin) {
@@ -21,6 +49,12 @@ Deno.serve(async (req: Request) => {
 
   if (req.method !== 'POST') {
     return json({ error: 'Method not allowed' }, 405);
+  }
+
+  // ── Rate limit ────────────────────────────────────────────────────────────
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return json({ error: 'Too many requests. Please try again later.' }, 429);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -183,11 +217,14 @@ Deno.serve(async (req: Request) => {
   // Password Validation
   // =====================================================
 
-  if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+  // Security: require minimum 10 chars, 1 uppercase, 1 number. Checking against
+  // breached password lists (HaveIBeenPwned) would be ideal but adds latency;
+  // enforce length + complexity here as the baseline.
+  if (password.length < 10 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
     return json(
       {
         error:
-          'Password must be at least 8 characters with 1 uppercase letter and 1 number.',
+          'Password must be at least 10 characters with 1 uppercase letter and 1 number.',
       },
       400
     );

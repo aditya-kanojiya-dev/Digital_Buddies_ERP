@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { User, Mail, Calendar, Code, Save, Image, Shield, Briefcase, BarChart3, CheckCircle2, Clock, AlertTriangle, Zap, TrendingUp, Flame, Target } from 'lucide-react';
-import DOMPurify from 'dompurify';
 import { useToast } from './shared/Toast';
 import { Button, Card, Field, Input, Textarea } from './ui';
 import { today as todayStr } from '../lib/format';
@@ -31,10 +30,11 @@ export default function Profile({ user, state, updateState }) {
       if (emp.id === user.id) {
         return {
           ...emp,
-          name: DOMPurify.sanitize(name),
-          phone: DOMPurify.sanitize(phone),
-          bio: DOMPurify.sanitize(bio),
-          skills: DOMPurify.sanitize(skills),
+          // ponytail: no DOMPurify needed — values rendered via React JSX which escapes by default
+          name,
+          phone,
+          bio,
+          skills,
           avatar
         };
       }

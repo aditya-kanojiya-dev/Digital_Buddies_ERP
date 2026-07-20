@@ -347,15 +347,10 @@ useEffect(() => {
   };
 
   // ── Login activity tracking ───────────────────────────────────────────────
-  const getClientIp = async () => {
-    try {
-      const res = await fetch('https://api.ipify.org?format=json');
-      const data = await res.json();
-      return data.ip;
-    } catch {
-      return 'unavailable';
-    }
-  };
+  // ponytail: removed external ipify.org dependency. Client IP is not reliably
+  // available from the browser (no Web API for it). If IP logging matters,
+  // capture it server-side in a Supabase Edge Function via x-forwarded-for.
+  const getClientIp = async () => 'unavailable';
 
   const recordLoginActivity = async (empId, type) => {
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);

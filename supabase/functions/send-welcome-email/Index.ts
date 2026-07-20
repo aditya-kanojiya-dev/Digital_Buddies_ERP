@@ -19,6 +19,25 @@ const corsHeaders = (origin: string | null) => ({
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 });
 
+// ── Rate limiting (in-memory, per-instance) ────────────────────────────────
+// ponytail: in-memory map resets on cold start; for persistent rate limiting
+// use Upstash Redis. This prevents email spamming during a single instance.
+const RATE_LIMIT_MAX = 5; // emails per window
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get('Origin');
   const allowedOrigin = Deno.env.get('APP_URL');
@@ -44,16 +63,24 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Unauthorized' }, 401);
   }
 
+  // ── Rate limit ────────────────────────────────────────────────────────────
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return json({ error: 'Too many requests. Please try again later.' }, 429);
+  }
+
   // ── Parse and validate request body ────────────────────────────────────────
-  let name: string, email: string, password: string;
+  // Security: password is NEVER accepted or emailed — the invite link handles
+  // password creation via the validate-invite Edge Function instead.
+  let name: string, email: string, inviteToken: string | undefined;
   try {
-    ({ name, email, password } = await req.json());
+    ({ name, email, inviteToken } = await req.json());
   } catch {
     return json({ error: 'Invalid JSON body' }, 400);
   }
 
-  if (!name || !email || !password) {
-    return json({ error: 'Missing required fields: name, email, password' }, 400);
+  if (!name || !email) {
+    return json({ error: 'Missing required fields: name, email' }, 400);
   }
 
   // ── Read server-side secrets ────────────────────────────────────────────────
@@ -78,7 +105,7 @@ Deno.serve(async (req: Request) => {
         from:    EMAIL_FROM,
         to:      email,
         subject: 'Welcome to Digital Buddies – Your Account is Ready',
-        html:    buildWelcomeEmail({ name, email, password, appUrl: APP_URL }),
+        html:    buildWelcomeEmail({ name, email, inviteToken, appUrl: APP_URL }),
       }),
     });
 
@@ -116,7 +143,7 @@ function json(body: unknown, status = 200, extraHeaders: Record<string, string> 
 interface WelcomeEmailProps {
   name: string;
   email: string;
-  password: string;
+  inviteToken?: string;
   appUrl: string;
 }
 
@@ -124,11 +151,11 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function buildWelcomeEmail({ name, email, password, appUrl }: WelcomeEmailProps): string {
+function buildWelcomeEmail({ name, email, inviteToken, appUrl }: WelcomeEmailProps): string {
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(email);
-  const safePassword = escapeHtml(password);
   const safeAppUrl = escapeHtml(appUrl);
+  const inviteLink = inviteToken ? `${safeAppUrl}?invite=${escapeHtml(inviteToken)}` : safeAppUrl;
   return `
     <!DOCTYPE html>
     <html>
@@ -145,7 +172,6 @@ function buildWelcomeEmail({ name, email, password, appUrl }: WelcomeEmailProps)
           .box p { margin: 8px 0; }
           .btn { display: inline-block; background: linear-gradient(135deg, #7c3aed, #d946ef); color: #fff !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin: 20px 0; }
           .warning { color: #fbbf24; }
-          .mono { font-family: monospace; background: #2e1065; color: #f472b6; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
           .footer { margin-top: 32px; font-size: 11px; color: #64748b; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px; }
         </style>
       </head>
@@ -154,14 +180,13 @@ function buildWelcomeEmail({ name, email, password, appUrl }: WelcomeEmailProps)
           <div class="header"><h2>Welcome to Digital Buddies</h2></div>
           <div class="body">
             <p>Hi ${safeName},</p>
-            <p>Your Digital-Buddies-ERP account has been created. Log in with the credentials below.</p>
+            <p>Your Digital-Buddies-ERP account has been created. Click the link below to set your password and activate your account.</p>
             <div class="box">
               <p><strong>Portal:</strong> <a href="${safeAppUrl}" style="color:#c084fc">${safeAppUrl}</a></p>
               <p><strong>Email:</strong> ${safeEmail}</p>
-              <p><strong>Temporary password:</strong> <span class="mono">${safePassword}</span></p>
             </div>
-            <p class="warning">⚠️ You must change this password on your first login before you can access the dashboard.</p>
-            <a href="${safeAppUrl}" class="btn" target="_blank">Access the Portal</a>
+            <a href="${inviteLink}" class="btn" target="_blank">Set Your Password</a>
+            <p class="warning">This link expires in 7 hours and can only be used once.</p>
             <p>Regards,<br>Digital Buddies Team</p>
           </div>
           <div class="footer"><p>Automated system email — do not reply.</p></div>
