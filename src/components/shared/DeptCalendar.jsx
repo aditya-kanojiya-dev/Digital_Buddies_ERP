@@ -8,6 +8,7 @@ import { db } from '../../data/db';
 import { DatePicker, ConfirmDialog } from '../ui';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
 import { today as todayStr, addDays, genId } from '../../lib/format';
+import TaskForm from './TaskForm';
 
 // ─── Date / calendar helpers ────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
@@ -31,10 +32,6 @@ const PLATFORM_COLORS = {
     YouTube:    { bg: 'bg-red-500/15',     text: 'text-red-400'     },
     Twitter:    { bg: 'bg-sky-500/15',     text: 'text-sky-400'     },
 };
-
-const ALL_DEPARTMENTS = [
-    'Paid Ads','Social Media','Video Editors','Graphic Designers','Videography/Photography','Developers','HR',
-];
 
 // ── Modal wrapper (shared, identical to previous SM behavior) ───────────────
 function Modal({ title, onClose, children, wide }) {
@@ -126,15 +123,7 @@ export default function DeptCalendar({
     });
     const [postForm, setPostForm] = useState(blankPost());
 
-    // ── Cross-dept assign form state ───────────────────────────────────────
-    const blankTask = () => ({
-        title: '', description: '', targetDept: 'Video Editors',
-        assignedTo: '', dueDate: '', priority: 'Medium',
-    });
-    const [taskForm, setTaskForm] = useState(blankTask());
-    const [crossDeptSubType, setCrossDeptSubType] = useState('');
-    const [crossDeptNeedsBoth, setCrossDeptNeedsBoth] = useState(false);
-    const [crossDeptCoAssignee, setCrossDeptCoAssignee] = useState('');
+
     const [confirmState, setConfirmState] = useState({ open: false, message: '', onConfirm: null });
 
     // Recompute "today" whenever the month flips so derived dates stay current.
@@ -615,93 +604,40 @@ export default function DeptCalendar({
     };
 
     // ── Cross-dept task assign ────────────────────────────────────────────
-    const isVideographyTarget = taskForm.targetDept === 'Videography/Photography';
-    const targetDeptEmployees = employees.filter(e =>
-        e.department?.includes(taskForm.targetDept) &&
-        (!isVideographyTarget || !crossDeptSubType || e.subType === crossDeptSubType)
-    );
+    const handleAssignTask = (taskData) => {
+        const now = new Date().toISOString();
 
-    const handleAssignTask = () => {
-        if (!taskForm.title || !taskForm.targetDept) {
-            toast.error('Task title and target department are required.');
-            return;
-        }
-
-        const dueDate = taskForm.dueDate || '';
-        const isCreativeDept = ['Video Editors', 'Graphic Designers', 'Videography/Photography'].includes(taskForm.targetDept);
-        const coAssigneeId = isVideographyTarget && crossDeptNeedsBoth ? crossDeptCoAssignee : '';
-
-        // ── Workload cap check ──
-        if (taskForm.assignedTo && dueDate && isCreativeDept) {
-            const info = getWorkloadInfo(tasks, taskForm.assignedTo, dueDate, taskForm.targetDept, taskForm.priority);
-            if (!info.canAssign) {
-                toast.error(info.reason);
-                return;
-            }
-        }
-        if (coAssigneeId && dueDate && isCreativeDept) {
-            const coInfo = getWorkloadInfo(tasks, coAssigneeId, dueDate, taskForm.targetDept, taskForm.priority);
-            if (!coInfo.canAssign) {
-                toast.error(`Co-assignee: ${coInfo.reason}`);
-                return;
-            }
-        }
-
-        const coAssignee = coAssigneeId ? employees.find(e => e.id === coAssigneeId) : null;
-        const newTask = {
-            id: genId('TASK'),
-            title: taskForm.title,
-            description: taskForm.description,
-            assignedTo: taskForm.assignedTo || null,
-            assignedTo2: coAssigneeId || null,
-            assigneeName2: coAssignee?.name || '',
-            department: taskForm.targetDept,
-            sourceDept: deptName,
-            assignedBy: user.id,
-            priority: taskForm.priority,
-            projectId: 'General',
-            dueDate,
-            scheduledDate: null,
-            status: 'New',
-            createdAt: new Date().toISOString().split('T')[0],
-            shootApprovalStatus: taskForm.targetDept === 'Videography/Photography' ? 'pending' : null,
-            rescheduleRequest: null,
-            isDelayed: false,
-            delayCount: 0,
-            delayHistory: [],
-        };
-        updateState({ tasks: [...tasks, newTask] });
+        updateState({ tasks: [...tasks, taskData] });
 
         // Notify assignee or whole target dept
-        const toNotify = taskForm.assignedTo
-            ? [employees.find(e => e.id === taskForm.assignedTo)].filter(Boolean)
-            : employees.filter(e => e.department?.includes(taskForm.targetDept));
-        const now = new Date().toISOString();
+        const toNotify = taskData.assignedTo
+            ? [employees.find(e => e.id === taskData.assignedTo)].filter(Boolean)
+            : employees.filter(e => e.department?.includes(taskData.department));
         const newNotifs = toNotify.map(emp => ({
             id: genId('NTF') + `_${emp.id}`,
             userId: emp.id,
-            message: `📌 ${deptName} assigned you a task: "${taskForm.title}"${taskForm.dueDate ? ` — due ${taskForm.dueDate}` : ''}`,
+            message: `📌 ${deptName} assigned you a task: "${taskData.title}"${taskData.dueDate ? ` — due ${taskData.dueDate}` : ''}`,
             type: 'assignment',
             timestamp: now,
             read: false,
         }));
-        if (coAssigneeId && coAssignee) {
-            newNotifs.push({
-                id: genId('NTF') + `_co_${coAssigneeId}`,
-                userId: coAssigneeId,
-                message: `📌 ${deptName} co-assigned you to a task: "${taskForm.title}"${taskForm.dueDate ? ` — due ${taskForm.dueDate}` : ''}`,
-                type: 'assignment',
-                timestamp: now,
-                read: false,
-            });
+        if (taskData.assignedTo2) {
+            const co = employees.find(e => e.id === taskData.assignedTo2);
+            if (co) {
+                newNotifs.push({
+                    id: genId('NTF') + `_co_${taskData.assignedTo2}`,
+                    userId: taskData.assignedTo2,
+                    message: `📌 ${deptName} co-assigned you to a task: "${taskData.title}"${taskData.dueDate ? ` — due ${taskData.dueDate}` : ''}`,
+                    type: 'assignment',
+                    timestamp: now,
+                    read: false,
+                });
+            }
         }
         if (newNotifs.length) updateState({ notifications: [...notifications, ...newNotifs] });
 
-        toast.success(`Task "${taskForm.title}" assigned to ${taskForm.targetDept}.`);
+        toast.success(`Task "${taskData.title}" assigned to ${taskData.department}.`);
         setShowTaskModal(false);
-        setTaskForm(blankTask());
-        setCrossDeptNeedsBoth(false);
-        setCrossDeptCoAssignee('');
     };
 
     // ── Month nav ─────────────────────────────────────────────────────────
@@ -1130,121 +1066,19 @@ export default function DeptCalendar({
 
             {/* ── Cross-dept assign modal ── */}
             {showTaskModal && (
-                <Modal title={`Assign Task to Another Department`} onClose={() => { setShowTaskModal(false); setTaskForm(blankTask()); }} wide>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Task Title *</label>
-                            <input type="text" value={taskForm.title} onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
-                                className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Create 3 reels for client campaign" />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Description</label>
-                            <textarea value={taskForm.description} onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))}
-                                className="w-full glass-input p-3 rounded-xl h-20 text-sm" placeholder="Details, references, links..." />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1">Target Department *</label>
-                                <select value={taskForm.targetDept} onChange={e => {setTaskForm(f => ({ ...f, targetDept: e.target.value, assignedTo: '' })); setCrossDeptSubType('');}} className="w-full glass-input p-3 rounded-xl text-sm">
-                                    {ALL_DEPARTMENTS.filter(d => d !== deptName).map(d => <option key={d}>{d}</option>)}
-                                </select>
-                            </div>
-                            {isVideographyTarget ? (
-                                <div>
-                                    <label className="block text-xs text-slate-400 mb-1">Role Type</label>
-                                    <select value={crossDeptSubType} onChange={e => {setCrossDeptSubType(e.target.value); setTaskForm(f => ({ ...f, assignedTo: '' }));}} className="w-full glass-input p-3 rounded-xl text-sm">
-                                        <option value="">All Roles</option>
-                                        <option value="Videographer">Videographer</option>
-                                        <option value="Content Creator">Content Creator / Influencer</option>
-                                    </select>
-                                </div>
-                            ) : (
-                                <div>
-                                    <label className="block text-xs text-slate-400 mb-1">Assign to (optional)</label>
-                                    <select value={taskForm.assignedTo} onChange={e => setTaskForm(f => ({ ...f, assignedTo: e.target.value }))} className="w-full glass-input p-3 rounded-xl text-sm">
-                                        <option value="">Whole department</option>
-                                        {targetDeptEmployees.map(e => {
-                                            const dueDate = taskForm.dueDate || '';
-                                            const isCreativeDept = ['Video Editors', 'Graphic Designers', 'Videography/Photography'].includes(taskForm.targetDept);
-                                            const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, e.id, dueDate, taskForm.targetDept, taskForm.priority) : null;
-                                            const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
-                                            return <option key={e.id} value={e.id} className={
-                                                info?.color === 'red' ? 'text-red-400' :
-                                                info?.color === 'amber' ? 'text-amber-400' :
-                                                ''
-                                            }>{label}</option>;
-                                        })}
-                                    </select>
-                                </div>
-                            )}
-                        </div>
-                        {isVideographyTarget && (
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1">Assign to (optional)</label>
-                                <select value={taskForm.assignedTo} onChange={e => setTaskForm(f => ({ ...f, assignedTo: e.target.value }))} className="w-full glass-input p-3 rounded-xl text-sm">
-                                    <option value="">Whole department</option>
-                                    {targetDeptEmployees.map(e => {
-                                        const dueDate = taskForm.dueDate || '';
-                                        const isCreativeDept = ['Video Editors', 'Graphic Designers', 'Videography/Photography'].includes(taskForm.targetDept);
-                                        const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, e.id, dueDate, taskForm.targetDept, taskForm.priority) : null;
-                                        const label = info ? formatWorkloadLabel(e.name, info.load, info.softMax, dueDate) : e.name;
-                                        return <option key={e.id} value={e.id} className={
-                                            info?.color === 'red' ? 'text-red-400' :
-                                            info?.color === 'amber' ? 'text-amber-400' :
-                                            ''
-                                        }>{label}</option>;
-                                    })}
-                                </select>
-                            </div>
-                        )}
-                        {isVideographyTarget && (
-                            <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-1.5 text-xs text-amber-400/80 cursor-pointer shrink-0">
-                                    <input type="checkbox" checked={crossDeptNeedsBoth}
-                                        onChange={e => { setCrossDeptNeedsBoth(e.target.checked); setCrossDeptCoAssignee(''); }}
-                                        className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500" />
-                                    Requires both roles?
-                                </label>
-                                {crossDeptNeedsBoth && taskForm.assignedTo && (
-                                    <select value={crossDeptCoAssignee} onChange={e => setCrossDeptCoAssignee(e.target.value)}
-                                        className="flex-1 glass-input p-2 rounded-lg text-xs">
-                                        <option value="">— Select co-assignee —</option>
-                                        {employees.filter(e =>
-                                            e.department?.includes(taskForm.targetDept) &&
-                                            e.id !== taskForm.assignedTo &&
-                                            (!crossDeptSubType || e.subType !== crossDeptSubType)
-                                        ).map(e => (
-                                            <option key={e.id} value={e.id}>{e.name} ({e.subType || e.role})</option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-                        )}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1">Priority</label>
-                                <select value={taskForm.priority} onChange={e => setTaskForm(f => ({ ...f, priority: e.target.value }))} className="w-full glass-input p-3 rounded-xl text-sm">
-                                    {['Low','Medium','High','Emergency'].map(p => <option key={p}>{p}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <DatePicker label="Due Date" value={taskForm.dueDate} onChange={v => setTaskForm(f => ({ ...f, dueDate: v }))} />
-                            </div>
-                        </div>
-                        <div className="flex gap-3 pt-2">
-                            <button onClick={handleAssignTask}
-                                className="flex-1 bg-neon-gradient py-2.5 rounded-xl text-white text-sm font-bold flex items-center justify-center gap-2">
-                                <Send className="w-4 h-4" /> Send Task
-                            </button>
-                            <button onClick={() => { setShowTaskModal(false); setTaskForm(blankTask()); }}
-                                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 text-sm font-bold transition">
-                                Cancel
-                            </button>
-                        </div>
-                        {targetDeptEmployees.length === 0 && (
-                            <p className="text-xs text-slate-500 text-center">No employees found in {taskForm.targetDept} — task will be visible to that department when they check their workspace.</p>
-                        )}
-                    </div>
+                <Modal title="Assign Task to Another Department" onClose={() => setShowTaskModal(false)} wide>
+                    <TaskForm
+                        sourceDept={deptName}
+                        targetDept="Video Editors"
+                        showDescription={true}
+                        showAssignee={true}
+                        showProject={false}
+                        onSubmit={handleAssignTask}
+                        onCancel={() => setShowTaskModal(false)}
+                        employees={employees}
+                        tasks={tasks}
+                        currentUser={user}
+                    />
                 </Modal>
             )}
 
