@@ -10,12 +10,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Single shared Supabase client — used by auth.js and db.js
-// Security: persistSession is false because the app manages its own session
-// in sessionStorage. Supabase's internal localStorage persistence would expose
-// refresh tokens to XSS — RLS is the true data-access boundary, not this client.
+// ponytail: persistSession is true because the app relies on Supabase's token
+// refresh on page reload. Disabling it breaks RLS queries after refresh.
+// Security note: Supabase stores tokens in localStorage (accessible to XSS).
+// Proper fix: migrate to httpOnly cookies via Supabase's cookie-based auth,
+// or use a server-side session. For now, RLS + CSP is the defense layer.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: false,
+    persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
   },
@@ -23,11 +25,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Session validity: 8 hours
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
-
-// How often to verify the Supabase JWT is still valid (defense-in-depth).
-// RLS is the true data-access boundary; this catches revoked/expired tokens.
-const JWT_VERIFY_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-let lastJwtVerify = 0;
 
 /**
  * Normalize department to always be an array.
@@ -209,8 +206,8 @@ export const auth = {
 
   // Read active session — expire after 8 hours
   // Note: RLS is the true data-access boundary. This session check is UX-only
-  // (controls which screens render). Periodic JWT verification below ensures the
-  // Supabase token hasn't been revoked server-side.
+  // (controls which screens render). Supabase's onAuthStateChange handles
+  // token expiry/refresh events in App.jsx.
   getCurrentUser: () => {
     const session =
       sessionStorage.getItem('neomax_session');
@@ -232,20 +229,6 @@ export const auth = {
 
         // Normalize department for backward compat with old sessions
         user.department = normalizeDept(user.department);
-
-        // Periodic JWT verification — ensures the Supabase token is still valid.
-        // Runs at most once per JWT_VERIFY_INTERVAL_MS to avoid blocking.
-        const now = Date.now();
-        if (now - lastJwtVerify > JWT_VERIFY_INTERVAL_MS) {
-          lastJwtVerify = now;
-          supabase.auth.getUser().then(({ error }) => {
-            if (error) {
-              console.warn('[auth] JWT verification failed, signing out:', error.message);
-              sessionStorage.removeItem('neomax_session');
-            }
-          }).catch(() => {}); // non-blocking, best-effort
-        }
-
         return user;
       } catch (e) {
         console.error('Session parse error:', e);

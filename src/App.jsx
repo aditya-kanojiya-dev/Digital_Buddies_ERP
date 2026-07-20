@@ -63,6 +63,7 @@ export default function App() {
   const [isBootstrapped, setIsBootstrapped] = useState(true);
   const [activeTab, setActiveTab]         = useState('dashboard');
   const [searchOpen, setSearchOpen]       = useState(false);
+  const [authReady, setAuthReady]         = useState(false);
 
   // Detect ?invite=TOKEN in the URL (one-time employee onboarding link)
   const [inviteToken]                     = useState(() => {
@@ -125,18 +126,20 @@ const fetchAllData = async () => {
     ]);
 
     // Log failed requests so you know which tables have RLS issues
-    let authFailed = false;
+    let authFailedCount = 0;
     results.forEach((r, i) => {
       if (r.status === 'rejected') {
         const msg = r.reason?.message || String(r.reason);
         console.error(`Fetch ${i} failed:`, r.reason);
         if (msg.includes('401') || msg.includes('Unauthorized') || msg.includes('Invalid API key')) {
-          authFailed = true;
+          authFailedCount++;
         }
       }
     });
 
-    if (authFailed && results.every(r => r.status === 'rejected')) {
+    // Only sign out if ALL fetches failed with auth errors (genuine session issue).
+    // Partial failures are normal with role-based RLS — don't nuke the session.
+    if (authFailedCount > 0 && authFailedCount === results.length) {
       console.error('[fetchAllData] All fetches failed with auth errors — session is invalid. Signing out.');
       sessionStorage.removeItem('neomax_session');
       setUser(null);
@@ -211,8 +214,8 @@ const fetchAllData = async () => {
 };
 
 useEffect(() => {
-  fetchAllData();
-}, [user]);
+  if (authReady) fetchAllData();
+}, [user, authReady]);
 
 // ── Auth state listener: auto-logout on Supabase session expiry ────────────
 // NOTE: During token refresh, Supabase fires SIGNED_OUT then SIGNED_IN in
@@ -225,6 +228,19 @@ useEffect(() => {
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     (event, session) => {
+      // INITIAL_SESSION fires once after Supabase reads tokens from localStorage.
+      // Until this fires, getSession() may return stale/expired tokens.
+      if (event === 'INITIAL_SESSION') {
+        setAuthReady(true);
+        // If Supabase has no session but our app session exists, sync them
+        if (!session && user) {
+          console.warn('[Auth] INITIAL_SESSION: no Supabase session but app session exists — clearing app session.');
+          sessionStorage.removeItem('neomax_session');
+          setUser(null);
+        }
+        return;
+      }
+
       if (event === 'SIGNED_OUT') {
         // Defer — if SIGNED_IN follows within 2s, cancel the logout
         signOutTimer = setTimeout(() => {
@@ -245,7 +261,7 @@ useEffect(() => {
 
 // ── Global Realtime subscription ───────────────────────────────────────────
 useEffect(() => {
-  if (!supabase || !user) return;
+  if (!supabase || !user || !authReady) return;
 
   const channel = supabase
     .channel('erp-global-live')
@@ -294,7 +310,7 @@ useEffect(() => {
 
 // ── Tab-visibility refresh: re-fetch all data when user returns to tab ─────
   useEffect(() => {
-    if (!user) return;
+    if (!user || !authReady) return;
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
       startTransition(() => { fetchAllData(); });
