@@ -787,53 +787,53 @@ export default function Creative({ user, state, updateState, activeDepartment })
                           } ${isTaskFocused ? 'ring-2 ring-fuchsia-400/70 shadow-lg shadow-fuchsia-500/20 border-fuchsia-400/60' : ''}`}
                         >
                           {/* Drag handle + Title row */}
-                          <div className="flex items-center gap-1 mb-1.5">
+                          <div className="flex items-center gap-1.5 mb-2">
                             <span className="text-slate-600 hover:text-slate-400 flex-shrink-0 mr-0.5" title="Drag to reorder">
-                              <GripVertical className="w-3 h-3" />
+                              <GripVertical className="w-4 h-4" />
                             </span>
-                            {task.priority && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityDot}`} title={task.priority} />}
-                            <span className="text-xs md:text-xs font-semibold text-slate-100 truncate leading-tight flex-1">{task.title}</span>
-                            {task.revisionCount > 0 && <span className="text-3xs text-amber-400 font-bold flex-shrink-0 bg-amber-500/10 px-1 rounded" title={`Revision ${task.revisionCount}`}>R{task.revisionCount}</span>}
+                            {task.priority && <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${priorityDot}`} title={task.priority} />}
+                            <span className="text-sm md:text-sm font-semibold text-slate-100 truncate leading-tight flex-1">{task.title}</span>
+                            {task.revisionCount > 0 && <span className="text-xs text-amber-400 font-bold flex-shrink-0 bg-amber-500/10 px-1.5 py-0.5 rounded" title={`Revision ${task.revisionCount}`}>R{task.revisionCount}</span>}
                           </div>
 
                           {/* Compact change request banner */}
                           {task.changeRequest && (
-                            <div className="bg-amber-500/8 border border-amber-500/15 rounded-lg px-2 py-1.5 mb-1.5">
-                              <p className="text-3xs text-amber-300/80 leading-relaxed line-clamp-1">{task.changeRequest}</p>
+                            <div className="bg-amber-500/8 border border-amber-500/15 rounded-lg px-2 py-1.5 mb-2">
+                              <p className="text-xs text-amber-300/80 leading-relaxed line-clamp-1">{task.changeRequest}</p>
                             </div>
                           )}
 
                           {/* Reschedule request preview */}
                           {task.rescheduleRequest && (
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1.5 mb-1.5">
-                              <p className="text-3xs text-amber-300 font-semibold">Reschedule → {task.rescheduleRequest.proposedDate}</p>
-                              <p className="text-3xs text-slate-500 line-clamp-1">{task.rescheduleRequest.reason}</p>
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1.5 mb-2">
+                              <p className="text-xs text-amber-300 font-semibold">Reschedule → {task.rescheduleRequest.proposedDate}</p>
+                              <p className="text-xs text-slate-500 line-clamp-1">{task.rescheduleRequest.reason}</p>
                             </div>
                           )}
 
                           {/* Source department badge */}
                           {task.sourceDept && task.sourceDept !== activeDepartment && (
-                            <div className="flex items-center gap-1 mb-1.5">
-                              <span className={`w-1.5 h-1.5 rounded-full ${sourceDeptColor}`} />
-                              <span className="text-3xs text-slate-500 font-medium">from {task.sourceDept}</span>
+                            <div className="flex items-center gap-1 mb-2">
+                              <span className={`w-2 h-2 rounded-full ${sourceDeptColor}`} />
+                              <span className="text-xs text-slate-500 font-medium">from {task.sourceDept}</span>
                             </div>
                           )}
 
                           {/* Assigned by / Assigned to row */}
-                          <div className="flex items-center justify-between text-2xs md:text-3xs text-slate-500 mb-1">
+                          <div className="flex items-center justify-between text-xs md:text-sm text-slate-500 mb-1.5">
                             {assigner ? (
                               <span className="flex items-center gap-1" title={`Assigned by ${assigner.name}`}>
-                                <User className="w-2.5 h-2.5 text-slate-600" /> {assigner.name.split(' ')[0]}
+                                <User className="w-3.5 h-3.5 text-slate-600" /> {assigner.name.split(' ')[0]}
                               </span>
                             ) : (
                               <span className="flex items-center gap-1">
-                                <User className="w-2.5 h-2.5 text-slate-600" /> —
+                                <User className="w-3.5 h-3.5 text-slate-600" /> —
                               </span>
                             )}
                             <span className="text-slate-700">→</span>
                             {assignee ? (
                               <span className="flex items-center gap-1 font-medium text-slate-400" title={`Assigned to ${assignee.name}${assignee2 ? ` + ${assignee2.name}` : ''}`}>
-                                <User className="w-2.5 h-2.5 text-teal-500" /> {assignee.name.split(' ')[0]}{assignee2 ? <span className="text-amber-400">+{assignee2.name.split(' ')[0]}</span> : ''}
+                                <User className="w-3.5 h-3.5 text-teal-500" /> {assignee.name.split(' ')[0]}{assignee2 ? <span className="text-amber-400">+{assignee2.name.split(' ')[0]}</span> : ''}
                               </span>
                             ) : (
                               <span className="flex items-center gap-1 text-slate-600 italic">Unassigned</span>
@@ -841,10 +841,10 @@ export default function Creative({ user, state, updateState, activeDepartment })
                           </div>
 
                           {/* Date + attachment row */}
-                          <div className="flex items-center gap-2 text-2xs md:text-3xs text-slate-500">
+                          <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500">
                             {task.dueDate && (
                               <span className={`flex items-center gap-0.5 ${isOverdue ? 'text-rose-400 font-medium' : isDueToday ? 'text-amber-400 font-medium' : ''}`}>
-                                {isOverdue && <AlertCircle className="w-2.5 h-2.5" />}
+                                {isOverdue && <AlertCircle className="w-3.5 h-3.5" />}
                                 {task.dueDate}
                               </span>
                             )}
@@ -857,38 +857,38 @@ export default function Creative({ user, state, updateState, activeDepartment })
                               <a href={task.attachmentUrl} target="_blank" rel="noopener noreferrer"
                                 onClick={e => e.stopPropagation()}
                                 className="text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-0.5" title="Open attachment">
-                                <LinkIcon className="w-2.5 h-2.5" /> Link
+                                <LinkIcon className="w-3.5 h-3.5" /> Link
                               </a>
                             )}
                           </div>
 
                           {/* Status badges row */}
-                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            {task.approvedAt && <span className="text-2xs md:text-3xs text-emerald-400 font-semibold">✓ done</span>}
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            {task.approvedAt && <span className="text-xs md:text-sm text-emerald-400 font-semibold">✓ done</span>}
                             {task.isDelayed && (
-                              <span className="text-3xs text-rose-400 font-semibold flex items-center gap-0.5 bg-rose-500/10 px-1.5 py-0.5 rounded" title={`Delayed ${task.delayCount} time(s)`}>
-                                <ClockAlert className="w-2.5 h-2.5" /> Delayed{task.delayCount > 1 ? ` x${task.delayCount}` : ''}
+                              <span className="text-xs md:text-sm text-rose-400 font-semibold flex items-center gap-0.5 bg-rose-500/10 px-1.5 py-0.5 rounded" title={`Delayed ${task.delayCount} time(s)`}>
+                                <ClockAlert className="w-3.5 h-3.5" /> Delayed{task.delayCount > 1 ? ` x${task.delayCount}` : ''}
                               </span>
                             )}
                             {task.shootApprovalStatus === 'approved' && (
-                              <span className="text-3xs text-teal-400 font-semibold flex items-center gap-0.5">
-                                <CalendarCheck className="w-2.5 h-2.5" /> Approved
+                              <span className="text-xs md:text-sm text-teal-400 font-semibold flex items-center gap-0.5">
+                                <CalendarCheck className="w-3.5 h-3.5" /> Approved
                               </span>
                             )}
                             {task.shootApprovalStatus === 'reschedule_requested' && (
-                              <span className="text-3xs text-amber-400 font-semibold flex items-center gap-0.5">
-                                <CalendarClock className="w-2.5 h-2.5" /> Reschedule
+                              <span className="text-xs md:text-sm text-amber-400 font-semibold flex items-center gap-0.5">
+                                <CalendarClock className="w-3.5 h-3.5" /> Reschedule
                               </span>
                             )}
                             {task.shootApprovalStatus === 'pending' && task.sourceDept === 'Social Media' && (
-                              <span className="text-3xs text-orange-400 font-semibold flex items-center gap-0.5">
-                                <CalendarClock className="w-2.5 h-2.5" /> Pending
+                              <span className="text-xs md:text-sm text-orange-400 font-semibold flex items-center gap-0.5">
+                                <CalendarClock className="w-3.5 h-3.5" /> Pending
                               </span>
                             )}
                           </div>
 
                           {/* Action row */}
-                          <div className="flex gap-1.5 mt-2 flex-wrap">
+                          <div className="flex gap-2 mt-2.5 flex-wrap">
                             {canReportDelay(task) && (
                               <button title="Report delay"
                                 onClick={(e) => {
@@ -897,47 +897,47 @@ export default function Creative({ user, state, updateState, activeDepartment })
                                   setDelayNewDueDate(addDays(task.dueDate, 1));
                                   setDelayReason('');
                                 }}
-                                className="p-2 md:p-1.5 rounded-lg md:rounded-md bg-rose-600/15 hover:bg-rose-600/30 text-rose-400 transition border border-rose-500/20 min-w-[36px] min-h-[36px] md:min-w-[28px] md:min-h-[28px] flex items-center justify-center">
-                                <ClockAlert className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                                className="p-2.5 md:p-2 rounded-lg md:rounded-md bg-rose-600/15 hover:bg-rose-600/30 text-rose-400 transition border border-rose-500/20 min-w-[40px] min-h-[40px] md:min-w-[32px] md:min-h-[32px] flex items-center justify-center">
+                                <ClockAlert className="w-5 h-5 md:w-4 md:h-4" />
                               </button>
                             )}
                             {canApproveShoot(task) && (
                               <>
                                 <button title="Approve shoot date"
                                   onClick={(e) => { e.stopPropagation(); handleApproveShoot(task.id); }}
-                                  className="p-2 md:p-1.5 rounded-lg md:rounded-md bg-teal-600/15 hover:bg-teal-600/30 text-teal-400 transition border border-teal-500/20 min-w-[36px] min-h-[36px] md:min-w-[28px] md:min-h-[28px] flex items-center justify-center">
-                                  <CalendarCheck className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                                  className="p-2.5 md:p-2 rounded-lg md:rounded-md bg-teal-600/15 hover:bg-teal-600/30 text-teal-400 transition border border-teal-500/20 min-w-[40px] min-h-[40px] md:min-w-[32px] md:min-h-[32px] flex items-center justify-center">
+                                  <CalendarCheck className="w-5 h-5 md:w-4 md:h-4" />
                                 </button>
                                 <button title="Request reschedule"
                                   onClick={(e) => { e.stopPropagation(); setRescheduleTaskId(task.id); setRescheduleDate(task.scheduledDate || task.dueDate || ''); setRescheduleReason(''); }}
-                                  className="p-2 md:p-1.5 rounded-lg md:rounded-md bg-amber-600/15 hover:bg-amber-600/30 text-amber-400 transition border border-amber-500/20 min-w-[36px] min-h-[36px] md:min-w-[28px] md:min-h-[28px] flex items-center justify-center">
-                                  <CalendarClock className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                                  className="p-2.5 md:p-2 rounded-lg md:rounded-md bg-amber-600/15 hover:bg-amber-600/30 text-amber-400 transition border border-amber-500/20 min-w-[40px] min-h-[40px] md:min-w-[32px] md:min-h-[32px] flex items-center justify-center">
+                                  <CalendarClock className="w-5 h-5 md:w-4 md:h-4" />
                                 </button>
                               </>
                             )}
                             {canDelegate(task) && (
                               <button title="Delegate"
                                 onClick={(e) => { e.stopPropagation(); setDelegateTaskId(task.id); setDelegateEmpId(task.assignedTo || ''); }}
-                                className="p-2 md:p-1.5 rounded-lg md:rounded-md bg-fuchsia-600/10 hover:bg-fuchsia-600/20 text-fuchsia-400 transition border border-fuchsia-500/15 min-w-[36px] min-h-[36px] md:min-w-[28px] md:min-h-[28px] flex items-center justify-center">
-                                <UserPlus className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                                className="p-2.5 md:p-2 rounded-lg md:rounded-md bg-fuchsia-600/10 hover:bg-fuchsia-600/20 text-fuchsia-400 transition border border-fuchsia-500/15 min-w-[40px] min-h-[40px] md:min-w-[32px] md:min-h-[32px] flex items-center justify-center">
+                                <UserPlus className="w-5 h-5 md:w-4 md:h-4" />
                               </button>
                             )}
                             {canManageTask(task) && (
                               <>
                                 <button title="Edit task"
                                   onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}
-                                  className="p-2 md:p-1.5 rounded-lg md:rounded-md bg-blue-600/15 hover:bg-blue-600/30 text-blue-400 transition border border-blue-500/20 min-w-[36px] min-h-[36px] md:min-w-[28px] md:min-h-[28px] flex items-center justify-center">
-                                  <Edit3 className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                                  className="p-2.5 md:p-2 rounded-lg md:rounded-md bg-blue-600/15 hover:bg-blue-600/30 text-blue-400 transition border border-blue-500/20 min-w-[40px] min-h-[40px] md:min-w-[32px] md:min-h-[32px] flex items-center justify-center">
+                                  <Edit3 className="w-5 h-5 md:w-4 md:h-4" />
                                 </button>
                                 <button title="Reassign task"
                                   onClick={(e) => { e.stopPropagation(); setReassignTaskId(task.id); setReassignEmpId(task.assignedTo || ''); }}
-                                  className="p-2 md:p-1.5 rounded-lg md:rounded-md bg-violet-600/15 hover:bg-violet-600/30 text-violet-400 transition border border-violet-500/20 min-w-[36px] min-h-[36px] md:min-w-[28px] md:min-h-[28px] flex items-center justify-center">
-                                  <RefreshCw className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                                  className="p-2.5 md:p-2 rounded-lg md:rounded-md bg-violet-600/15 hover:bg-violet-600/30 text-violet-400 transition border border-violet-500/20 min-w-[40px] min-h-[40px] md:min-w-[32px] md:min-h-[32px] flex items-center justify-center">
+                                  <RefreshCw className="w-5 h-5 md:w-4 md:h-4" />
                                 </button>
                                 <button title="Delete task"
                                   onClick={(e) => { e.stopPropagation(); setDeleteTaskId(task.id); }}
-                                  className="p-2 md:p-1.5 rounded-lg md:rounded-md bg-rose-600/15 hover:bg-rose-600/30 text-rose-400 transition border border-rose-500/20 min-w-[36px] min-h-[36px] md:min-w-[28px] md:min-h-[28px] flex items-center justify-center">
-                                  <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                                  className="p-2.5 md:p-2 rounded-lg md:rounded-md bg-rose-600/15 hover:bg-rose-600/30 text-rose-400 transition border border-rose-500/20 min-w-[40px] min-h-[40px] md:min-w-[32px] md:min-h-[32px] flex items-center justify-center">
+                                  <Trash2 className="w-5 h-5 md:w-4 md:h-4" />
                                 </button>
                               </>
                             )}

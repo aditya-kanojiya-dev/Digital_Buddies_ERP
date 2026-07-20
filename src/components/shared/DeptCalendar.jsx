@@ -885,32 +885,32 @@ export default function DeptCalendar({
                                             by {t.assignedBy || deptName}{assignee ? ` → ${assignee.name}` : ''}{assignee2 ? ` + ${assignee2.name}` : ''}
                                         </p>
                                         <button onClick={() => setSelectedTaskId(t.id)}
-                                            className="text-3xs text-violet-400 hover:text-violet-300 font-bold">
+                                            className="text-xs text-violet-400 hover:text-violet-300 font-bold">
                                             Open →
                                         </button>
                                     </div>
                                     {canChangeStatus(t) && t.status !== 'Completed' && (
-                                        <div className="flex gap-1.5 mt-2 flex-wrap">
+                                        <div className="flex gap-2 mt-2 flex-wrap">
                                             {t.status === 'New' && (
                                                 <button onClick={() => { handleStatusChange(t.id, 'In Progress'); setSelectedDay(prev => ({ ...prev, tasks: prev.tasks.map(x => x.id === t.id ? { ...x, status: 'In Progress' } : x) })); }}
-                                                    className="text-3xs bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 px-2 py-0.5 rounded border border-violet-500/25">
+                                                    className="text-xs bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 px-3 py-1 rounded border border-violet-500/25">
                                                     Start
                                                 </button>
                                             )}
                                             {t.status === 'In Progress' && (
                                                 <button onClick={() => { handleStatusChange(t.id, 'Review'); setSelectedDay(prev => ({ ...prev, tasks: prev.tasks.map(x => x.id === t.id ? { ...x, status: 'Review' } : x) })); }}
-                                                    className="text-3xs bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-300 px-2 py-0.5 rounded border border-fuchsia-500/25">
+                                                    className="text-xs bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-300 px-3 py-1 rounded border border-fuchsia-500/25">
                                                     Request Review
                                                 </button>
                                             )}
                                             {t.status === 'Review' && (
                                                 <button onClick={() => { handleStatusChange(t.id, 'Completed'); setSelectedDay(prev => ({ ...prev, tasks: prev.tasks.map(x => x.id === t.id ? { ...x, status: 'Completed' } : x) })); }}
-                                                    className="text-3xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/25">
+                                                    className="text-xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 px-3 py-1 rounded border border-emerald-500/25">
                                                     Mark Done
                                                 </button>
                                             )}
                                             <button onClick={() => { handleStatusChange(t.id, 'Completed'); setSelectedDay(prev => ({ ...prev, tasks: prev.tasks.map(x => x.id === t.id ? { ...x, status: 'Completed' } : x) })); }}
-                                                className="text-3xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/25">
+                                                className="text-xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 px-3 py-1 rounded border border-emerald-500/25">
                                                 Complete
                                             </button>
                                         </div>
