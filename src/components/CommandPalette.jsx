@@ -101,7 +101,7 @@ export default function CommandPalette({ open, onClose, state, onNavigate }) {
             placeholder="Search employees, tasks, clients, leads…"
             className="flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-600 outline-none"
           />
-          <kbd className="text-[0.6rem] text-slate-500 bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-700/50">
+          <kbd className="text-3xs text-slate-500 bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-700/50">
             Esc
           </kbd>
         </div>
@@ -127,9 +127,9 @@ export default function CommandPalette({ open, onClose, state, onNavigate }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-slate-200 truncate">{item.title}</p>
-                    <p className="text-[0.65rem] text-slate-500 truncate">{item.sub}</p>
+                    <p className="text-2xs text-slate-500 truncate">{item.sub}</p>
                   </div>
-                  <span className="text-[0.6rem] uppercase text-slate-600 tracking-wider">
+                  <span className="text-3xs uppercase text-slate-600 tracking-wider">
                     {item.type}
                   </span>
                   {active === i && <CornerDownLeft className="w-3.5 h-3.5 text-slate-500" />}

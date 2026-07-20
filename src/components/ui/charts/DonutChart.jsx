@@ -63,7 +63,7 @@ export default function DonutChart({
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xl font-extrabold text-slate-100">{total}</span>
           {centerLabel && (
-            <span className="text-[0.65rem] text-slate-500">{centerLabel}</span>
+            <span className="text-2xs text-slate-500">{centerLabel}</span>
           )}
         </div>
       </div>

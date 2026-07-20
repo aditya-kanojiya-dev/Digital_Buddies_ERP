@@ -154,7 +154,7 @@ export default function FounderDashboard({ state }) {
                   <div key={emp.id} className="glass-card p-3.5 rounded-xl flex items-center justify-between">
                     <div className="min-w-0">
                       <h4 className="font-bold text-xs text-slate-200 truncate">{emp.name}</h4>
-                      <p className="text-[0.65rem] text-slate-400 truncate">{emp.designation}</p>
+                      <p className="text-2xs text-slate-400 truncate">{emp.designation}</p>
                     </div>
                     <span
                       className={`text-xs px-2.5 py-1 rounded-lg font-bold ${
@@ -189,9 +189,9 @@ export default function FounderDashboard({ state }) {
                       <div className="font-semibold text-slate-200">
                         [{log.action}] <span className="font-normal text-slate-300">{log.details}</span>
                       </div>
-                      <div className="text-[0.65rem] text-slate-500">By: {u ? u.name : 'System/Admin'}</div>
+                      <div className="text-2xs text-slate-500">By: {u ? u.name : 'System/Admin'}</div>
                     </div>
-                    <span className="text-[0.65rem] text-slate-500 flex-shrink-0">{fmtDateTime(log.timestamp)}</span>
+                    <span className="text-2xs text-slate-500 flex-shrink-0">{fmtDateTime(log.timestamp)}</span>
                   </div>
                 );
               })

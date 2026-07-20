@@ -61,7 +61,7 @@ const SidebarContent = memo(function SidebarContentBase({ showLabels, activeTab,
       {grouped.map(({ group, tabs }) => (
         <div key={group}>
           {showLabels && (
-            <p className="text-[0.6rem] uppercase text-[var(--nav-text-section)] tracking-[0.15em] px-3 mb-1.5 font-semibold">
+            <p className="text-3xs uppercase text-[var(--nav-text-section)] tracking-[0.15em] px-3 mb-1.5 font-semibold">
               {group}
             </p>
           )}
@@ -207,7 +207,7 @@ export default function Layout({
             <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
               Digital Buddies ERP
             </h1>
-            <p className="text-[0.6rem] text-[var(--text-3)] uppercase tracking-[0.2em]">
+            <p className="text-3xs text-[var(--text-3)] uppercase tracking-[0.2em]">
               Company Operating System
             </p>
           </div>
@@ -220,7 +220,7 @@ export default function Layout({
           >
             <Search className="w-4 h-4" />
             <span>Search…</span>
-            <kbd className="text-[0.6rem] text-[var(--text-kbd)] bg-[var(--surface-kbd)] px-1.5 py-0.5 rounded border border-[var(--border-kbd)]">
+            <kbd className="text-3xs text-[var(--text-kbd)] bg-[var(--surface-kbd)] px-1.5 py-0.5 rounded border border-[var(--border-kbd)]">
               Ctrl K
             </kbd>
           </button>
@@ -240,7 +240,7 @@ export default function Layout({
             >
               <Bell className="w-5 h-5" />
               {unreadNotifs.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-bold text-[0.6rem] min-w-[1rem] h-4 px-1 rounded-full flex items-center justify-center shadow-lg shadow-rose-600/30">
+                <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-bold text-3xs min-w-[1rem] h-4 px-1 rounded-full flex items-center justify-center shadow-lg shadow-rose-600/30">
                   {unreadNotifs.length > 9 ? '9+' : unreadNotifs.length}
                 </span>
               )}
@@ -253,7 +253,7 @@ export default function Layout({
                   {unreadNotifs.length > 0 && (
                     <button
                       onClick={handleMarkAllRead}
-                      className="text-[0.65rem] text-[var(--accent)] hover:text-[var(--accent-strong)] transition-colors cursor-pointer"
+                      className="text-2xs text-[var(--accent)] hover:text-[var(--accent-strong)] transition-colors cursor-pointer"
                     >
                       Mark all read
                     </button>
@@ -277,7 +277,7 @@ export default function Layout({
                           className="flex-1 text-left min-w-0"
                         >
                           <p className="text-[0.7rem] text-[var(--text-2)] leading-snug">{n.message}</p>
-                          <span className="text-[0.6rem] text-[var(--text-muted)]">
+                          <span className="text-3xs text-[var(--text-muted)]">
                             {timeAgo(n.timestamp)}
                           </span>
                         </button>
@@ -323,7 +323,7 @@ export default function Layout({
               </div>
               <div className="hidden sm:block text-left">
                 <div className="text-xs font-bold text-[var(--text-1)] leading-tight">{user.name}</div>
-                <div className="text-[0.65rem] text-[var(--text-3)]">{user.designation}</div>
+                <div className="text-2xs text-[var(--text-3)]">{user.designation}</div>
               </div>
             </button>
 
@@ -331,8 +331,8 @@ export default function Layout({
               <div className="absolute right-0 mt-3 w-56 glass-panel border border-[var(--border)] rounded-2xl p-2 shadow-2xl z-[var(--z-dropdown)] animate-dropdown-pop">
                 <div className="px-3 py-2 border-b border-[var(--border-divider)] mb-1">
                   <p className="text-xs font-bold text-[var(--text-1)] truncate">{user.name}</p>
-                  <p className="text-[0.65rem] text-[var(--text-3)] truncate">{user.email}</p>
-                  <span className="inline-block mt-1.5 text-[0.6rem] font-bold text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2 py-0.5 rounded-full">
+                  <p className="text-2xs text-[var(--text-3)] truncate">{user.email}</p>
+                  <span className="inline-block mt-1.5 text-3xs font-bold text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2 py-0.5 rounded-full">
                     {user.role}
                   </span>
                 </div>
@@ -385,7 +385,7 @@ export default function Layout({
           </div>
           <button
             onClick={toggleCollapse}
-            className="mt-3 flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-1)] text-[0.65rem] font-bold px-3 py-2 rounded-lg hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer"
+            className="mt-3 flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-1)] text-2xs font-bold px-3 py-2 rounded-lg hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer"
           >
             <ChevronLeft className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
             {!collapsed && 'Collapse'}

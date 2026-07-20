@@ -627,7 +627,7 @@ export default function PersonalCalendar({ user, state, updateState, compact = f
                                 <button
                                     key={dateStr}
                                     onClick={() => setDayDetail(dateStr)}
-                                    className={`min-h-[88px] rounded-xl border p-2 text-left align-top transition cursor-pointer relative group
+                                    className={`min-h-[100px] rounded-xl border p-2 text-left align-top transition cursor-pointer relative group
                                         ${isToday ? 'border-violet-500/50 bg-violet-500/5' : 'border-slate-800 bg-slate-950/40 hover:bg-slate-900/60'}`}
                                 >
                                     <div className="flex items-center justify-between mb-1.5">

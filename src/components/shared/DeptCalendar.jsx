@@ -717,7 +717,7 @@ export default function DeptCalendar({
                 {/* Grid */}
                 <div className="grid grid-cols-7">
                     {Array.from({ length: firstDay }).map((_, i) => (
-                        <div key={`e${i}`} className="min-h-[100px] border-r border-b border-slate-800/50 bg-slate-900/20" />
+                        <div key={`e${i}`} className="min-h-[110px] border-r border-b border-slate-800/50 bg-slate-900/20" />
                     ))}
 
                     {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -731,7 +731,7 @@ export default function DeptCalendar({
                             <div
                                 key={day}
                                 onClick={() => setSelectedDay({ day, dateStr, posts: dayPosts, tasks: dayTasks })}
-                                className={`min-h-[100px] border-r border-b border-slate-800/50 p-1.5 cursor-pointer transition group relative
+                                className={`min-h-[110px] border-r border-b border-slate-800/50 p-2 cursor-pointer transition group relative
                                     ${isToday ? 'bg-violet-950/30' : 'hover:bg-slate-800/20'}`}
                             >
                                 <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-1 ${

@@ -19,8 +19,8 @@ const DOTS = {
 };
 
 const SIZES = {
-  sm: 'px-1.5 py-0.5 text-[0.6rem]',
-  md: 'px-2 py-0.5 text-[0.65rem]',
+  sm: 'px-1.5 py-0.5 text-3xs',
+  md: 'px-2 py-0.5 text-2xs',
   lg: 'px-2.5 py-1 text-xs',
 };
 

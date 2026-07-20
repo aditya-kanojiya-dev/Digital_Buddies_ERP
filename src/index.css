@@ -462,12 +462,12 @@
 
 /* ── Custom font sizes (missing from Tailwind v4 defaults) ── */
 @utility text-3xs {
-  font-size: 0.6rem;
-  line-height: 0.875rem;
+  font-size: 0.7rem;
+  line-height: 1rem;
 }
 @utility text-2xs {
-  font-size: 0.65rem;
-  line-height: 0.9rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 /* ── Reduced motion ────────────────────────────────────── */

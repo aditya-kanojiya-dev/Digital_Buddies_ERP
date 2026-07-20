@@ -314,7 +314,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
               </div>
               <button
                 onClick={() => handleMarkAsRead(notif.id)}
-                className="bg-violet-600 hover:bg-violet-500 text-white text-[0.65rem] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
+                className="bg-violet-600 hover:bg-violet-500 text-white text-2xs font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
               >
                 Acknowledge
               </button>
@@ -526,7 +526,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
                 </div>
                 <div className="min-w-0">
                   <div className={`text-base sm:text-lg font-extrabold ${w.color} truncate tabular-nums`}>{w.val}</div>
-                  <div className="text-[0.65rem] text-slate-400 truncate">{w.label}</div>
+                  <div className="text-2xs text-slate-400 truncate">{w.label}</div>
                 </div>
               </div>
             ));

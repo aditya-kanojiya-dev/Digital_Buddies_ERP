@@ -99,7 +99,7 @@ export default function BarChart({
 
       {hover !== null && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none glass-panel border border-violet-500/25 rounded-lg px-2.5 py-1.5 text-xs shadow-xl">
-          <span className="text-slate-400 text-[0.65rem]">{data[hover].label}: </span>
+          <span className="text-slate-400 text-2xs">{data[hover].label}: </span>
           <span className="font-bold text-slate-100">{formatValue(data[hover].value)}</span>
         </div>
       )}

@@ -142,7 +142,7 @@ export default function LineChart({
             top: `${(y(data[hover].value) / H) * 100}%`,
           }}
         >
-          <div className="text-slate-400 text-[0.65rem]">{data[hover].label}</div>
+          <div className="text-slate-400 text-2xs">{data[hover].label}</div>
           <div className="font-bold text-slate-100">
             {formatValue(data[hover].value)}
           </div>
