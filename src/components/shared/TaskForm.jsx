@@ -82,7 +82,6 @@ export default function TaskForm({
     e.preventDefault();
     if (!title.trim()) { toast.error('Task title is required.'); return; }
     if (!targetDept) { toast.error('Target department is required.'); return; }
-    if (showAssignee && !assigneeId) { toast.error('Please select an assignee.'); return; }
 
     const finalDueDate = computedDueDate;
     const assignee = assigneeId ? employees.find(emp => emp.id === assigneeId) : null;
@@ -192,8 +191,8 @@ export default function TaskForm({
           <div>
             <label className="block text-xs text-slate-400 mb-1">Assignee *</label>
             <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
-              className="w-full glass-input p-3 rounded-xl text-xs" required disabled={!targetDept}>
-              <option value="">-- Select --</option>
+              className="w-full glass-input p-3 rounded-xl text-xs" disabled={!targetDept}>
+              <option value="">Whole department (unassigned)</option>
               {deptStaff.map(emp => {
                 const info = computedDueDate && isCreativeDept ? getWorkloadInfo(tasks, emp.id, computedDueDate, targetDept, priority) : null;
                 const label = info ? formatWorkloadLabel(emp.name, info.load, info.softMax, computedDueDate) : emp.name;
