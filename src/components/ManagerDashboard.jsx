@@ -2,14 +2,14 @@ import { useState, useMemo } from 'react';
 import { Plus, Bell, BellOff, RefreshCw, Clock, AlertCircle, CheckCircle, Edit2, Trash2, Save, X, Search, Filter, ChevronDown } from 'lucide-react';
 import { useToast } from './shared/Toast';
 import { checkPingCooldown, formatCooldown } from '../lib/deadlineEngine';
-import { genId, today as todayStr, addDays, computeDueDate } from '../lib/format';
+import { genId, today as todayStr } from '../lib/format';
 import { db } from '../data/db';
 import TaskCard from './shared/TaskCard';
+import TaskForm from './shared/TaskForm';
 import TaskDetailPanel from './shared/TaskDetailPanel';
 import DepartmentKpiStrip from './shared/DepartmentKpiStrip';
-import { DatePicker, ConfirmDialog } from './ui';
-import { getWorkloadInfo, formatWorkloadLabel } from '../lib/workloadCaps';
-import { ALLOWED_TARGET_DEPTS, CREATIVE_DEPTS, DEPT_TIMELINE_RULES } from '../lib/constants';
+import { ConfirmDialog } from './ui';
+import { ALLOWED_TARGET_DEPTS } from '../lib/constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -25,31 +25,9 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   // ── Task creation form ────────────────────────────────────────────────────
   const [targetDept,   setTargetDept]   = useState('');
-  const [taskTitle,    setTaskTitle]    = useState('');
-  const [assigneeId,   setAssigneeId]   = useState('');
-  const [taskProject,  setTaskProject]  = useState('');
-  const [taskPriority, setTaskPriority] = useState('Medium');
-  const [taskDue,      setTaskDue]      = useState('');
-  const [timelineDays, setTimelineDays] = useState('3');
-  const [taskScheduledDate, setTaskScheduledDate] = useState('');
-  const [subTypeFilter, setSubTypeFilter] = useState('');
-  const [needsBothRoles, setNeedsBothRoles] = useState(false);
-  const [coAssigneeId, setCoAssigneeId] = useState('');
-
-  const rule = DEPT_TIMELINE_RULES[targetDept] || {};
-  const isVideographyDept = targetDept === 'Videography/Photography';
+  // ponytail: deptStaff kept — used by metrics section at line ~940
   const deptStaff = targetDept
-    ? employees.filter(emp =>
-        emp.department?.includes(targetDept) &&
-        (!isVideographyDept || !subTypeFilter || emp.subType === subTypeFilter)
-      )
-    : [];
-  const coDeptStaff = (needsBothRoles && isVideographyDept && subTypeFilter)
-    ? employees.filter(emp =>
-        emp.department?.includes(targetDept) &&
-        emp.subType !== subTypeFilter &&
-        emp.id !== assigneeId
-      )
+    ? employees.filter(emp => emp.department?.includes(targetDept))
     : [];
   const deptTasks = tasks.filter(task => {
     if (isSuperAdmin) return true;
@@ -57,7 +35,6 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     if (task.assignedBy === user.id || task.assignedTo === user.id || task.assignedTo2 === user.id) return true;
     return false;
   });
-  const isCreativeDept = CREATIVE_DEPTS.includes(targetDept);
 
   // ── Reassignment ──────────────────────────────────────────────────────────
   const [reassignTaskId, setReassignTaskId] = useState('');
@@ -107,60 +84,15 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleCreateTask = (e) => {
-    e.preventDefault();
-    if (!taskTitle || !assigneeId || !targetDept) return;
-
-    const dueDate = computeDueDate({ priority: taskPriority, timelineDays, dueDate: taskDue, rule });
-
-    // ── Workload cap check ──
-    if (assigneeId && dueDate && CREATIVE_DEPTS.includes(targetDept)) {
-      const info = getWorkloadInfo(tasks, assigneeId, dueDate, targetDept, taskPriority);
-      if (!info.canAssign) {
-        toast.error(info.reason);
-        return;
-      }
-      if (info.reason && !info.reason.startsWith('⚠️')) {
-        toast.warning(info.reason);
-      }
-    }
-
-    if (needsBothRoles && coAssigneeId && dueDate && CREATIVE_DEPTS.includes(targetDept)) {
-      const coInfo = getWorkloadInfo(tasks, coAssigneeId, dueDate, targetDept, taskPriority);
-      if (!coInfo.canAssign) {
-        toast.error(`Co-assignee: ${coInfo.reason}`);
-        return;
-      }
-    }
-
-    const staffMember = employees.find(emp => emp.id === assigneeId);
-    const coMember = needsBothRoles && coAssigneeId ? employees.find(emp => emp.id === coAssigneeId) : null;
+  const handleCreateTask = (taskData) => {
+    const staffMember = employees.find(emp => emp.id === taskData.assignedTo);
+    const coMember = taskData.assignedTo2 ? employees.find(emp => emp.id === taskData.assignedTo2) : null;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
-
-    const newTask = {
-      id:            genId('T'),
-      title:         taskTitle,
-      assignedTo:    assigneeId,
-      assigneeName:  staffMember?.name || '',
-      assignedTo2:   coMember?.id || null,
-      assigneeName2: coMember?.name || '',
-      assignedBy:    user.id,
-      department:    targetDept,
-      sourceDept:    'Work Assignment',
-      projectId:     taskProject || 'General',
-      priority:      taskPriority,
-      status:        'New',
-      dueDate,
-      createdAt:     new Date().toISOString().split('T')[0],
-      pinged:        0,
-      lastPingedAt:  null,
-      scheduledDate: isCreativeDept ? taskScheduledDate || null : null,
-    };
 
     const newNotifs = [{
       id:        genId('NTF'),
-      userId:    assigneeId,
-      message:   `${user.name} assigned task "${taskTitle}" to you.`,
+      userId:    taskData.assignedTo,
+      message:   `${user.name} assigned task "${taskData.title}" to you.`,
       type:      'assignment',
       timestamp: now,
       read:      false,
@@ -168,8 +100,8 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     if (coMember) {
       newNotifs.push({
         id:        `NTF${Date.now()}_co`,
-        userId:    coAssigneeId,
-        message:   `${user.name} assigned you as co-assignee on "${taskTitle}".`,
+        userId:    taskData.assignedTo2,
+        message:   `${user.name} assigned you as co-assignee on "${taskData.title}".`,
         type:      'assignment',
         timestamp: now,
         read:      false,
@@ -177,20 +109,18 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
     }
 
     updateState({
-      tasks: [...tasks, newTask],
+      tasks: [...tasks, taskData],
       notifications: [...newNotifs, ...notifications],
       auditLogs: [{
         id:        genId('AUD'),
         userId:    user.id,
         action:    'Task Created',
-        details:   `${user.name} assigned task "${taskTitle}" to ${staffMember?.name}${coMember ? ` + ${coMember?.name}` : ''} (${targetDept}).`,
+        details:   `${user.name} assigned task "${taskData.title}" to ${staffMember?.name}${coMember ? ` + ${coMember?.name}` : ''} (${taskData.department}).`,
         timestamp: now,
       }, ...state.auditLogs],
     });
 
-    toast.success(`Task assigned to ${staffMember?.name}${coMember ? ` + ${coMember.name}` : ''}.`, `"${taskTitle}"`);
-    setTaskTitle(''); setAssigneeId(''); setTaskDue(''); setTaskScheduledDate(''); setTargetDept(''); setTimelineDays('3');
-    setNeedsBothRoles(false); setCoAssigneeId('');
+    toast.success(`Task assigned to ${staffMember?.name}${coMember ? ` + ${coMember.name}` : ''}.`, `"${taskData.title}"`);
   };
 
   const handleReassignSubmit = (e, taskId) => {
@@ -642,141 +572,21 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
             <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
               <Plus className="w-5 h-5 text-violet-400" /> Assign Team Task
             </h3>
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Task Title</label>
-                <input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
-                  className="w-full glass-input p-3 rounded-xl text-sm" placeholder="e.g. Design Summer Banner" required />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Target Department</label>
-                <select value={targetDept} onChange={e => { setTargetDept(e.target.value); setAssigneeId(''); setSubTypeFilter(''); }}
-                  className="w-full glass-input p-3 rounded-xl text-xs" required>
-                  <option value="">-- Select department --</option>
-                  {ALLOWED_TARGET_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              {isVideographyDept && (
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Role Type</label>
-                  <select value={subTypeFilter} onChange={e => { setSubTypeFilter(e.target.value); setAssigneeId(''); setCoAssigneeId(''); setNeedsBothRoles(false); }}
-                    className="w-full glass-input p-3 rounded-xl text-xs">
-                    <option value="">All Roles</option>
-                    <option value="Videographer">Videographer</option>
-                    <option value="Content Creator">Content Creator / Influencer</option>
-                  </select>
-                </div>
-              )}
-              {isVideographyDept && subTypeFilter && (
-                <div className="flex items-center gap-3 px-1">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" checked={needsBothRoles}
-                      onChange={e => { setNeedsBothRoles(e.target.checked); if (!e.target.checked) setCoAssigneeId(''); }}
-                      className="sr-only peer" />
-                    <div className="w-9 h-5 bg-slate-700 peer-focus:ring-2 peer-focus:ring-violet-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
-                  </label>
-                  <span className="text-xs text-slate-400">Requires both roles?</span>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Assignee</label>
-                  <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs" required disabled={!targetDept}>
-                    <option value="">-- Select --</option>
-                    {deptStaff.map(emp => {
-                      const dueDate = computeDueDate({ priority: taskPriority, timelineDays, dueDate: taskDue, rule });
-                      const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, emp.id, dueDate, targetDept, taskPriority) : null;
-                      const label = info ? formatWorkloadLabel(emp.name, info.load, info.softMax, dueDate) : emp.name;
-                      return <option key={emp.id} value={emp.id} className={
-                        info?.color === 'red' ? 'text-red-400' :
-                        info?.color === 'amber' ? 'text-amber-400' :
-                        ''
-                      }>{label}</option>;
-                    })}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Project</label>
-                  <select value={taskProject} onChange={e => setTaskProject(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs">
-                    <option value="General">General Task</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              {needsBothRoles && coDeptStaff.length > 0 && (
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Co-Assignee ({subTypeFilter === 'Videographer' ? 'Content Creator' : 'Videographer'})</label>
-                  <select value={coAssigneeId} onChange={e => setCoAssigneeId(e.target.value)}
-                    className="w-full glass-input p-3 rounded-xl text-xs" required>
-                    <option value="">-- Select co-assignee --</option>
-                    {coDeptStaff.map(emp => {
-                      const dueDate = computeDueDate({ priority: taskPriority, timelineDays, dueDate: taskDue, rule });
-                      const info = dueDate && isCreativeDept ? getWorkloadInfo(tasks, emp.id, dueDate, targetDept, taskPriority) : null;
-                      const label = info ? formatWorkloadLabel(emp.name, info.load, info.softMax, dueDate) : emp.name;
-                      return <option key={emp.id} value={emp.id} className={
-                        info?.color === 'red' ? 'text-red-400' :
-                        info?.color === 'amber' ? 'text-amber-400' : ''
-                      }>{label}</option>;
-                    })}
-                  </select>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Priority</label>
-                   <select value={taskPriority} onChange={e => { setTaskPriority(e.target.value); if (e.target.value === 'Emergency') setTimelineDays('0'); }}
-                    className="w-full glass-input p-3 rounded-xl text-xs">
-                    <option value="Emergency">Emergency</option>
-                    <option value="High">High Priority</option>
-                    <option value="Medium">Medium Priority</option>
-                    <option value="Low">Low Priority</option>
-                  </select>
-                </div>
-                {taskPriority === 'Emergency' ? (
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Completion Timeline</label>
-                    <select value={timelineDays} onChange={e => setTimelineDays(e.target.value)}
-                      className="w-full glass-input p-3 rounded-xl text-xs">
-                      <option value="0">Today (ASAP)</option>
-                      <option value="1">Tomorrow (End of day)</option>
-                      <option value="2">Day After Tomorrow</option>
-                    </select>
-                    <p className="text-3xs text-rose-400 mt-1 font-semibold">Due: {computeDueDate({ priority: taskPriority, timelineDays, dueDate: taskDue, rule })}</p>
-                  </div>
-                ) : rule.mode === 'manual' ? (
-                  <div>
-                    <DatePicker label="Due Date" value={taskDue} onChange={setTaskDue} required />
-                  </div>
-                ) : rule.mode === 'select' ? (
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Timeline</label>
-                    <select value={timelineDays} onChange={e => setTimelineDays(e.target.value)}
-                      className="w-full glass-input p-3 rounded-xl text-xs">
-                      {(rule.options || [3, 5]).map(d => (
-                        <option key={d} value={d}>{d} Days from today</option>
-                      ))}
-                    </select>
-                    <p className="text-3xs text-slate-500 mt-1">Due: {addDays(todayStr(), parseInt(timelineDays))}</p>
-                  </div>
-                ) : rule.mode === 'fixed' ? (
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Due Date</label>
-                    <p className="text-xs text-slate-300 mt-2">Auto: {addDays(todayStr(), rule.days)} (fixed {rule.days} days)</p>
-                  </div>
-                ) : null}
-              </div>
-              {isCreativeDept && (
-                <div>
-                  <DatePicker label="Prior Date" value={taskScheduledDate} onChange={setTaskScheduledDate} />
-                </div>
-              )}
-              <button type="submit"
-                className="w-full bg-violet-650 hover:bg-violet-755 py-3 rounded-xl text-sm text-white font-bold transition cursor-pointer">
-                Assign Work Entry
-              </button>
-            </form>
+            <TaskForm
+              sourceDept="Work Assignment"
+              targetDept={targetDept}
+              showDescription={false}
+              showAssignee={true}
+              showProject={true}
+              onSubmit={handleCreateTask}
+              onCancel={() => {
+                setTargetDept('');
+              }}
+              employees={employees}
+              tasks={tasks}
+              projects={projects}
+              currentUser={user}
+            />
           </div>
         )}
 
