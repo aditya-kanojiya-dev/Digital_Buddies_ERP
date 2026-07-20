@@ -9,7 +9,7 @@ import { DatePicker, Modal, ConfirmDialog } from '../ui';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
 import { genId, today, addDays, computeDueDate } from '../../lib/format';
-import { CREATIVE_DEPTS, DEPT_TIMELINE_RULES } from '../ManagerDashboard';
+import { CREATIVE_DEPTS, DEPT_TIMELINE_RULES } from '../../lib/constants';
 import QuotationsTab from './SocialMedia/QuotationsTab';
 import MOMTab from './SocialMedia/MOMTab';
 import DayDetailModal from './SocialMedia/DayDetailModal';
