@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useEffect, startTransition } from 'react';
+import { Suspense, lazy, useState, useEffect, useRef, startTransition } from 'react';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import Login from './components/Login';
@@ -64,6 +64,8 @@ export default function App() {
   const [activeTab, setActiveTab]         = useState('dashboard');
   const [searchOpen, setSearchOpen]       = useState(false);
   const [authReady, setAuthReady]         = useState(false);
+  const userRef                           = useRef(user);
+  userRef.current = user;
 
   // Detect ?invite=TOKEN in the URL (one-time employee onboarding link)
   const [inviteToken]                     = useState(() => {
@@ -233,7 +235,7 @@ useEffect(() => {
       if (event === 'INITIAL_SESSION') {
         setAuthReady(true);
         // If Supabase has no session but our app session exists, sync them
-        if (!session && user) {
+        if (!session && userRef.current) {
           console.warn('[Auth] INITIAL_SESSION: no Supabase session but app session exists — clearing app session.');
           sessionStorage.removeItem('neomax_session');
           setUser(null);
@@ -306,7 +308,7 @@ useEffect(() => {
   return () => {
     supabase.removeChannel(channel);
   };
-}, [user]);
+}, [user, authReady]);
 
 // ── Tab-visibility refresh: re-fetch all data when user returns to tab ─────
   useEffect(() => {
@@ -317,7 +319,7 @@ useEffect(() => {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [user]);
+  }, [user, authReady]);
 
 // ── Global Ctrl/Cmd+K to open the command palette ─────────────────────────
 useEffect(() => {
@@ -333,7 +335,7 @@ useEffect(() => {
 
   // ── Optimistic state update → background Supabase persist ─────────────────
   // ponytail: debounce notification saves — they re-fire on every task change
-  const notifTimerRef = { current: null };
+  const notifTimerRef = useRef(null);
   const updateState = (newSubState, skipPersist) => {
     // 1. Update React state immediately
     setState(prev => ({ ...prev, ...newSubState }));
