@@ -130,7 +130,7 @@ export default function FounderDashboard({ state }) {
               <button
                 key={type}
                 onClick={() => exportReport(type)}
-                className="w-full bg-slate-900/60 hover:bg-slate-900 border border-slate-800 p-3.5 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-between transition"
+                className="w-full glass-card glass-card-interactive p-3.5 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-between"
               >
                 <span>{label} (.csv)</span>
                 <Download className={`w-4 h-4 ${tone}`} />
@@ -183,7 +183,7 @@ export default function FounderDashboard({ state }) {
                 return (
                   <div
                     key={log.id}
-                    className="p-3.5 bg-slate-950/45 border border-slate-900/60 rounded-xl flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs"
+                    className="p-3.5 glass-card rounded-xl flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs"
                   >
                     <div className="space-y-0.5 min-w-0">
                       <div className="font-semibold text-slate-200">

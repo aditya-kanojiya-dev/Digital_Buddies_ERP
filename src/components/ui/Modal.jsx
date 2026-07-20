@@ -70,13 +70,15 @@ export default function Modal({
                 <p className="text-xs text-slate-400 mt-0.5 truncate">{subtitle}</p>
               )}
             </div>
-            <button
-              onClick={onClose}
-              className="text-slate-500 hover:text-slate-200 transition p-1 -m-1 rounded-lg flex-shrink-0 cursor-pointer"
-              aria-label="Close dialog"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="text-slate-500 hover:text-slate-200 hover:bg-slate-700/50 transition-all duration-150 p-1.5 -m-1.5 rounded-lg flex-shrink-0 cursor-pointer"
+                aria-label="Close dialog"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
 

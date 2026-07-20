@@ -307,14 +307,14 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
       {myNotifications.filter(n => !n.read).length > 0 && (
         <div className="space-y-3">
           {myNotifications.filter(n => !n.read).map(notif => (
-            <div key={notif.id} className="bg-violet-650/15 border border-violet-500/25 p-3 sm:p-4 rounded-2xl flex items-center justify-between gap-4 animate-pulse-soft">
+            <div key={notif.id} className="bg-violet-500/10 border border-violet-500/20 p-3 sm:p-4 rounded-2xl flex items-center justify-between gap-4 animate-pulse-soft">
               <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-200 min-w-0">
                 <Bell className="w-5 h-5 text-violet-400 flex-shrink-0" />
                 <span className="truncate">{notif.message}</span>
               </div>
               <button
                 onClick={() => handleMarkAsRead(notif.id)}
-                className="bg-violet-600 hover:bg-violet-700 text-white text-3xs font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
+                className="bg-violet-600 hover:bg-violet-500 text-white text-[0.65rem] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
               >
                 Acknowledge
               </button>
@@ -354,7 +354,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="bg-slate-950/50 p-4 rounded-xl space-y-2 border border-slate-900">
+              <div className="bg-[var(--surface-input)] p-4 rounded-xl space-y-2 border border-[var(--border-soft)]">
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>{todayAttendance.type}</span>
                   <span className="text-emerald-400 font-bold font-mono">Present</span>
@@ -457,7 +457,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
               </div>
             </div>
 
-            <div className="flex flex-col items-center justify-center bg-slate-950/45 border border-slate-900/60 p-5 sm:p-6 rounded-2xl">
+            <div className="flex flex-col items-center justify-center bg-[var(--surface-input)] border border-[var(--border-soft)] p-5 sm:p-6 rounded-2xl">
               <span className="text-2xl sm:text-3xl font-extrabold font-mono text-glow text-violet-400">
                 {formatTime(timerSeconds)}
               </span>
@@ -520,13 +520,13 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
               },
             ];
             return widgets.map((w, i) => (
-              <div key={w.label} className={`glass-card p-3 rounded-xl flex items-center gap-3 animate-fade-in stagger-${i + 1}`}>
+              <div key={w.label} className={`glass-card p-3 rounded-xl flex items-center gap-3 animate-fade-in stagger-${Math.min(i + 1, 10)}`}>
                 <div className={`p-2 rounded-lg ${w.bg}`}>
                   <w.icon className={`w-4 h-4 ${w.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <div className={`text-base sm:text-lg font-extrabold ${w.color} truncate`}>{w.val}</div>
-                  <div className="text-3xs text-slate-400 truncate">{w.label}</div>
+                  <div className={`text-base sm:text-lg font-extrabold ${w.color} truncate tabular-nums`}>{w.val}</div>
+                  <div className="text-[0.65rem] text-slate-400 truncate">{w.label}</div>
                 </div>
               </div>
             ));
@@ -706,7 +706,7 @@ export default function Dashboard({ user, state, updateState, onNavigate }) {
             </div>
             <button
               type="submit"
-              className="w-full bg-violet-650 hover:bg-violet-700 py-3 rounded-xl text-sm text-white font-bold transition-colors cursor-pointer min-h-[44px]"
+              className="w-full bg-[var(--accent-strong)] hover:bg-[var(--accent)] py-3 rounded-xl text-sm text-white font-bold transition-colors cursor-pointer min-h-[44px]"
             >
               Submit Timelog
             </button>

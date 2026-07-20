@@ -23,7 +23,7 @@ export function Field({ label, error, hint, required, htmlFor, children, classNa
 }
 
 const baseControl =
-  'w-full glass-input rounded-xl px-3.5 py-2.5 text-sm placeholder:text-slate-600 disabled:opacity-50 min-h-[44px]';
+  'w-full glass-input rounded-xl px-3.5 py-2.5 text-sm placeholder:text-slate-600 disabled:opacity-50 min-h-[44px] focus:outline-none';
 const errorRing = 'border-rose-500/50 focus:border-rose-500/60';
 
 export function Input({ error, className = '', ...rest }) {
@@ -48,7 +48,7 @@ export function Textarea({ error, rows = 3, className = '', ...rest }) {
 export function Select({ error, children, className = '', ...rest }) {
   return (
     <select
-      className={`${baseControl} appearance-none cursor-pointer ${
+      className={`${baseControl} appearance-none cursor-pointer select-chevron ${
         error ? errorRing : ''
       } ${className}`}
       {...rest}

@@ -127,7 +127,7 @@ export default function NotificationsCenter({ state, updateState, user, onNotifN
                                     className={`p-3 sm:p-4 rounded-xl flex items-start gap-3 sm:gap-4 border ${
                                         n.read
                                             ? 'bg-slate-950/30 border-slate-900'
-                                            : 'bg-violet-650/8 border-violet-500/20'
+                                            : 'bg-violet-500/10 border-violet-500/20'
                                     }`}
                                 >
                                     <span className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${n.read ? 'bg-slate-700' : 'bg-violet-400'}`} />

@@ -108,7 +108,7 @@ export default function Profile({ user, state, updateState }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="p-4 sm:p-6 space-y-5">
           <div className="flex flex-col items-center text-center">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-violet-650 flex items-center justify-center text-white font-bold text-2xl overflow-hidden mb-4 border-2 border-violet-500/30">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[var(--accent-strong)] flex items-center justify-center text-white font-bold text-2xl overflow-hidden mb-4 border-2 border-violet-500/30">
               {avatar ? (
                 <img src={avatar} alt="" className="w-full h-full object-cover" />
               ) : (

@@ -118,11 +118,13 @@ export default function CommandPalette({ open, onClose, state, onNavigate }) {
                   key={`${item.type}-${item.id}`}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => select(item)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition ${
-                    active === i ? 'bg-violet-650/60' : 'hover:bg-slate-900/40'
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-100 ${
+                    active === i ? 'bg-violet-500/20 border border-violet-500/25' : 'hover:bg-slate-900/40 border border-transparent'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${meta.tone}`} />
+                  <div className={`p-1.5 rounded-lg flex-shrink-0 ${active === i ? 'bg-violet-500/20' : 'bg-slate-800/50'}`}>
+                    <Icon className={`w-3.5 h-3.5 ${meta.tone}`} />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-slate-200 truncate">{item.title}</p>
                     <p className="text-[0.65rem] text-slate-500 truncate">{item.sub}</p>

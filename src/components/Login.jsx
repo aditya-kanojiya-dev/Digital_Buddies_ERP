@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Layers, Key, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import { Layers, Key, Mail, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { auth } from '../data/auth';
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +41,7 @@ export default function Login({ onLoginSuccess }) {
 
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/25 p-3 sm:p-4 rounded-xl flex items-start gap-3 text-rose-400 text-xs animate-fade-in relative z-10">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">Access Denied:</span> {error}
             </div>
@@ -48,7 +49,7 @@ export default function Login({ onLoginSuccess }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5 relative z-10">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider pl-1">Email</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
@@ -59,22 +60,32 @@ export default function Login({ onLoginSuccess }) {
                 className="w-full glass-input pl-12 pr-4 py-3.5 rounded-xl text-sm min-h-[48px]"
                 placeholder="name@digitalbuddies.com"
                 required
+                autoComplete="email"
               />
             </div>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider pl-1">Password</label>
             <div className="relative">
               <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full glass-input pl-12 pr-4 py-3.5 rounded-xl text-sm min-h-[48px]"
+                className="w-full glass-input pl-12 pr-12 py-3.5 rounded-xl text-sm min-h-[48px]"
                 placeholder="••••••••"
                 required
+                autoComplete="current-password"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 
@@ -101,7 +112,7 @@ export default function Login({ onLoginSuccess }) {
         </form>
 
         <div className="relative z-10 pt-2 border-t border-slate-800/60 text-center">
-          <p className="text-3xs text-slate-500">
+          <p className="text-[0.7rem] text-slate-500">
             Contact your admin if you need access.
           </p>
         </div>

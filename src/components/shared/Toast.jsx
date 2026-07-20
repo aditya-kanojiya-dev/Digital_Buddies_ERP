@@ -50,9 +50,9 @@ function ToastItem({ toast, onRemove }) {
         overflow-hidden
       `}
             style={{
-                background: 'rgba(18, 12, 36, 0.92)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
+                background: 'rgba(18, 12, 36, 0.95)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
             }}
         >
             <div

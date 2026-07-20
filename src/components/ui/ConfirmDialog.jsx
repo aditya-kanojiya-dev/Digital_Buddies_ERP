@@ -1,4 +1,5 @@
 
+
 import { AlertTriangle } from 'lucide-react';
 import Modal from './Modal';
 import Button from './Button';
@@ -42,7 +43,7 @@ export default function ConfirmDialog({
         </div>
         <div className="min-w-0">
           <h3 className="text-sm sm:text-base font-bold text-slate-100">{title}</h3>
-          {message && <p className="text-xs sm:text-sm text-slate-400 mt-1">{message}</p>}
+          {message && <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">{message}</p>}
         </div>
       </div>
     </Modal>

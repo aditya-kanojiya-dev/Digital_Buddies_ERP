@@ -295,7 +295,7 @@ export default function TaskForm({
       {/* Submit + Cancel */}
       <div className="flex gap-3 pt-2">
         <button type="submit"
-          className="flex-1 bg-violet-650 hover:bg-violet-755 py-3 rounded-xl text-sm text-white font-bold transition cursor-pointer flex items-center justify-center gap-2">
+          className="flex-1 bg-[var(--accent-strong)] hover:bg-[var(--accent)] py-3 rounded-xl text-sm text-white font-bold transition cursor-pointer flex items-center justify-center gap-2">
           <Send className="w-4 h-4" /> Assign Work Entry
         </button>
         <button type="button" onClick={onCancel}

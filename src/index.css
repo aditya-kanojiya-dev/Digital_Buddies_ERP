@@ -47,6 +47,12 @@
     --r-md: 0.75rem;
     --r-lg: 1rem;
     --r-xl: 1.5rem;
+    --r-2xl: 1rem;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.35);
 
     --glow: 0 0 20px rgba(139, 92, 246, 0.15);
     --glow-strong: 0 0 28px rgba(139, 92, 246, 0.28);
@@ -107,12 +113,10 @@
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
   transition: background var(--duration-slow) var(--ease-smooth),
               border-color var(--duration-slow) var(--ease-smooth),
               box-shadow var(--duration-slow) var(--ease-smooth);
-}
-.glass-panel:active {
-  transform: scale(0.995);
 }
 
 .glass-card {
@@ -120,16 +124,23 @@
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-soft);
-  transition: all var(--duration-normal) var(--ease-smooth);
+  transition: border-color var(--duration-normal) var(--ease-smooth),
+              box-shadow var(--duration-normal) var(--ease-smooth),
+              transform var(--duration-normal) var(--ease-smooth);
 }
 
 .glass-card:hover {
   border-color: var(--border-strong);
   box-shadow: var(--glow);
-  transform: translateY(-2px);
 }
-.glass-card:active {
-  transform: scale(0.98);
+
+.glass-card-interactive:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: var(--glow);
+}
+.glass-card-interactive:active {
+  transform: scale(0.99);
 }
 
 .glass-input {
@@ -195,7 +206,12 @@
   overflow: hidden;
 }
 
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 3px var(--accent-ring);
+}
+
+.btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
 .btn-primary {
   background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent-2) 100%);
@@ -342,6 +358,24 @@
   background: var(--surface-elevated);
   backdrop-filter: blur(8px);
   white-space: nowrap;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-wrap td {
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.table-wrap tr {
+  transition: background var(--duration-fast) var(--ease-smooth);
 }
 
 .table-wrap tr:hover {
@@ -378,7 +412,62 @@
 
 .btn-loading {
   pointer-events: none;
-  opacity: 0.75;
+  opacity: 0.7;
+}
+
+/* ── Select chevron indicator ──────────────────────────── */
+.select-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem !important;
+}
+
+/* ── Focus ring utility ────────────────────────────────── */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 3px var(--accent-ring);
+}
+
+/* ── Subtle section divider ────────────────────────────── */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 0.5rem 0;
+}
+
+/* ── Ambient glow backdrop (login, hero sections) ──────── */
+.ambient-glow {
+  position: relative;
+}
+.ambient-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(217, 70, 239, 0.05));
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-smooth);
+  pointer-events: none;
+  z-index: 0;
+}
+.ambient-glow:hover::before {
+  opacity: 1;
+}
+
+/* ── Smooth number transition ──────────────────────────── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Custom font sizes (missing from Tailwind v4 defaults) ── */
+@utility text-3xs {
+  font-size: 0.6rem;
+  line-height: 0.875rem;
+}
+@utility text-2xs {
+  font-size: 0.65rem;
+  line-height: 0.9rem;
 }
 
 /* ── Reduced motion ────────────────────────────────────── */

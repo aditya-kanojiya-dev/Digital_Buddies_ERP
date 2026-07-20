@@ -65,7 +65,7 @@ const SidebarContent = memo(function SidebarContentBase({ showLabels, activeTab,
               {group}
             </p>
           )}
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -240,7 +240,7 @@ export default function Layout({
             >
               <Bell className="w-5 h-5" />
               {unreadNotifs.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-bold text-[0.6rem] min-w-[1rem] h-4 px-1 rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-bold text-[0.6rem] min-w-[1rem] h-4 px-1 rounded-full flex items-center justify-center shadow-lg shadow-rose-600/30">
                   {unreadNotifs.length > 9 ? '9+' : unreadNotifs.length}
                 </span>
               )}

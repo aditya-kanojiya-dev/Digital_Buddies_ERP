@@ -1,4 +1,5 @@
 
+
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 const TONES = {
@@ -27,14 +28,14 @@ export default function StatCard({
   return (
     <div
       onClick={onClick}
-      className={`glass-card rounded-2xl p-4 sm:p-5 ${
-        onClick ? 'cursor-pointer' : ''
+      className={`glass-card rounded-2xl p-4 sm:p-5 border border-[var(--border-soft)] ${
+        onClick ? 'cursor-pointer glass-card-interactive' : ''
       } ${className}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-slate-400 truncate">{label}</p>
-          <p className="text-xl sm:text-2xl font-extrabold text-slate-100 mt-1 tracking-tight">
+          <p className="text-xl sm:text-2xl font-extrabold text-slate-100 mt-1 tracking-tight tabular-nums">
             {value}
           </p>
         </div>

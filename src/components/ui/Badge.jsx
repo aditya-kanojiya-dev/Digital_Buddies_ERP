@@ -18,10 +18,21 @@ const DOTS = {
   slate: 'bg-slate-400',
 };
 
-export default function Badge({ tone = 'slate', dot = false, className = '', children }) {
+const SIZES = {
+  sm: 'px-1.5 py-0.5 text-[0.6rem]',
+  md: 'px-2 py-0.5 text-[0.65rem]',
+  lg: 'px-2.5 py-1 text-xs',
+};
+
+export default function Badge({ tone = 'slate', size = 'md', dot = false, pulse = false, className = '', children }) {
   return (
-    <span className={`badge ${TONES[tone] || TONES.slate} ${className}`}>
-      {dot && <span className={`w-1.5 h-1.5 rounded-full ${DOTS[tone] || DOTS.slate}`} />}
+    <span className={`badge ${TONES[tone] || TONES.slate} ${SIZES[size] || SIZES.md} ${className}`}>
+      {dot && (
+        <span className={`relative flex h-1.5 w-1.5`}>
+          {pulse && <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${DOTS[tone] || DOTS.slate}`} />}
+          <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${DOTS[tone] || DOTS.slate}`} />
+        </span>
+      )}
       {children}
     </span>
   );
