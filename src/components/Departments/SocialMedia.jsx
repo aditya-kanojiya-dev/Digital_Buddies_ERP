@@ -5,16 +5,16 @@ import {
 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { db } from '../../data/db';
-import { DatePicker, Modal, ConfirmDialog } from '../ui';
+import { Modal, ConfirmDialog } from '../ui';
 import TaskDetailPanel from '../shared/TaskDetailPanel';
 import { getWorkloadInfo, formatWorkloadLabel } from '../../lib/workloadCaps';
-import { genId, today, addDays, computeDueDate } from '../../lib/format';
-import { CREATIVE_DEPTS, DEPT_TIMELINE_RULES } from '../../lib/constants';
+import { genId, today, addDays } from '../../lib/format';
+import { CREATIVE_DEPTS } from '../../lib/constants';
 import QuotationsTab from './SocialMedia/QuotationsTab';
 import MOMTab from './SocialMedia/MOMTab';
 import DayDetailModal from './SocialMedia/DayDetailModal';
 import PostModal from './SocialMedia/PostModal';
-import CrossDeptTaskModal from './SocialMedia/CrossDeptTaskModal';
+import TaskForm from '../shared/TaskForm';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June',
@@ -89,30 +89,6 @@ export default function SocialMedia({ user, state, updateState }) {
     needsBothRoles: false, assignedPhotoCo: '',
   });
   const [postForm, setPostForm] = useState(blankPost());
-
-  // ── Cross-dept task form ───────────────────────────────────────────────────
-  const blankTask = () => ({
-    title: '', description: '', targetDept: 'Video Editors',
-    assignedTo: '', dueDate: '', scheduledDate: '', priority: 'Medium', timelineDays: '3',
-  });
-  const [taskForm, setTaskForm] = useState(blankTask());
-  const [crossDeptSubType, setCrossDeptSubType] = useState('');
-  const [crossDeptNeedsBoth, setCrossDeptNeedsBoth] = useState(false);
-  const [crossDeptCoAssignee, setCrossDeptCoAssignee] = useState('');
-
-  // Employees filter for the assignee dropdown in the cross-dept modal
-  const isVideographyTarget = taskForm.targetDept === 'Videography/Photography';
-  const deptEmployees = employees.filter(e =>
-    e.department?.includes(taskForm.targetDept) &&
-    (!isVideographyTarget || !crossDeptSubType || e.subType === crossDeptSubType)
-  );
-  const crossDeptCoStaff = (crossDeptNeedsBoth && isVideographyTarget && crossDeptSubType)
-    ? employees.filter(e =>
-        e.department?.includes(taskForm.targetDept) &&
-        e.subType !== crossDeptSubType &&
-        e.id !== taskForm.assignedTo
-      )
-    : [];
 
   // ── Quote / MOM form ──────────────────────────────────────────────────────
   const [quoteClient, setQuoteClient] = useState('');
@@ -596,91 +572,35 @@ export default function SocialMedia({ user, state, updateState }) {
   };
 
   // ── Cross-dept task assign ────────────────────────────────────────────────
-  const rule = DEPT_TIMELINE_RULES[taskForm.targetDept] || {};
-  const isCreativeDept = CREATIVE_DEPTS.includes(taskForm.targetDept);
-
-  const handleAssignTask = () => {
-    if (!taskForm.title || !taskForm.targetDept) { toast.error('Task title and target department are required.'); return; }
-
-    const dueDate = computeDueDate({ priority: taskForm.priority, timelineDays: taskForm.timelineDays, dueDate: taskForm.dueDate, rule, fallbackDays: 0 });
-
-    // ── Workload cap check ──
-    if (taskForm.assignedTo && dueDate && CREATIVE_DEPTS.includes(taskForm.targetDept)) {
-      const info = getWorkloadInfo(tasks, taskForm.assignedTo, dueDate, taskForm.targetDept, taskForm.priority);
-      if (!info.canAssign) {
-        toast.error(info.reason);
-        return;
-      }
-      if (info.reason && !info.reason.startsWith('⚠️')) {
-        toast.warning(info.reason);
-      }
-    }
-
-    if (crossDeptNeedsBoth && crossDeptCoAssignee && dueDate && CREATIVE_DEPTS.includes(taskForm.targetDept)) {
-      const coInfo = getWorkloadInfo(tasks, crossDeptCoAssignee, dueDate, taskForm.targetDept, taskForm.priority);
-      if (!coInfo.canAssign) {
-        toast.error(`Co-assignee: ${coInfo.reason}`);
-        return;
-      }
-    }
-
-    const isCreative = CREATIVE_DEPTS.includes(taskForm.targetDept);
-    const isVideography = taskForm.targetDept === 'Videography/Photography';
-    const assignee = taskForm.assignedTo ? employees.find(e => e.id === taskForm.assignedTo) : null;
-    const coAssignee = crossDeptNeedsBoth && crossDeptCoAssignee ? employees.find(e => e.id === crossDeptCoAssignee) : null;
-    const newTask = {
-      id: genId('TASK'),
-      title: taskForm.title,
-      description: taskForm.description,
-      assignedTo: taskForm.assignedTo || null,
-      assigneeName: assignee?.name || '',
-      assignedTo2: coAssignee?.id || null,
-      assigneeName2: coAssignee?.name || '',
-      department: taskForm.targetDept,
-      sourceDept: 'Social Media',
-      assignedBy: user.id,
-      priority: taskForm.priority,
-      projectId: 'General',
-      dueDate,
-      scheduledDate: isCreative ? taskForm.scheduledDate || null : null,
-      status: 'New',
-      createdAt: new Date().toISOString().split('T')[0],
-      pinged: 0,
-      lastPingedAt: null,
-      shootApprovalStatus: isVideography ? 'pending' : null,
-      rescheduleRequest: null,
-      isDelayed: false,
-      delayCount: 0,
-      delayHistory: [],
-    };
-
-    // Notify assignee or whole dept
-    const toNotify = taskForm.assignedTo
-      ? [employees.find(e => e.id === taskForm.assignedTo)].filter(Boolean)
-      : employees.filter(e => e.department?.includes(taskForm.targetDept));
-    if (coAssignee) toNotify.push(coAssignee);
+  // ── Cross-dept task assign ────────────────────────────────────────────────
+  const handleAssignTask = (taskData) => {
     const now = new Date().toISOString();
+
+    // Notify assignee or whole target dept
+    const toNotify = taskData.assignedTo
+      ? [employees.find(e => e.id === taskData.assignedTo)].filter(Boolean)
+      : employees.filter(e => e.department?.includes(taskData.department));
+    if (taskData.assignedTo2) {
+      const co = employees.find(e => e.id === taskData.assignedTo2);
+      if (co) toNotify.push(co);
+    }
     const newNotifs = toNotify.map(emp => ({
       id: genId('NTF') + `_${emp.id}`,
       userId: emp.id,
-      message: `📌 Social Media assigned you a task: "${taskForm.title}"${dueDate ? ` — due ${dueDate}` : ''}`,
+      message: `📌 Social Media assigned you a task: "${taskData.title}"${taskData.dueDate ? ` — due ${taskData.dueDate}` : ''}`,
       type: 'assignment',
       timestamp: now,
       read: false,
     }));
 
-    // Batch into single updateState to avoid 2 separate Supabase persist calls
     updateState({
-      tasks: [...tasks, newTask],
+      tasks: [...tasks, taskData],
       ...(newNotifs.length ? { notifications: [...notifications, ...newNotifs] } : {}),
     });
-    db.addTask(newTask).catch(err => console.warn('[SocialMedia] Failed to add task:', err));
+    db.addTask(taskData).catch(err => console.warn('[SocialMedia] Failed to add task:', err));
 
-    toast.success(`Task "${taskForm.title}" assigned to ${taskForm.targetDept}.`);
+    toast.success(`Task "${taskData.title}" assigned to ${taskData.department}.`);
     setShowTaskModal(false);
-    setTaskForm(blankTask());
-    setCrossDeptNeedsBoth(false);
-    setCrossDeptCoAssignee('');
   };
 
   // ── Quote ─────────────────────────────────────────────────────────────────
@@ -1154,32 +1074,22 @@ Generated by: ${user.name} — Social Media Department
         addDays={addDays}
       />
 
-      <CrossDeptTaskModal
-        showTaskModal={showTaskModal}
-        setShowTaskModal={setShowTaskModal}
-        taskForm={taskForm}
-        setTaskForm={setTaskForm}
-        blankTask={blankTask}
-        crossDeptSubType={crossDeptSubType}
-        setCrossDeptSubType={setCrossDeptSubType}
-        crossDeptNeedsBoth={crossDeptNeedsBoth}
-        setCrossDeptNeedsBoth={setCrossDeptNeedsBoth}
-        crossDeptCoAssignee={crossDeptCoAssignee}
-        setCrossDeptCoAssignee={setCrossDeptCoAssignee}
-        deptEmployees={deptEmployees}
-        crossDeptCoStaff={crossDeptCoStaff}
-        isVideographyTarget={isVideographyTarget}
-        isCreativeDept={isCreativeDept}
-        rule={rule}
-        handleAssignTask={handleAssignTask}
-        computeDueDate={computeDueDate}
-        employees={employees}
-        tasks={tasks}
-        getWorkloadInfo={getWorkloadInfo}
-        formatWorkloadLabel={formatWorkloadLabel}
-        addDays={addDays}
-        today={today}
-      />
+      {showTaskModal && (
+        <Modal title="Assign Task to Another Department" onClose={() => setShowTaskModal(false)} size="lg">
+          <TaskForm
+            sourceDept="Social Media"
+            targetDept="Video Editors"
+            showDescription={true}
+            showAssignee={true}
+            showProject={false}
+            onSubmit={handleAssignTask}
+            onCancel={() => setShowTaskModal(false)}
+            employees={employees}
+            tasks={tasks}
+            currentUser={user}
+          />
+        </Modal>
+      )}
 
       <ConfirmDialog
         open={confirmState.open}
