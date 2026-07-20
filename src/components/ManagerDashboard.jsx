@@ -112,7 +112,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
 
   // Employees narrowed by selected department for the assignee dropdown
   const filteredEmployees = useMemo(() =>
-    taskFilterDept ? employees.filter(e => e.department === taskFilterDept) : employees
+    taskFilterDept ? employees.filter(e => e.department?.includes(taskFilterDept)) : employees
   , [employees, taskFilterDept]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -896,7 +896,7 @@ export default function ManagerDashboard({ user, state, updateState, setActiveTa
                       setTaskFilterDept(newDept);
                       // Reset assignee if current selection isn't in the new dept
                       if (taskFilterAssignee && newDept) {
-                        const stillValid = employees.some(e => e.id === taskFilterAssignee && e.department === newDept);
+                        const stillValid = employees.some(e => e.id === taskFilterAssignee && e.department?.includes(newDept));
                         if (!stillValid) setTaskFilterAssignee('');
                       }
                     }}
