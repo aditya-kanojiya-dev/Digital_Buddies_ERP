@@ -154,18 +154,18 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                 <div className="p-5 border-b border-slate-800 flex items-start justify-between gap-3 flex-shrink-0">
                     <div className="space-y-2 min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-3xs bg-violet-600/15 text-violet-400 px-2 py-0.5 rounded font-mono font-semibold">
+                            <span className="text-xs bg-violet-600/15 text-violet-400 px-2 py-0.5 rounded font-mono font-semibold">
                                 {task.status}
                             </span>
                             {task.priority && (
-                                <span className={`text-3xs px-2 py-0.5 rounded font-mono font-semibold border ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.Medium}`}>
+                                <span className={`text-xs px-2 py-0.5 rounded font-mono font-semibold border ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.Medium}`}>
                                     {task.priority}
                                 </span>
                             )}
                             <DeadlineBadge dueDate={task.dueDate} status={task.status} />
                         </div>
                         <h3 className="font-bold text-lg text-slate-100">{task.title}</h3>
-                        <div className="text-3xs text-slate-500 flex flex-wrap items-center gap-2">
+                        <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
                             <span className="font-mono text-violet-400 font-semibold">{task.id}</span>
                             {task.department && (
                                 <>
@@ -193,15 +193,15 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                     {/* ── People ── */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="glass-card rounded-xl p-3 border border-slate-800/60">
-                            <p className="text-3xs text-slate-500 uppercase tracking-wider font-semibold mb-1.5">Assigned By</p>
+                            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1.5">Assigned By</p>
                             {assigner ? (
                                 <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-3xs font-bold text-slate-300">
+                                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
                                         {assigner.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                                     </div>
                                     <div>
                                         <p className="text-xs font-semibold text-slate-200">{assigner.name}</p>
-                                        <p className="text-3xs text-slate-500">{assigner.role || 'Team Member'}</p>
+                                        <p className="text-xs text-slate-500">{assigner.role || 'Team Member'}</p>
                                     </div>
                                 </div>
                             ) : (
@@ -209,26 +209,26 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                             )}
                         </div>
                         <div className="glass-card rounded-xl p-3 border border-slate-800/60">
-                            <p className="text-3xs text-slate-500 uppercase tracking-wider font-semibold mb-1.5">Assigned To</p>
+                            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1.5">Assigned To</p>
                             {assignee ? (
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-full bg-teal-500/20 flex items-center justify-center text-3xs font-bold text-teal-400">
+                                        <div className="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center text-xs font-bold text-teal-400">
                                             {assignee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                                         </div>
                                         <div>
                                             <p className="text-xs font-semibold text-slate-200">{assignee.name}</p>
-                                            <p className="text-3xs text-slate-500">{assignee.department?.join(', ') || 'No department'}</p>
+                                            <p className="text-xs text-slate-500">{assignee.department?.join(', ') || 'No department'}</p>
                                         </div>
                                     </div>
                                     {assignee2 && (
                                         <div className="flex items-center gap-2 pt-1.5 border-t border-slate-800/40">
-                                            <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-3xs font-bold text-amber-400">
+                                            <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-xs font-bold text-amber-400">
                                                 {assignee2.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                                             </div>
                                             <div>
-                                                <p className="text-xs font-semibold text-slate-200">{assignee2.name} <span className="text-3xs text-amber-400">(Co-Assignee)</span></p>
-                                                <p className="text-3xs text-slate-500">{assignee2.department?.join(', ') || 'No department'}</p>
+                                                <p className="text-xs font-semibold text-slate-200">{assignee2.name} <span className="text-xs text-amber-400">(Co-Assignee)</span></p>
+                                                <p className="text-xs text-slate-500">{assignee2.department?.join(', ') || 'No department'}</p>
                                             </div>
                                         </div>
                                     )}
@@ -282,7 +282,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                                         Proposed new date: <span className="font-semibold text-amber-300">{task.rescheduleRequest.proposedDate}</span>
                                     </p>
                                     <p className="text-xs text-slate-400 italic">"{task.rescheduleRequest.reason}"</p>
-                                    <p className="text-3xs text-slate-500">by {task.rescheduleRequest.requestedByName}</p>
+                                    <p className="text-xs text-slate-500">by {task.rescheduleRequest.requestedByName}</p>
                                 </div>
                             )}
                         </div>
@@ -291,8 +291,8 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                     {/* ── Dates ── */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="glass-card rounded-xl p-3 border border-slate-800/60">
-                            <p className="text-3xs text-slate-500 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
-                                <Clock className="w-3 h-3" /> Due Date
+                            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" /> Due Date
                             </p>
                             <p className={`text-sm font-bold ${task.dueDate ? 'text-slate-200' : 'text-slate-500 italic'}`}>
                                 {task.dueDate || 'No due date'}
@@ -300,9 +300,9 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                         </div>
                         {task.scheduledDate && (
                             <div className="glass-card rounded-xl p-3 border border-slate-800/60">
-                                <p className="text-3xs text-slate-500 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" /> Post Date
-                                </p>
+                            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
+                                    <Calendar className="w-3.5 h-3.5" /> Post Date
+                            </p>
                                 <p className="text-sm font-bold text-slate-200">{task.scheduledDate}</p>
                             </div>
                         )}
@@ -311,7 +311,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                     {/* ── Description ── */}
                     {task.description && (
                         <div>
-                            <h4 className="text-3xs uppercase tracking-wider text-slate-500 mb-2 font-semibold">Description</h4>
+                            <h4 className="text-xs uppercase tracking-wider text-slate-500 mb-2 font-semibold">Description</h4>
                             <div className="glass-card rounded-xl p-3 border border-slate-800/60">
                                 <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line">{task.description}</p>
                             </div>
@@ -321,7 +321,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                     {/* ── Attachment ── */}
                     {task.attachmentUrl && (
                         <div>
-                            <h4 className="text-3xs uppercase tracking-wider text-slate-500 mb-2 font-semibold">Attachment</h4>
+                            <h4 className="text-xs uppercase tracking-wider text-slate-500 mb-2 font-semibold">Attachment</h4>
                             <a
                                 href={task.attachmentUrl}
                                 target="_blank"
@@ -333,7 +333,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <p className="text-xs text-fuchsia-400 font-semibold truncate">{task.attachmentUrl}</p>
-                                    <p className="text-3xs text-slate-500">Click to open in new tab</p>
+                                    <p className="text-xs text-slate-500">Click to open in new tab</p>
                                 </div>
                             </a>
                         </div>
@@ -355,8 +355,8 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                     {/* ── Delay history ── */}
                     {task.isDelayed && task.delayHistory && task.delayHistory.length > 0 && (
                         <div>
-                            <h4 className="text-3xs uppercase tracking-wider text-slate-500 mb-2 font-semibold flex items-center gap-1.5">
-                                <ClockAlert className="w-3 h-3 text-rose-400" />
+                            <h4 className="text-xs uppercase tracking-wider text-slate-500 mb-2 font-semibold flex items-center gap-1.5">
+                                <ClockAlert className="w-3.5 h-3.5 text-rose-400" />
                                 Delay History ({task.delayCount} time{task.delayCount !== 1 ? 's' : ''})
                             </h4>
                             <div className="space-y-2">
@@ -366,7 +366,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                                             <span className="text-xs font-semibold text-rose-300">
                                                 Delay #{task.delayHistory.length - i}
                                             </span>
-                                            <span className="text-3xs text-slate-500">
+                                            <span className="text-xs text-slate-500">
                                                 {d.reportedAt?.split(' ')[0] || 'Unknown date'}
                                             </span>
                                         </div>
@@ -376,7 +376,7 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                                             <span className="font-semibold text-slate-200">{d.newDueDate}</span>
                                         </div>
                                         <p className="text-xs text-slate-300 italic leading-relaxed">"{d.reason}"</p>
-                                        <p className="text-3xs text-slate-500 mt-1">by {d.reportedByName}</p>
+                                        <p className="text-xs text-slate-500 mt-1">by {d.reportedByName}</p>
                                     </div>
                                 ))}
                             </div>
@@ -407,8 +407,8 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
                     {/* ── Review / Approval ── */}
                     {canReview && !showCrInput && (
                         <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-3">
-                            <p className="text-2xs font-semibold text-emerald-300 flex items-center gap-1.5">
-                                <CheckCircle className="w-3.5 h-3.5" /> Task is in Review — your action
+                            <p className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
+                                <CheckCircle className="w-4 h-4" /> Task is in Review — your action
                             </p>
                             <div className="flex gap-2">
                                 <button onClick={handleApprove}
@@ -427,21 +427,21 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
 
                     {canReview && showCrInput && (
                         <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 space-y-3">
-                            <p className="text-2xs font-semibold text-amber-300">Describe the changes needed</p>
+                            <p className="text-xs font-semibold text-amber-300">Describe the changes needed</p>
                             <textarea value={crText} onChange={e => setCrText(e.target.value)}
                                 className="w-full glass-input p-2.5 rounded-lg text-xs h-20 resize-none"
                                 placeholder="Be specific about what needs to change..."
                                 maxLength={500}
                             />
-                            <p className="text-3xs text-slate-500 text-right">{crText.length}/500</p>
+                            <p className="text-xs text-slate-500 text-right">{crText.length}/500</p>
                             <div className="flex gap-2 justify-end">
                                 <button onClick={() => { setShowCrInput(false); setCrText(''); }}
-                                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-2xs font-semibold cursor-pointer transition">
+                                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer transition">
                                     Cancel
                                 </button>
                                 <button onClick={handleRequestChanges} disabled={!crText.trim()}
-                                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-2xs font-bold flex items-center gap-1 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <Edit2 className="w-3 h-3" /> Send Change Request
+                                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <Edit2 className="w-3.5 h-3.5" /> Send Change Request
                                 </button>
                             </div>
                         </div>

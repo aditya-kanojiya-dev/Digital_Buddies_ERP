@@ -20,26 +20,26 @@ export default function DeadlineBadge({ dueDate, status, size = 'md' }) {
     const today = todayStr();
     const tomorrow = tomorrowStr();
 
-    const padding = size === 'sm' ? 'px-1.5 py-0.5 text-3xs' : 'px-2 py-0.5 text-3xs';
+    const padding = size === 'sm' ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-xs';
 
     if (dueDate < today) {
         return (
             <span className={`flex items-center gap-1 font-bold text-rose-400 bg-rose-500/10 rounded border border-rose-500/20 ${padding}`}>
-                <AlertCircle className="w-3 h-3" /> OVERDUE
+                <AlertCircle className="w-3.5 h-3.5" /> OVERDUE
             </span>
         );
     }
     if (dueDate === today) {
         return (
             <span className={`flex items-center gap-1 font-bold text-amber-400 bg-amber-500/10 rounded border border-amber-500/20 ${padding}`}>
-                <AlertTriangle className="w-3 h-3" /> DUE TODAY
+                <AlertTriangle className="w-3.5 h-3.5" /> DUE TODAY
             </span>
         );
     }
     if (dueDate === tomorrow) {
         return (
             <span className={`flex items-center gap-1 font-bold text-yellow-400 bg-yellow-500/10 rounded border border-yellow-500/20 ${padding}`}>
-                <CalendarClock className="w-3 h-3" /> DUE TOMORROW
+                <CalendarClock className="w-3.5 h-3.5" /> DUE TOMORROW
             </span>
         );
     }
