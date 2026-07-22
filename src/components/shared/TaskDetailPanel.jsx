@@ -385,19 +385,19 @@ export default function TaskDetailPanel({ task, state, updateState, currentUser,
 
                     {/* ── Status ── */}
                     <div>
-                        <h4 className="text-3xs uppercase tracking-wider text-slate-500 mb-2 font-semibold">Status</h4>
-                        <div className="flex flex-wrap gap-1.5">
+                        <h4 className="text-xs uppercase tracking-wider text-slate-500 mb-2 font-semibold">Status</h4>
+                        <div className="flex flex-wrap gap-2">
                             {STATUS_PIPELINE.map(s => (
                                 <button
                                     key={s}
                                     onClick={() => handleStatusChange(s)}
-                                    className={`px-2.5 py-1 rounded-lg text-3xs font-bold transition ${
+                                    className={`px-3.5 py-2 rounded-lg text-xs font-bold transition min-h-[36px] ${
                                         statusEdit === s
                                             ? 'bg-violet-600 text-white border border-violet-600'
                                             : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                                     }`}
                                 >
-                                    {s === statusEdit && <CheckCircle2 className="w-3 h-3 inline -ml-0.5 mr-1" />}
+                                    {s === statusEdit && <CheckCircle2 className="w-3.5 h-3.5 inline -ml-0.5 mr-1" />}
                                     {s}
                                 </button>
                             ))}
